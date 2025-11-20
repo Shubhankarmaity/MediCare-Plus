@@ -1,0 +1,26 @@
+# Node modules
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables
+.env
+.env.*.local
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE folders
+.vscode/
+.idea/
+
+# Optional: database backups if any
+*.sqlite
+*.db
