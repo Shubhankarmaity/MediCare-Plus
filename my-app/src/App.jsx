@@ -19,8 +19,8 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<><Navbar /><Home /></>} />
-        <Route path="/login" element={<><Navbar /><Login /></>} />
-        <Route path="/signup" element={<><Navbar /><Signup /></>} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
 
         {/* Private Dashboards */}
         <Route path="/patient-dashboard" element={<PatientDashboard />} />

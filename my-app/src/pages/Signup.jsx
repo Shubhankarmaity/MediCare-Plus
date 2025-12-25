@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  Grid, Paper, Typography, TextField, Button, 
-  Card, CardContent, Avatar, CardActionArea, Box, IconButton 
+import {
+  Grid, Paper, Typography, TextField, Button,
+  Card, CardContent, Avatar, CardActionArea, Box, IconButton,
+  MenuItem, Select, FormControl, InputLabel
 } from '@mui/material';
 import { User, Stethoscope, Ambulance, Shield, ArrowLeft } from 'lucide-react';
+
+import CssBaseline from '@mui/material/CssBaseline';
 
 const roleCards = [
   { id: 'patient', label: 'Patient', icon: <User size={32} />, description: 'Find doctors and book appointments.', color: 'bg-blue-100 text-blue-600', avatarBg: 'primary.main' },
@@ -16,12 +19,23 @@ const roleCards = [
 const Signup = () => {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState(null);
-  
+
   // Initial State holds all possible fields
-  const [formData, setFormData] = useState({ 
-    name: '', email: '', password: '', 
-    hospitalName: '', specialization: '', experience: '', // Doctor
-    vehicleNumber: '', licenseNumber: '' // Driver
+  const [formData, setFormData] = useState({
+    // Common fields
+    name: '', email: '', password: '',
+    
+    // Patient fields
+    phone: '', age: '', gender: '', bloodGroup: '', address: '',
+    emergencyContact: '', medicalHistory: '',
+    
+    // Doctor fields
+    hospitalName: '', specialization: '', experience: '', qualification: '',
+    consultationFee: '', availableDays: '', availableTime: '',
+    doctorPhone: '', licenseNumber: '',
+    
+    // Driver fields
+    vehicleNumber: '', driverLicenseNumber: '', vehicleType: '', driverPhone: ''
   });
 
   const handleRoleSelect = (roleId) => {
@@ -33,16 +47,21 @@ const Signup = () => {
     // We send EVERYTHING in formData + the role. 
     // The backend will only save the fields defined in the schema.
     const finalData = { ...formData, role: selectedRole };
-    
+
     try {
       const response = await fetch('http://localhost:5000/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(finalData),
       });
-      
+
       if (response.ok) {
-        alert("Registration Successful! Please Login.");
+        const data = await response.json();
+        if (data.requiresApproval) {
+          alert(data.message); // Doctor pending approval message
+        } else {
+          alert("Registration Successful! Please Login.");
+        }
         navigate('/login');
       } else {
         const data = await response.json();
@@ -57,16 +76,17 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      
+      <CssBaseline />
+
       {/* VIEW 1: SELECTION CARDS */}
       {!selectedRole && (
         <div className="max-w-5xl w-full text-center">
           <Typography variant="h3" fontWeight="bold" mb={1} color="#1e293b">Join MediCare Plus</Typography>
           <Typography variant="h6" color="text.secondary" mb={6}>Select your profile type to register</Typography>
-          
+
           <Grid container spacing={3} justifyContent="center">
             {roleCards.map((role) => (
-              <Grid item xs={12} sm={6} md={3} key={role.id}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }} key={role.id}>
                 <Card elevation={3} sx={{ borderRadius: 4, height: '100%', '&:hover': { transform: 'translateY(-5px)', transition: '0.3s' } }}>
                   <CardActionArea onClick={() => handleRoleSelect(role.id)} sx={{ height: '100%', p: 3 }}>
                     <Box display="flex" flexDirection="column" alignItems="center">
@@ -85,7 +105,7 @@ const Signup = () => {
 
       {/* VIEW 2: DYNAMIC FORM */}
       {selectedRole && (
-        <Paper elevation={6} sx={{ p: 5, borderRadius: 4, maxWidth: 500, width: '100%', position: 'relative' }}>
+        <Paper elevation={6} sx={{ p: 5, borderRadius: 4, maxWidth: 600, width: '100%', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
           <IconButton onClick={() => setSelectedRole(null)} sx={{ position: 'absolute', top: 10, left: 10 }}>
             <ArrowLeft />
           </IconButton>
@@ -98,29 +118,100 @@ const Signup = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* COMMON FIELDS */}
-            <TextField fullWidth label="Full Name" required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
-            <TextField fullWidth label="Email" type="email" required value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
-            <TextField fullWidth label="Password" type="password" required value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
+            <TextField fullWidth label="Full Name" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+            <TextField fullWidth label="Email" type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+            <TextField fullWidth label="Password" type="password" required value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+
+            {/* PATIENT SPECIFIC FIELDS */}
+            {selectedRole === 'patient' && (
+              <>
+                <TextField fullWidth label="Phone Number" required
+                  value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
+                
+                <TextField fullWidth label="Age" type="number" required
+                  value={formData.age} onChange={(e) => setFormData({ ...formData, age: e.target.value })} />
+                
+                <FormControl fullWidth required>
+                  <InputLabel>Gender</InputLabel>
+                  <Select value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} label="Gender">
+                    <MenuItem value="Male">Male</MenuItem>
+                    <MenuItem value="Female">Female</MenuItem>
+                    <MenuItem value="Other">Other</MenuItem>
+                  </Select>
+                </FormControl>
+                
+                <FormControl fullWidth required>
+                  <InputLabel>Blood Group</InputLabel>
+                  <Select value={formData.bloodGroup} onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })} label="Blood Group">
+                    <MenuItem value="A+">A+</MenuItem>
+                    <MenuItem value="A-">A-</MenuItem>
+                    <MenuItem value="B+">B+</MenuItem>
+                    <MenuItem value="B-">B-</MenuItem>
+                    <MenuItem value="AB+">AB+</MenuItem>
+                    <MenuItem value="AB-">AB-</MenuItem>
+                    <MenuItem value="O+">O+</MenuItem>
+                    <MenuItem value="O-">O-</MenuItem>
+                  </Select>
+                </FormControl>
+                
+                <TextField fullWidth label="Address" required multiline rows={2}
+                  value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
+                
+                <TextField fullWidth label="Emergency Contact Number" required
+                  value={formData.emergencyContact} onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })} />
+                
+                <TextField fullWidth label="Medical History (Allergies, Conditions, etc.)" multiline rows={3}
+                  value={formData.medicalHistory} onChange={(e) => setFormData({ ...formData, medicalHistory: e.target.value })} 
+                  placeholder="E.g., Diabetes, Hypertension, Allergic to Penicillin" />
+              </>
+            )}
 
             {/* DOCTOR SPECIFIC FIELDS */}
             {selectedRole === 'doctor' && (
               <>
-                <TextField fullWidth label="Hospital / Clinic Name" required color="secondary"
-                  value={formData.hospitalName} onChange={(e) => setFormData({...formData, hospitalName: e.target.value})} />
+                <TextField fullWidth label="Medical License Number" required color="secondary"
+                  value={formData.licenseNumber} onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })} />
+                
+                <TextField fullWidth label="Qualification (e.g., MBBS, MD)" required color="secondary"
+                  value={formData.qualification} onChange={(e) => setFormData({ ...formData, qualification: e.target.value })} />
+                
                 <TextField fullWidth label="Specialization (e.g., Cardiologist)" required color="secondary"
-                  value={formData.specialization} onChange={(e) => setFormData({...formData, specialization: e.target.value})} />
+                  value={formData.specialization} onChange={(e) => setFormData({ ...formData, specialization: e.target.value })} />
+                
+                <TextField fullWidth label="Hospital / Clinic Name" required color="secondary"
+                  value={formData.hospitalName} onChange={(e) => setFormData({ ...formData, hospitalName: e.target.value })} />
+                
                 <TextField fullWidth label="Years of Experience" type="number" required color="secondary"
-                  value={formData.experience} onChange={(e) => setFormData({...formData, experience: e.target.value})} />
+                  value={formData.experience} onChange={(e) => setFormData({ ...formData, experience: e.target.value })} />
+                
+                <TextField fullWidth label="Consultation Fee (₹)" type="number" required color="secondary"
+                  value={formData.consultationFee} onChange={(e) => setFormData({ ...formData, consultationFee: e.target.value })} />
+                
+                <TextField fullWidth label="Available Days (e.g., Mon-Fri)" required color="secondary"
+                  value={formData.availableDays} onChange={(e) => setFormData({ ...formData, availableDays: e.target.value })} />
+                
+                <TextField fullWidth label="Available Time (e.g., 9AM-5PM)" required color="secondary"
+                  value={formData.availableTime} onChange={(e) => setFormData({ ...formData, availableTime: e.target.value })} />
+                
+                <TextField fullWidth label="Contact Phone" required color="secondary"
+                  value={formData.doctorPhone} onChange={(e) => setFormData({ ...formData, doctorPhone: e.target.value })} />
               </>
             )}
 
             {/* DRIVER SPECIFIC FIELDS */}
             {selectedRole === 'driver' && (
               <>
-                <TextField fullWidth label="Vehicle Number (Plate ID)" required color="error"
-                  value={formData.vehicleNumber} onChange={(e) => setFormData({...formData, vehicleNumber: e.target.value})} />
                 <TextField fullWidth label="Driving License Number" required color="error"
-                  value={formData.licenseNumber} onChange={(e) => setFormData({...formData, licenseNumber: e.target.value})} />
+                  value={formData.driverLicenseNumber} onChange={(e) => setFormData({ ...formData, driverLicenseNumber: e.target.value })} />
+                
+                <TextField fullWidth label="Vehicle Number (Plate ID)" required color="error"
+                  value={formData.vehicleNumber} onChange={(e) => setFormData({ ...formData, vehicleNumber: e.target.value })} />
+                
+                <TextField fullWidth label="Vehicle Type (e.g., Basic Ambulance, ICU Ambulance)" required color="error"
+                  value={formData.vehicleType} onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })} />
+                
+                <TextField fullWidth label="Contact Phone" required color="error"
+                  value={formData.driverPhone} onChange={(e) => setFormData({ ...formData, driverPhone: e.target.value })} />
               </>
             )}
 

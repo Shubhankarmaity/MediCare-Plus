@@ -12,6 +12,7 @@ const doctorRoutes = require('./routes/doctors');
 const appointmentRoutes = require('./routes/appointments');
 const adminRoutes = require('./routes/admin');
 const ambulanceRoutes = require('./routes/ambulance');
+const accessRequestRoutes = require('./routes/accessRequests');
 
 const app = express();
 const server = http.createServer(app); // Wrap Express with HTTP server for Socket.io
@@ -20,8 +21,16 @@ const server = http.createServer(app); // Wrap Express with HTTP server for Sock
 app.use(cors());
 app.use(express.json());
 
+// Inject Socket.io into Request
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 // Database
-mongoose.connect('mongodb://127.0.0.1:27017/hospital-app')
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hospital-app';
+console.log("Attempting to connect to MongoDB at:", MONGODB_URI);
+mongoose.connect(MONGODB_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.log(err));
 
@@ -31,11 +40,12 @@ app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ambulance', ambulanceRoutes);
+app.use('/api/access-requests', accessRequestRoutes);
 
 // --- SOCKET.IO REAL-TIME LOGIC ---
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // Allow Frontend to connect
+    origin: ["http://localhost:5173", "http://localhost:5179", "http://localhost:5180"], // Allow Frontend to connect from both ports
     methods: ["GET", "POST"]
   }
 });
@@ -47,7 +57,7 @@ io.on("connection", (socket) => {
   socket.on("send_location", (data) => {
     // data = { lat: 40.7128, lng: -74.0060, driverId: '123' }
     console.log("Location Update:", data);
-    
+
     // Broadcast to everyone (or specific patients)
     io.emit("receive_location", data);
   });
@@ -63,7 +73,7 @@ io.on("connection", (socket) => {
   });
 });
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server & Socket.io running on port ${PORT}`);
 });

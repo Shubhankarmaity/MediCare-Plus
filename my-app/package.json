@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -15,10 +15,14 @@
     "@mui/icons-material": "^7.3.5",
     "@mui/material": "^7.3.5",
     "framer-motion": "^12.23.24",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.4",
     "lucide-react": "^0.554.0",
+    "mapbox-gl": "^3.17.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.9.6"
+    "react-router-dom": "^7.9.6",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

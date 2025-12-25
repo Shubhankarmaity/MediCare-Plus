@@ -1,19 +1,50 @@
 const router = require('express').Router();
 const Appointment = require('../models/Appointment');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
 
 // 1. Book Appointment (Patient)
 router.post('/book', auth, async (req, res) => {
   try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    console.log('Booking appointment - Patient:', user.name, 'Doctor ID:', req.body.doctorId);
+
     const newAppointment = new Appointment({
       patientId: req.user.id,
       doctorId: req.body.doctorId,
-      patientName: req.body.patientName,
+      patientName: user.name, // Securely fetch from DB
       date: req.body.date,
     });
     await newAppointment.save();
+    console.log('Appointment saved with ID:', newAppointment._id);
+
+    // Populate patient details before emitting to Socket.io
+    const populatedAppointment = await Appointment.findById(newAppointment._id)
+      .populate('patientId', 'name email')
+      .populate('doctorId', 'name');
+
+    console.log('Populated appointment:', {
+      id: populatedAppointment._id,
+      patientName: populatedAppointment.patientId?.name || populatedAppointment.patientName,
+      doctorId: populatedAppointment.doctorId,
+      date: populatedAppointment.date
+    });
+
+    // Notify the specific doctor via Socket.io
+    if (req.io) {
+      console.log('Emitting new_appointment event');
+      req.io.emit('new_appointment', populatedAppointment);
+    } else {
+      console.error("Socket.io not attached to request");
+    }
+
     res.json({ message: "Appointment Request Sent" });
-  } catch (err) { res.status(500).json(err); }
+  } catch (err) { 
+    console.error('Error booking appointment:', err);
+    res.status(500).json(err); 
+  }
 });
 
 // 2. Get Appointments (For Doctor Dashboard)
@@ -21,13 +52,76 @@ router.get('/my-appointments', auth, async (req, res) => {
   try {
     // If doctor, find appointments where doctorId matches
     // If patient, find where patientId matches
-    const query = req.user.role === 'doctor' 
-      ? { doctorId: req.user.id } 
+    const query = req.user.role === 'doctor'
+      ? { doctorId: req.user.id }
       : { patientId: req.user.id };
-      
-    const appointments = await Appointment.find(query);
+
+    console.log(`Fetching appointments for ${req.user.role}:`, req.user.id);
+    console.log('Query:', query);
+
+    const appointments = await Appointment.find(query)
+      .populate('patientId', 'name email')
+      .populate('doctorId', 'name specialization hospitalName experience consultationFee availableDays availableTime doctorPhone')
+      .sort({ createdAt: -1 });
+    
+    console.log(`Found ${appointments.length} appointments`);
+    
+    // If user is a doctor, check if they have access to patient profiles
+    if (req.user.role === 'doctor') {
+      // For each appointment, check if the doctor has access to the patient's profile
+      for (let i = 0; i < appointments.length; i++) {
+        const appointment = appointments[i];
+        if (appointment.patientId) {
+          // Get the patient ID (could be an object or string)
+          const patientId = appointment.patientId._id || appointment.patientId;
+          const patient = await User.findById(patientId).select('privacySettings accessRequests');
+          if (patient) {
+            const privacySettings = patient.privacySettings || {};
+            const profileAccess = privacySettings.profileAccess || new Map();
+            
+            // Check if this doctor has explicit access or if access is granted to all doctors
+            const doctorAccess = profileAccess.get(req.user.id);
+            const generalDoctorAccess = profileAccess.get('doctors');
+            
+            // Check for valid, non-expired, non-used access
+            const hasValidAccess = (doctorAccess && doctorAccess.approved && 
+                                   (!doctorAccess.expiresAt || doctorAccess.expiresAt > new Date()) &&
+                                   (!doctorAccess.singleUse || !doctorAccess.used));
+            
+            // Check if there's a pending access request
+            const accessRequests = patient.accessRequests || new Map();
+            const accessRequest = accessRequests.get(req.user.id);
+            
+            // If no access, remove sensitive patient information
+            if (!hasValidAccess) {
+              // Only provide minimal patient information
+              if (appointment.patientId.email) {
+                appointment.patientId.email = undefined;
+              }
+              // Note: We still provide the name as it's needed for appointment identification
+            }
+            // Note: We don't consume the permission here to allow the PatientDetails component to use it
+          }
+        }
+      }
+    }
+    
+    // Log each appointment for debugging
+    appointments.forEach((apt, index) => {
+      console.log(`Appointment ${index + 1}:`, {
+        id: apt._id,
+        patient: apt.patientId?.name || apt.patientName,
+        doctor: apt.doctorId?.name,
+        status: apt.status,
+        date: apt.date
+      });
+    });
+    
     res.json(appointments);
-  } catch (err) { res.status(500).json(err); }
+  } catch (err) { 
+    console.error('Error fetching appointments:', err);
+    res.status(500).json(err); 
+  }
 });
 
 // 3. Update Status (Doctor: Approve/Reject)
@@ -36,6 +130,43 @@ router.put('/status/:id', auth, async (req, res) => {
     await Appointment.findByIdAndUpdate(req.params.id, { status: req.body.status });
     res.json({ message: "Status Updated" });
   } catch (err) { res.status(500).json(err); }
+});
+
+// 4. Submit Doctor Report (Doctor only)
+router.put('/report/:id', auth, async (req, res) => {
+  try {
+    // Verify user is a doctor
+    if (req.user.role !== 'doctor') {
+      return res.status(403).json({ message: "Access denied. Doctors only." });
+    }
+    
+    console.log('Submitting report for appointment:', req.params.id);
+    console.log('Report data:', req.body);
+    
+    // Update appointment with doctor's report
+    const updatedAppointment = await Appointment.findByIdAndUpdate(
+      req.params.id,
+      { 
+        $set: { 
+          doctorReport: {
+            ...req.body,
+            reportDate: new Date()
+          }
+        }
+      },
+      { new: true }
+    );
+    
+    if (!updatedAppointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+    
+    console.log('Report submitted successfully for appointment:', updatedAppointment._id);
+    res.json({ message: "Report submitted successfully", appointment: updatedAppointment });
+  } catch (err) { 
+    console.error('Error submitting report:', err);
+    res.status(500).json(err); 
+  }
 });
 
 module.exports = router;
