@@ -115,6 +115,7 @@ const UserSchema = new mongoose.Schema({
   availableTime: { type: String, trim: true }, // 9AM-5PM, etc.
   doctorPhone: { type: String, trim: true },
   licenseNumber: { type: String, trim: true },
+  department: { type: String, trim: true }, // Department in the hospital
 
   // --- DRIVER SPECIFIC FIELDS ---
   driverLicenseNumber: { type: String, trim: true },

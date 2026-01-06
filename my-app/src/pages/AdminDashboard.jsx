@@ -114,18 +114,43 @@ const AdminDashboard = () => {
 
   const handleApproveDoctor = async (doctorId) => {
     const token = localStorage.getItem('token');
+    
+    // Prompt admin to select department for the doctor
+    const departments = [
+      'Cardiology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Oncology',
+      'Radiology', 'Emergency Medicine', 'Internal Medicine', 'Surgery',
+      'Gynecology', 'Dermatology', 'Ophthalmology', 'ENT', 'Psychiatry'
+    ];
+    
+    const departmentList = departments.join('\n');
+    const departmentInput = prompt(`Assign department for the doctor:
+
+${departmentList}
+
+Enter department name:`);
+    
+    if (departmentInput === null) return; // User cancelled
+    
     try {
       const res = await fetch(`http://localhost:5000/api/admin/approve-doctor/${doctorId}`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ department: departmentInput || 'General' })
       });
       if (res.ok) {
-        alert('Doctor approved successfully!');
+        alert('Doctor approved and assigned to department successfully!');
         fetchPendingDoctors();
         fetchData();
+      } else {
+        const data = await res.json();
+        alert(`Error: ${data.message || 'Failed to approve doctor'}`);
       }
     } catch (err) {
       console.error("Error approving doctor", err);
+      alert("Error approving doctor");
     }
   };
 
@@ -205,7 +230,7 @@ const AdminDashboard = () => {
                     <Typography variant="subtitle1" fontWeight="bold">{doctor.name}</Typography>
                     <Typography variant="caption" color="text.secondary">{doctor.email}</Typography>
                     <div className="text-sm mt-1">
-                      <span className="font-semibold text-teal-600">{doctor.specialization}</span> • {doctor.hospitalName} • {doctor.experience} years exp.
+                      <span className="font-semibold text-teal-600">{doctor.specialization}</span> • {doctor.hospitalName} • {doctor.experience} years exp.<br />
                     </div>
                   </div>
                 </div>
@@ -298,7 +323,8 @@ const AdminDashboard = () => {
                   {user.role === 'doctor' && (
                     <div className="text-sm">
                       <span className="font-bold text-gray-600">🏥 {user.hospitalName}</span><br />
-                      <span className="text-gray-500">{user.specialization}</span>
+                      <span className="text-gray-500">{user.specialization}</span><br />
+                      <span className="text-gray-600">Department: {user.department || 'Not assigned'}</span>
                     </div>
                   )}
                   {user.role === 'driver' && (
@@ -445,11 +471,17 @@ const AdminDashboard = () => {
                     </Grid>
                     <Grid size={{ xs: 6 }}>
                       <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Department</Typography>
+                        <Typography variant="body1" fontWeight="600">{selectedUser.department || 'Not assigned'}</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <Box>
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Hospital</Typography>
                         <Typography variant="body1" fontWeight="600">{selectedUser.hospitalName || 'Not specified'}</Typography>
                       </Box>
                     </Grid>
-                    <Grid size={{ xs: 12 }}>
+                    <Grid size={{ xs: 6 }}>
                       <Box>
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Experience</Typography>
                         <Typography variant="body1" fontWeight="600">{selectedUser.experience || 'Not specified'}</Typography>

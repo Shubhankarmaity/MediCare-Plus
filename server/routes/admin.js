@@ -129,15 +129,23 @@ router.put('/approve-doctor/:id', auth, async (req, res) => {
         
         console.log('Approving doctor:', req.params.id, 'by admin:', req.user.id);
         
+        const { department } = req.body;
+        const updateData = {
+            isApproved: true,
+            approvalStatus: 'approved',
+            approvedBy: req.user.id,
+            approvedAt: new Date(),
+            rejectionReason: null // Clear any previous rejection
+        };
+        
+        // Only add department if provided
+        if (department) {
+            updateData.department = department;
+        }
+        
         const doctor = await User.findByIdAndUpdate(
             req.params.id,
-            {
-                isApproved: true,
-                approvalStatus: 'approved',
-                approvedBy: req.user.id,
-                approvedAt: new Date(),
-                rejectionReason: null // Clear any previous rejection
-            },
+            updateData,
             { new: true }
         ).select('-password');
         
