@@ -2,6 +2,7 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Hospital = require('../models/Hospital');
 const auth = require('../middleware/auth');
 
 // REGISTER
@@ -16,9 +17,37 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: "User already exists with this email" });
     }
 
+    // --- ONE ADMIN PER HOSPITAL CHECK ---
+    if (req.body.role === 'admin') {
+      if (!req.body.hospitalId) {
+        return res.status(400).json({ message: "Admin must be linked to a hospital. Please provide hospitalId." });
+      }
+
+      const hospital = await Hospital.findById(req.body.hospitalId);
+      if (!hospital) {
+        return res.status(404).json({ message: "Hospital not found" });
+      }
+
+      // Check if hospital already has an admin
+      if (hospital.adminId) {
+        return res.status(400).json({ message: "This hospital already has an assigned admin." });
+      }
+    }
+
+    // --- DOCTOR LINK TO HOSPITAL ---
+    // If doctor, verify hospitalId and fetch name for legacy support
+    let finalUserData = { ...req.body };
+
+    if (req.body.role === 'doctor' && req.body.hospitalId) {
+      const hospital = await Hospital.findById(req.body.hospitalId);
+      if (hospital) {
+        finalUserData.hospitalName = hospital.name; // Store name for backward compatibility
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(req.body.password, 10);
     const userData = {
-      ...req.body,
+      ...finalUserData,
       email: req.body.email.toLowerCase(),
       password: hashedPassword
     };
@@ -32,6 +61,12 @@ router.post('/register', async (req, res) => {
 
     const user = await User.create(userData);
     console.log('User created successfully:', { id: user._id, email: user.email, role: user.role, approvalStatus: user.approvalStatus });
+
+    // Link Hospital to Admin if role is admin
+    if (user.role === 'admin' && user.hospitalId) {
+      await Hospital.findByIdAndUpdate(user.hospitalId, { adminId: user._id });
+      console.log(`Hospital ${user.hospitalId} linked to Admin ${user._id}`);
+    }
 
     // Notify Admin Dashboard about new user
     if (req.io) {

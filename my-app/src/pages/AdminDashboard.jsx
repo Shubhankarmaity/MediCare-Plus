@@ -78,7 +78,7 @@ const AdminDashboard = () => {
     try {
       const res = await fetch(`http://localhost:5000/api/access-requests/request-access/${patientId}`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
@@ -114,27 +114,27 @@ const AdminDashboard = () => {
 
   const handleApproveDoctor = async (doctorId) => {
     const token = localStorage.getItem('token');
-    
+
     // Prompt admin to select department for the doctor
     const departments = [
       'Cardiology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Oncology',
       'Radiology', 'Emergency Medicine', 'Internal Medicine', 'Surgery',
       'Gynecology', 'Dermatology', 'Ophthalmology', 'ENT', 'Psychiatry'
     ];
-    
+
     const departmentList = departments.join('\n');
     const departmentInput = prompt(`Assign department for the doctor:
 
 ${departmentList}
 
 Enter department name:`);
-    
+
     if (departmentInput === null) return; // User cancelled
-    
+
     try {
       const res = await fetch(`http://localhost:5000/api/admin/approve-doctor/${doctorId}`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
@@ -160,7 +160,7 @@ Enter department name:`);
     try {
       const res = await fetch(`http://localhost:5000/api/admin/reject-doctor/${doctorId}`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
@@ -199,8 +199,24 @@ Enter department name:`);
       new Audio('https://assets.mixkit.co/active_storage/sfx/2578/2578-preview.mp3').play().catch(() => { });
     });
 
+    // Listen for general admin role notifications
+    socket.on('admin_notification', (data) => {
+      // Check if this notification is meant for this admin (if adminId is specified)
+      const currentUserId = JSON.parse(atob(localStorage.getItem('token').split('.')[1])).id;
+
+      if (!data.adminId || data.adminId === currentUserId) {
+        if (data.type === 'new_appointment') {
+          // Show notification (simple alert for now, or update state to show generic notification)
+          alert(`New Appointment: ${data.appointment.patientId?.name || 'Patient'} has booked an appointment.`);
+          // Refresh data
+          fetchData();
+        }
+      }
+    });
+
     return () => {
       socket.off('new_user');
+      socket.off('admin_notification');
     };
   }, []);
 
@@ -235,18 +251,18 @@ Enter department name:`);
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button 
-                    variant="contained" 
-                    color="success" 
+                  <Button
+                    variant="contained"
+                    color="success"
                     size="small"
                     startIcon={<CheckCircle size={18} />}
                     onClick={() => handleApproveDoctor(doctor._id)}
                   >
                     Approve
                   </Button>
-                  <Button 
-                    variant="outlined" 
-                    color="error" 
+                  <Button
+                    variant="outlined"
+                    color="error"
                     size="small"
                     startIcon={<XCircle size={18} />}
                     onClick={() => handleRejectDoctor(doctor._id)}
@@ -359,7 +375,7 @@ Enter department name:`);
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               {selectedUser && (
-                <Avatar sx={{ 
+                <Avatar sx={{
                   bgcolor: selectedUser.role === 'doctor' ? '#14b8a6' : selectedUser.role === 'driver' ? '#ef4444' : '#f59e0b',
                   width: 48,
                   height: 48,
@@ -433,14 +449,14 @@ Enter department name:`);
                   <Grid size={{ xs: 6 }}>
                     <Box>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Role</Typography>
-                      <Chip 
-                        label={(selectedUser.role || 'unknown').toUpperCase()} 
-                        size="small" 
-                        sx={{ 
+                      <Chip
+                        label={(selectedUser.role || 'unknown').toUpperCase()}
+                        size="small"
+                        sx={{
                           fontWeight: 'bold',
                           bgcolor: selectedUser.role === 'doctor' ? '#d1fae5' : selectedUser.role === 'driver' ? '#fee2e2' : '#fef3c7',
                           color: selectedUser.role === 'doctor' ? '#065f46' : selectedUser.role === 'driver' ? '#991b1b' : '#92400e'
-                        }} 
+                        }}
                       />
                     </Box>
                   </Grid>
@@ -570,8 +586,8 @@ Enter department name:`);
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 <Box sx={{ flex: 1 }}>
                                   <Typography variant="body1" fontWeight="bold" gutterBottom>
-                                    {selectedUser.role === 'doctor' 
-                                      ? `${apt.patientId?.name || apt.patientName || 'Unknown Patient'}` 
+                                    {selectedUser.role === 'doctor'
+                                      ? `${apt.patientId?.name || apt.patientName || 'Unknown Patient'}`
                                       : `Dr. ${apt.doctorId?.name || 'Unknown Doctor'}`}
                                   </Typography>
                                   {selectedUser.role === 'patient' && apt.doctorId && (
@@ -581,18 +597,18 @@ Enter department name:`);
                                   )}
                                   <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                     <Clock size={13} />
-                                    {new Date(apt.date).toLocaleString('en-US', { 
-                                      month: 'short', 
-                                      day: 'numeric', 
+                                    {new Date(apt.date).toLocaleString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
                                       year: 'numeric',
                                       hour: '2-digit',
                                       minute: '2-digit'
                                     })}
                                   </Typography>
                                 </Box>
-                                <Chip 
-                                  label={apt.status.toUpperCase()} 
-                                  size="small" 
+                                <Chip
+                                  label={apt.status.toUpperCase()}
+                                  size="small"
                                   icon={apt.status === 'approved' ? <CheckCircle size={14} /> : apt.status === 'rejected' ? <XCircle size={14} /> : <Clock size={14} />}
                                   sx={{
                                     fontWeight: 'bold',
@@ -620,22 +636,22 @@ Enter department name:`);
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2, bgcolor: '#f9fafb', borderTop: '1px solid #e5e7eb' }}>
-          <Button 
-            onClick={handleCloseModal} 
-            variant="contained" 
-            sx={{ 
-              borderRadius: 2, 
-              px: 4, 
-              textTransform: 'none', 
+          <Button
+            onClick={handleCloseModal}
+            variant="contained"
+            sx={{
+              borderRadius: 2,
+              px: 4,
+              textTransform: 'none',
               fontWeight: '600',
               boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
             }}
           >
             Close
           </Button>
-          {(accessRequestStatus && accessRequestStatus.requestPending === false) || 
-           (selectedUser && selectedUser.role === 'patient' && !accessRequestStatus) ? (
-            <Button 
+          {(accessRequestStatus && accessRequestStatus.requestPending === false) ||
+            (selectedUser && selectedUser.role === 'patient' && !accessRequestStatus) ? (
+            <Button
               onClick={() => {
                 if (selectedUser && selectedUser._id) {
                   requestAccessToPatient(selectedUser._id);
@@ -644,13 +660,13 @@ Enter department name:`);
                   const userId = data?.users.find(u => u._id === selectedUser._id)?._id || selectedUser._id;
                   requestAccessToPatient(userId);
                 }
-              }} 
-              variant="contained" 
+              }}
+              variant="contained"
               color="primary"
-              sx={{ 
-                borderRadius: 2, 
-                px: 4, 
-                textTransform: 'none', 
+              sx={{
+                borderRadius: 2,
+                px: 4,
+                textTransform: 'none',
                 fontWeight: '600',
                 boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
                 ml: 2

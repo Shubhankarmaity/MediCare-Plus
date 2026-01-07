@@ -139,27 +139,36 @@ const Home = () => {
                   Your Health is Our <span className="text-blue-600">Priority</span>
                 </Typography>
                 <Typography variant="h6" className="text-gray-600 text-lg md:text-xl mb-8 max-w-2xl">
-                  Comprehensive healthcare platform connecting patients with top specialists, 
+                  Comprehensive healthcare platform connecting patients with top specialists,
                   offering real-time ambulance tracking, secure medical records, and instant appointments.
                 </Typography>
                 <div className="flex flex-wrap gap-4">
-                  <Button 
-                    variant="contained" 
-                    size="large" 
+                  <Button
+                    variant="contained"
+                    size="large"
                     className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-bold shadow-lg transition-all duration-300 transform hover:scale-105"
-                    component={Link} 
+                    component={Link}
                     to="/signup"
                   >
                     Get Started
                   </Button>
-                  <Button 
-                    variant="outlined" 
-                    size="large" 
+                  <Button
+                    variant="outlined"
+                    size="large"
                     className="border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-3 rounded-full font-bold shadow transition-all duration-300"
-                    component={Link} 
+                    component={Link}
                     to="/login"
                   >
                     Book Appointment
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    className="bg-white border-white text-blue-600 hover:bg-gray-100 px-8 py-3 rounded-full font-bold shadow transition-all duration-300"
+                    component={Link}
+                    to="/hospitals"
+                  >
+                    Find Hospitals
                   </Button>
                 </div>
               </div>

@@ -24,23 +24,38 @@ const Signup = () => {
   const [formData, setFormData] = useState({
     // Common fields
     name: '', email: '', password: '',
-    
+
     // Patient fields
     phone: '', age: '', gender: '', bloodGroup: '', address: '',
     emergencyContact: '', medicalHistory: '',
-    
+
     // Doctor fields
-    hospitalName: '', specialization: '', experience: '', qualification: '',
+    specialization: '', experience: '', qualification: '',
     consultationFee: '', availableDays: '', availableTime: '',
     doctorPhone: '', licenseNumber: '',
-    
+
     // Driver fields
-    vehicleNumber: '', driverLicenseNumber: '', vehicleType: '', driverPhone: ''
+    vehicleNumber: '', driverLicenseNumber: '', vehicleType: '', driverPhone: '',
+
+    // Admin field
+    hospitalId: ''
   });
 
   const handleRoleSelect = (roleId) => {
     setSelectedRole(roleId);
   };
+
+  // Fetch hospitals for admin selection
+  // Fetch hospitals for admin and doctor selection
+  const [hospitals, setHospitals] = useState([]);
+  React.useEffect(() => {
+    if (selectedRole === 'admin' || selectedRole === 'doctor') {
+      fetch('http://localhost:5000/api/hospitals')
+        .then(res => res.json())
+        .then(data => setHospitals(data))
+        .catch(err => console.error("Error fetching hospitals:", err));
+    }
+  }, [selectedRole]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -127,10 +142,10 @@ const Signup = () => {
               <>
                 <TextField fullWidth label="Phone Number" required
                   value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
-                
+
                 <TextField fullWidth label="Age" type="number" required
                   value={formData.age} onChange={(e) => setFormData({ ...formData, age: e.target.value })} />
-                
+
                 <FormControl fullWidth required>
                   <InputLabel>Gender</InputLabel>
                   <Select value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} label="Gender">
@@ -139,7 +154,7 @@ const Signup = () => {
                     <MenuItem value="Other">Other</MenuItem>
                   </Select>
                 </FormControl>
-                
+
                 <FormControl fullWidth required>
                   <InputLabel>Blood Group</InputLabel>
                   <Select value={formData.bloodGroup} onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })} label="Blood Group">
@@ -153,15 +168,15 @@ const Signup = () => {
                     <MenuItem value="O-">O-</MenuItem>
                   </Select>
                 </FormControl>
-                
+
                 <TextField fullWidth label="Address" required multiline rows={2}
                   value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
-                
+
                 <TextField fullWidth label="Emergency Contact Number" required
                   value={formData.emergencyContact} onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })} />
-                
+
                 <TextField fullWidth label="Medical History (Allergies, Conditions, etc.)" multiline rows={3}
-                  value={formData.medicalHistory} onChange={(e) => setFormData({ ...formData, medicalHistory: e.target.value })} 
+                  value={formData.medicalHistory} onChange={(e) => setFormData({ ...formData, medicalHistory: e.target.value })}
                   placeholder="E.g., Diabetes, Hypertension, Allergic to Penicillin" />
               </>
             )}
@@ -171,28 +186,40 @@ const Signup = () => {
               <>
                 <TextField fullWidth label="Medical License Number" required color="secondary"
                   value={formData.licenseNumber} onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })} />
-                
+
                 <TextField fullWidth label="Qualification (e.g., MBBS, MD)" required color="secondary"
                   value={formData.qualification} onChange={(e) => setFormData({ ...formData, qualification: e.target.value })} />
-                
+
                 <TextField fullWidth label="Specialization (e.g., Cardiologist)" required color="secondary"
                   value={formData.specialization} onChange={(e) => setFormData({ ...formData, specialization: e.target.value })} />
-                
-                <TextField fullWidth label="Hospital / Clinic Name" required color="secondary"
-                  value={formData.hospitalName} onChange={(e) => setFormData({ ...formData, hospitalName: e.target.value })} />
-                
+
+                <FormControl fullWidth required>
+                  <InputLabel>Hospital / Clinic Name</InputLabel>
+                  <Select
+                    value={formData.hospitalId}
+                    onChange={(e) => setFormData({ ...formData, hospitalId: e.target.value })}
+                    label="Hospital / Clinic Name"
+                  >
+                    {hospitals.map((hospital) => (
+                      <MenuItem key={hospital._id} value={hospital._id}>
+                        {hospital.name} ({hospital.city})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
                 <TextField fullWidth label="Years of Experience" type="number" required color="secondary"
                   value={formData.experience} onChange={(e) => setFormData({ ...formData, experience: e.target.value })} />
-                
+
                 <TextField fullWidth label="Consultation Fee (₹)" type="number" required color="secondary"
                   value={formData.consultationFee} onChange={(e) => setFormData({ ...formData, consultationFee: e.target.value })} />
-                
+
                 <TextField fullWidth label="Available Days (e.g., Mon-Fri)" required color="secondary"
                   value={formData.availableDays} onChange={(e) => setFormData({ ...formData, availableDays: e.target.value })} />
-                
+
                 <TextField fullWidth label="Available Time (e.g., 9AM-5PM)" required color="secondary"
                   value={formData.availableTime} onChange={(e) => setFormData({ ...formData, availableTime: e.target.value })} />
-                
+
                 <TextField fullWidth label="Contact Phone" required color="secondary"
                   value={formData.doctorPhone} onChange={(e) => setFormData({ ...formData, doctorPhone: e.target.value })} />
               </>
@@ -203,16 +230,37 @@ const Signup = () => {
               <>
                 <TextField fullWidth label="Driving License Number" required color="error"
                   value={formData.driverLicenseNumber} onChange={(e) => setFormData({ ...formData, driverLicenseNumber: e.target.value })} />
-                
+
                 <TextField fullWidth label="Vehicle Number (Plate ID)" required color="error"
                   value={formData.vehicleNumber} onChange={(e) => setFormData({ ...formData, vehicleNumber: e.target.value })} />
-                
+
                 <TextField fullWidth label="Vehicle Type (e.g., Basic Ambulance, ICU Ambulance)" required color="error"
                   value={formData.vehicleType} onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })} />
-                
+
                 <TextField fullWidth label="Contact Phone" required color="error"
                   value={formData.driverPhone} onChange={(e) => setFormData({ ...formData, driverPhone: e.target.value })} />
               </>
+            )}
+
+            {/* ADMIN SPECIFIC FIELDS */}
+            {selectedRole === 'admin' && (
+              <FormControl fullWidth required>
+                <InputLabel>Select Hospital to Manage</InputLabel>
+                <Select
+                  value={formData.hospitalId}
+                  onChange={(e) => setFormData({ ...formData, hospitalId: e.target.value })}
+                  label="Select Hospital to Manage"
+                >
+                  {hospitals.map((hospital) => (
+                    <MenuItem key={hospital._id} value={hospital._id}>
+                      {hospital.name} ({hospital.city}) {hospital.adminId ? '(Admin Assigned)' : '(Available)'}
+                    </MenuItem>
+                  ))}
+                </Select>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                  Note: You can only register for hospitals that do not already have an administrator.
+                </Typography>
+              </FormControl>
             )}
 
             <Button type="submit" fullWidth variant="contained" size="large" sx={{ mt: 2, bgcolor: currentRoleDetails.avatarBg, fontWeight: 'bold' }}>

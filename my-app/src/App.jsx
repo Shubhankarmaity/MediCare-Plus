@@ -11,6 +11,8 @@ import PatientDashboard from './pages/PatientDashboard';
 import DoctorDashboard from './pages/DoctorDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import DriverDashboard from './pages/DriverDashboard';
+import HospitalSearch from './pages/HospitalSearch';
+import HospitalDetails from './pages/HospitalDetails';
 
 function App() {
   return (
@@ -28,6 +30,10 @@ function App() {
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/driver-dashboard" element={<DriverDashboard />} />
         <Route path="/profile" element={<Profile />} />
+
+        {/* Hospital Routes */}
+        <Route path="/hospitals" element={<><Navbar /><HospitalSearch /></>} />
+        <Route path="/hospitals/:id" element={<><Navbar /><HospitalDetails /></>} />
       </Routes>
     </Router>
   );

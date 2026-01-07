@@ -1,51 +1,100 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 const Appointment = require('./models/Appointment');
-const AmbulanceRequest = require('./models/AmbulanceRequest');
+const Hospital = require('./models/Hospital');
+require('dotenv').config();
 
-// Connect to Database
-mongoose.connect('mongodb://127.0.0.1:27017/hospital-app')
-  .then(() => console.log("🔌 Connected to MongoDB..."))
-  .catch(err => console.error("Connection Error:", err));
+const hospitals = [
+  {
+    name: "City General Hospital",
+    address: "123 Healthcare Blvd",
+    city: "New York",
+    phone: "555-0123",
+    email: "contact@citygeneral.com",
+    image: "https://images.unsplash.com/photo-1587351021759-3e566b9af922?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+    facilities: ["Emergency", "ICU", "Pediatrics", "Cardiology", "Radiology"],
+    totalBeds: 500,
+    availableBeds: 45,
+    icuAvailable: true,
+    emergencyServices: true,
+    rating: 4.8,
+    description: "A premier healthcare facility offering world-class medical services with state-of-the-art technology."
+  },
+  {
+    name: "Sunrise Community Medical Center",
+    address: "456 Wellness Way",
+    city: "Los Angeles",
+    phone: "555-0456",
+    email: "info@sunrisemedical.com",
+    image: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+    facilities: ["General Surgery", "Orthopedics", "Physical Therapy", "Pharmacy"],
+    totalBeds: 300,
+    availableBeds: 12,
+    icuAvailable: false,
+    emergencyServices: true,
+    rating: 4.2,
+    description: "Dedicated to providing compassionate care to our community with a focus on holistic wellness."
+  },
+  {
+    name: "St. Mary's Memorial Hospital",
+    address: "789 Faith Street",
+    city: "Chicago",
+    phone: "555-0789",
+    email: "support@stmarys.org",
+    image: "https://images.unsplash.com/photo-1512678080530-7760d81faba6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+    facilities: ["Emergency", "ICU", "Neurology", "Oncology", "Maternity"],
+    totalBeds: 750,
+    availableBeds: 120,
+    icuAvailable: true,
+    emergencyServices: true,
+    rating: 4.9,
+    description: "Leading the way in medical research and advanced patient care for over a century."
+  },
+  {
+    name: "Green Valley Clinic",
+    address: "321 Nature Rd",
+    city: "San Francisco",
+    phone: "555-0321",
+    email: "appointments@greenvalley.com",
+    image: "https://images.unsplash.com/photo-1632833239869-a37e3a5806d2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+    facilities: ["Outpatient Care", "Dental", "Dermatology"],
+    totalBeds: 50,
+    availableBeds: 5,
+    icuAvailable: false,
+    emergencyServices: false,
+    rating: 4.5,
+    description: "Your neighborhood clinic for routine checkups and specialized outpatient services."
+  }
+];
 
-const clearData = async () => {
+const resetDb = async () => {
   try {
-    console.log("🔥 Deleting all data...");
+    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hospital-app';
+    await mongoose.connect(MONGODB_URI);
+    console.log('✅ Connected to MongoDB');
 
-    // Delete All Collections
+    // Clear Collections
+    console.log('🗑️  Clearing Users...');
     await User.deleteMany({});
-    console.log("✅ Users Collection Cleared");
 
+    console.log('🗑️  Clearing Appointments...');
     await Appointment.deleteMany({});
-    console.log("✅ Appointments Collection Cleared");
 
-    await AmbulanceRequest.deleteMany({});
-    console.log("✅ Ambulance Requests Collection Cleared");
+    console.log('🗑️  Clearing Hospitals...');
+    await Hospital.deleteMany({});
 
-    // CREATE ONLY DEFAULT ADMIN
-    const hashedPassword = await bcrypt.hash("admin123", 10);
-    const admin = await User.create({
-      name: "System Admin",
-      email: "admin@hospital.com",
-      password: hashedPassword,
-      role: "admin"
-    });
-    console.log("👤 Default Admin Created:", { id: admin._id, email: admin.email, role: admin.role });
+    // Re-seed Hospitals
+    console.log('🌱 Seeding Hospitals...');
+    await Hospital.insertMany(hospitals);
 
-    console.log("\n✨ Database Reset Complete!");
-    console.log("\n📋 Default Account:");
-    console.log("   Admin: admin@hospital.com / admin123");
-    console.log("\n💡 Users can now register as:");
-    console.log("   - Doctors (will appear in patient dashboard)");
-    console.log("   - Patients (can book doctors)");
-    console.log("   - Drivers (for ambulance services)");
-    
-    process.exit();
-  } catch (error) {
-    console.error("Error clearing DB:", error);
+    console.log('✨ Database Reset and Cleaned Successfully!');
+
+    mongoose.connection.close();
+    process.exit(0);
+  } catch (err) {
+    console.error('❌ Error resetting database:', err);
     process.exit(1);
   }
 };
 
-clearData();
+resetDb();

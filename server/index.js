@@ -41,6 +41,8 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ambulance', ambulanceRoutes);
 app.use('/api/access-requests', accessRequestRoutes);
+const hospitalRoutes = require('./routes/hospitals');
+app.use('/api/hospitals', hospitalRoutes);
 
 // --- SOCKET.IO REAL-TIME LOGIC ---
 const io = new Server(server, {

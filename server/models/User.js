@@ -2,26 +2,32 @@ const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
-  email: { 
-    type: String, 
-    required: true, 
+  email: {
+    type: String,
+    required: true,
     unique: true,
     lowercase: true,
     trim: true,
     index: true
   },
   password: { type: String, required: true, select: false },
-  role: { 
-    type: String, 
-    enum: ['patient', 'doctor', 'admin', 'driver'], 
+  role: {
+    type: String,
+    enum: ['patient', 'doctor', 'admin', 'driver'],
     required: true,
     index: true
   },
-  
+
+  // Link to Hospital (For Admins and Doctors)
+  hospitalId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Hospital'
+  },
+
   // --- APPROVAL SYSTEM FOR DOCTORS ---
-  isApproved: { 
-    type: Boolean, 
-    default: function() {
+  isApproved: {
+    type: Boolean,
+    default: function () {
       // Auto-approve patients, drivers, and admin
       // Doctors need manual approval from admin
       return this.role !== 'doctor';
@@ -30,14 +36,14 @@ const UserSchema = new mongoose.Schema({
   approvalStatus: {
     type: String,
     enum: ['pending', 'approved', 'rejected'],
-    default: function() {
+    default: function () {
       return this.role === 'doctor' ? 'pending' : 'approved';
     }
   },
   rejectionReason: { type: String },
   approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   approvedAt: { type: Date },
-  
+
   // --- PATIENT PRIVACY SETTINGS ---
   privacySettings: {
     profileAccess: {
@@ -63,8 +69,8 @@ const UserSchema = new mongoose.Schema({
     of: {
       requestedAt: { type: Date },
       requestedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-      status: { 
-        type: String, 
+      status: {
+        type: String,
         enum: ['pending', 'approved', 'rejected'],
         default: 'pending'
       },
@@ -83,8 +89,8 @@ const UserSchema = new mongoose.Schema({
   // --- PATIENT SPECIFIC FIELDS ---
   phone: { type: String, trim: true },
   age: { type: Number },
-  gender: { 
-    type: String, 
+  gender: {
+    type: String,
     enum: {
       values: ['Male', 'Female', 'Other'],
       message: '{VALUE} is not a valid gender'
@@ -92,8 +98,8 @@ const UserSchema = new mongoose.Schema({
     trim: true,
     default: undefined // Don't set empty string
   },
-  bloodGroup: { 
-    type: String, 
+  bloodGroup: {
+    type: String,
     enum: {
       values: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
       message: '{VALUE} is not a valid blood group'
@@ -104,7 +110,7 @@ const UserSchema = new mongoose.Schema({
   address: { type: String, trim: true },
   emergencyContact: { type: String, trim: true },
   medicalHistory: { type: String, trim: true }, // Existing conditions, allergies
-  
+
   // --- DOCTOR SPECIFIC FIELDS ---
   specialization: { type: String, trim: true },
   hospitalName: { type: String, trim: true },
@@ -134,7 +140,7 @@ UserSchema.index({ email: 1, role: 1 });
 
 // Ensure password is not returned by default
 UserSchema.set('toJSON', {
-  transform: function(doc, ret, options) {
+  transform: function (doc, ret, options) {
     delete ret.password;
     return ret;
   }
