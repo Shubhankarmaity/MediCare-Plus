@@ -279,4 +279,43 @@ router.put('/reject-doctor/:id', auth, async (req, res) => {
     }
 });
 
+
+
+// DISCHARGE PATIENT
+router.put('/discharge-patient/:id', auth, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') return res.status(403).json({ message: "Access Denied" });
+
+        const currentAdmin = await User.findById(req.user.id);
+        const hospital = await Hospital.findById(currentAdmin.hospitalId);
+
+        if (!hospital) return res.status(400).json({ message: "Admin not linked to a hospital" });
+
+        const patient = await User.findById(req.params.id);
+        if (!patient) return res.status(404).json({ message: "Patient not found" });
+
+        // Verify patient is actually at this hospital (or was)
+        if (patient.hospitalId && patient.hospitalId.toString() !== hospital._id.toString()) {
+            return res.status(403).json({ message: "This patient is admitted to a different hospital." });
+        }
+
+        // DISCHARGE
+        patient.hospitalId = undefined; // unset
+        patient.department = undefined; // unset
+        await patient.save();
+
+        console.log(`Patient ${patient.name} discharged from ${hospital.name} by ${currentAdmin.email}`);
+
+        // Notify via Socket
+        if (req.io) {
+            req.io.emit('patient_discharged', { patientId: patient._id, hospitalId: hospital._id });
+        }
+
+        res.json({ message: "Patient discharged successfully", patient });
+    } catch (err) {
+        console.error('Error discharging patient:', err);
+        res.status(500).json({ message: err.message });
+    }
+});
+
 module.exports = router;

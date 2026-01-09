@@ -22,18 +22,18 @@ const Profile = () => {
     try {
       const token = localStorage.getItem('token');
       const storedUserData = localStorage.getItem('user');
-      
+
       console.log('Fetching profile with token:', token ? 'Token exists' : 'No token');
       console.log('Stored user in localStorage:', JSON.parse(storedUserData || '{}'));
-      
+
       const res = await fetch('http://localhost:5000/profile', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      
+
       console.log('Profile API response status:', res.status);
       console.log('Profile API response data:', data);
-      
+
       if (res.ok) {
         console.log('Setting user data:', data.user);
         setUserData(data.user);
@@ -69,12 +69,12 @@ const Profile = () => {
       });
 
       const data = await res.json();
-      
+
       if (res.ok) {
         // Update local storage with new data
         const updatedUser = { ...storedUser, ...data.user };
         localStorage.setItem('user', JSON.stringify(updatedUser));
-        
+
         alert("Profile Updated Successfully!");
         setEditMode(false);
         fetchUserData(); // Refresh data
@@ -139,11 +139,11 @@ const Profile = () => {
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: -8, px: 3, pb: 4 }}>
               <Box sx={{ position: 'relative' }}>
                 <Avatar
-                  sx={{ 
-                    width: 130, 
-                    height: 130, 
-                    border: '5px solid white', 
-                    fontSize: '3.5rem', 
+                  sx={{
+                    width: 130,
+                    height: 130,
+                    border: '5px solid white',
+                    fontSize: '3.5rem',
                     bgcolor: '#e5e7eb',
                     color: '#6b7280',
                     fontWeight: 'bold',
@@ -177,14 +177,14 @@ const Profile = () => {
                 <Mail size={14} />
                 {userData.email}
               </Typography>
-              
+
               <Chip
                 icon={getRoleIcon()}
                 label={userData.role.toUpperCase()}
-                sx={{ 
-                  mt: 2, 
-                  fontWeight: 'bold', 
-                  color: 'white', 
+                sx={{
+                  mt: 2,
+                  fontWeight: 'bold',
+                  color: 'white',
                   background: getRoleColor(),
                   px: 2,
                   fontSize: '0.75rem',
@@ -206,7 +206,7 @@ const Profile = () => {
                     </Typography>
                   </Box>
                 </Box>
-                
+
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.5, px: 2, bgcolor: '#f0fdf4', borderRadius: 2 }}>
                   <Box sx={{ p: 1, bgcolor: '#d1fae5', borderRadius: 1.5 }}>
                     <Award size={18} color="#10b981" />
@@ -236,7 +236,13 @@ const Profile = () => {
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="body2" color="text.secondary">Hospital</Typography>
-                      <Typography variant="body2" fontWeight="600">{userData.hospitalName || 'N/A'}</Typography>
+                      <Typography variant="body2" fontWeight="600">
+                        {userData.hospitalId?.name || userData.hospitalName || 'N/A'}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5 }}>
+                      <Typography variant="body2" color="text.secondary">Department</Typography>
+                      <Typography variant="body2" fontWeight="600">{userData.department || 'N/A'}</Typography>
                     </Box>
                   </>
                 )}
@@ -284,11 +290,11 @@ const Profile = () => {
                       Basic Information
                     </Typography>
                   </Grid>
-                  
+
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
-                      fullWidth 
-                      label="Full Name" 
+                      fullWidth
+                      label="Full Name"
                       variant="outlined"
                       value={userData.name || ''}
                       onChange={(e) => setUserData({ ...userData, name: e.target.value })}
@@ -298,12 +304,12 @@ const Profile = () => {
                       }}
                     />
                   </Grid>
-                  
+
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
-                      fullWidth 
-                      label="Email Address" 
-                      variant="outlined" 
+                      fullWidth
+                      label="Email Address"
+                      variant="outlined"
                       disabled
                       value={userData.email || ''}
                       helperText="Email cannot be changed"
@@ -325,8 +331,8 @@ const Profile = () => {
                       </Grid>
                       <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
-                          fullWidth 
-                          label="Specialization" 
+                          fullWidth
+                          label="Specialization"
                           variant="outlined"
                           value={userData.specialization || ''}
                           onChange={(e) => setUserData({ ...userData, specialization: e.target.value })}
@@ -338,8 +344,8 @@ const Profile = () => {
                       </Grid>
                       <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
-                          fullWidth 
-                          label="Hospital Name" 
+                          fullWidth
+                          label="Hospital Name"
                           variant="outlined"
                           value={userData.hospitalName || ''}
                           onChange={(e) => setUserData({ ...userData, hospitalName: e.target.value })}
@@ -351,8 +357,8 @@ const Profile = () => {
                       </Grid>
                       <Grid size={{ xs: 12 }}>
                         <TextField
-                          fullWidth 
-                          label="Experience" 
+                          fullWidth
+                          label="Experience"
                           variant="outlined"
                           value={userData.experience || ''}
                           onChange={(e) => setUserData({ ...userData, experience: e.target.value })}
@@ -377,8 +383,8 @@ const Profile = () => {
                       </Grid>
                       <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
-                          fullWidth 
-                          label="Vehicle Number" 
+                          fullWidth
+                          label="Vehicle Number"
                           variant="outlined"
                           value={userData.vehicleNumber || ''}
                           onChange={(e) => setUserData({ ...userData, vehicleNumber: e.target.value })}
@@ -390,8 +396,8 @@ const Profile = () => {
                       </Grid>
                       <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
-                          fullWidth 
-                          label="License Number" 
+                          fullWidth
+                          label="License Number"
                           variant="outlined"
                           value={userData.licenseNumber || ''}
                           onChange={(e) => setUserData({ ...userData, licenseNumber: e.target.value })}
@@ -413,9 +419,9 @@ const Profile = () => {
                           size="large"
                           disabled={saving}
                           startIcon={saving ? <CircularProgress size={18} /> : <Save size={18} />}
-                          sx={{ 
-                            borderRadius: 2, 
-                            px: 4, 
+                          sx={{
+                            borderRadius: 2,
+                            px: 4,
                             fontWeight: 'bold',
                             textTransform: 'none',
                             boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
@@ -557,13 +563,24 @@ const Profile = () => {
                       </Box>
                     </Grid>
                   )}
+                  {userData.hospitalId && (
+                    <Grid size={{ xs: 12 }}>
+                      <Box sx={{ p: 2, bgcolor: '#f0f9ff', borderRadius: 2 }}>
+                        <Typography variant="caption" color="text.secondary" display="block">Registered Hospital</Typography>
+                        <Typography variant="body2" fontWeight="600" sx={{ mt: 0.5 }}>
+                          {userData.hospitalId.name || 'Unknown Hospital'}
+                          {userData.hospitalId.city && ` (${userData.hospitalId.city})`}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
                 </Grid>
               </CardContent>
             </Card>
           )}
         </Grid>
       </Grid>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 };
 

@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Hospital = require('../models/Hospital');
+const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 
 // REGISTER
@@ -66,6 +67,31 @@ router.post('/register', async (req, res) => {
     if (user.role === 'admin' && user.hospitalId) {
       await Hospital.findByIdAndUpdate(user.hospitalId, { adminId: user._id });
       console.log(`Hospital ${user.hospitalId} linked to Admin ${user._id}`);
+      console.log(`Hospital ${user.hospitalId} linked to Admin ${user._id}`);
+    }
+
+    // --- NOTIFY HOSPITAL ADMIN ON PATIENT REGISTRATION ---
+    if (user.role === 'patient' && user.hospitalId) {
+      try {
+        const hospital = await Hospital.findById(user.hospitalId);
+        if (hospital && hospital.adminId) {
+          // Create Notification record
+          const notification = await Notification.create({
+            userId: hospital.adminId,
+            type: 'REGISTRATION',
+            message: `New Patient Registered: ${user.name}`
+          });
+
+          // Real-time socket event to Admin
+          if (req.io) {
+            req.io.to(hospital.adminId.toString()).emit('new_notification', notification);
+          }
+          console.log(`Notification sent to admin ${hospital.adminId} for patient ${user.name}`);
+        }
+      } catch (notifyErr) {
+        console.error('Error sending registration notification:', notifyErr);
+        // Don't fail registration just because notification failed
+      }
     }
 
     // Notify Admin Dashboard about new user
@@ -166,7 +192,7 @@ router.put('/profile', auth, async (req, res) => {
       req.user.id,
       updateData,
       { new: true }
-    ).select('-password');
+    ).select('-password').populate('hospitalId', 'name city adminId');
 
     if (!updatedUser) return res.status(404).json({ message: "User not found" });
 
@@ -182,12 +208,18 @@ router.get('/profile', auth, async (req, res) => {
     console.log('GET /profile - User ID from token:', req.user.id);
     console.log('GET /profile - User role from token:', req.user.role);
 
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.id)
+      .select('-password')
+      .populate('hospitalId', 'name city adminId');
 
     if (!user) {
       console.log('User not found with ID:', req.user.id);
       return res.status(404).json({ message: "User not found" });
     }
+
+    console.log('DEBUG /profile user:', user.name);
+    console.log('DEBUG /profile hospitalId type:', typeof user.hospitalId);
+    console.log('DEBUG /profile hospitalId:', user.hospitalId);
 
     console.log('Returning user profile:', { name: user.name, email: user.email, role: user.role });
     res.json({ user });

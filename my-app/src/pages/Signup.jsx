@@ -37,8 +37,10 @@ const Signup = () => {
     // Driver fields
     vehicleNumber: '', driverLicenseNumber: '', vehicleType: '', driverPhone: '',
 
+
     // Admin field
-    hospitalId: ''
+    hospitalId: '',
+    department: '' // Added for patients/doctors
   });
 
   const handleRoleSelect = (roleId) => {
@@ -49,13 +51,23 @@ const Signup = () => {
   // Fetch hospitals for admin and doctor selection
   const [hospitals, setHospitals] = useState([]);
   React.useEffect(() => {
-    if (selectedRole === 'admin' || selectedRole === 'doctor') {
+    // Determine if we need to fetch hospitals
+    const needsHospitalList = ['admin', 'doctor', 'patient'].includes(selectedRole);
+
+    if (needsHospitalList) {
       fetch('http://localhost:5000/api/hospitals')
         .then(res => res.json())
         .then(data => setHospitals(data))
         .catch(err => console.error("Error fetching hospitals:", err));
     }
   }, [selectedRole]);
+
+  // Derive departments based on selected hospital
+  const availableDepartments = React.useMemo(() => {
+    if (!formData.hospitalId) return [];
+    const hospital = hospitals.find(h => h._id === formData.hospitalId);
+    return hospital ? hospital.facilities : [];
+  }, [formData.hospitalId, hospitals]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -178,6 +190,36 @@ const Signup = () => {
                 <TextField fullWidth label="Medical History (Allergies, Conditions, etc.)" multiline rows={3}
                   value={formData.medicalHistory} onChange={(e) => setFormData({ ...formData, medicalHistory: e.target.value })}
                   placeholder="E.g., Diabetes, Hypertension, Allergic to Penicillin" />
+
+                <FormControl fullWidth required sx={{ mt: 2 }}>
+                  <InputLabel>Select Hospital to Admit</InputLabel>
+                  <Select
+                    value={formData.hospitalId}
+                    onChange={(e) => setFormData({ ...formData, hospitalId: e.target.value, department: '' })}
+                    label="Select Hospital to Admit"
+                  >
+                    {hospitals.map((hospital) => (
+                      <MenuItem key={hospital._id} value={hospital._id}>
+                        {hospital.name} ({hospital.city})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl fullWidth required sx={{ mt: 2 }} disabled={!formData.hospitalId}>
+                  <InputLabel>Select Department</InputLabel>
+                  <Select
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    label="Select Department"
+                  >
+                    {availableDepartments.map((dept, index) => (
+                      <MenuItem key={index} value={dept}>
+                        {dept}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </>
             )}
 

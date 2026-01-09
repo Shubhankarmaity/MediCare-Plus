@@ -6,9 +6,13 @@ import {
   DialogActions, Divider, CircularProgress, Accordion, AccordionSummary, AccordionDetails
 } from '@mui/material';
 import { ExpandMore } from '@mui/icons-material';
-import { MapPin, Stethoscope, Clock, Ambulance, Calendar, Phone, DollarSign, CheckCircle, FileText, Activity, Pill, TestTube, User, Download, XCircle, AlertTriangle } from 'lucide-react';
+import { MapPin, Stethoscope, Clock, Ambulance, Calendar, Phone, DollarSign, CheckCircle, FileText, Activity, Pill, TestTube, User, Download, XCircle, AlertTriangle, MessageCircle, MessageSquare } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import ChatWindow from '../components/ChatWindow';
+
+
+
 // Mapbox disabled
 // import mapboxgl from 'mapbox-gl';
 // import 'mapbox-gl/dist/mapbox-gl.css';
@@ -23,6 +27,10 @@ const PatientDashboard = () => {
   const [ambulanceDialog, setAmbulanceDialog] = useState({ open: false, driver: null });
   const [booking, setBooking] = useState(false);
   const [accessRequests, setAccessRequests] = useState([]); // New state for access requests
+  const [conversations, setConversations] = useState([]); // New state for conversations
+  const [activeChat, setActiveChat] = useState(false);
+  const [chatPartner, setChatPartner] = useState(null); // Explicit state for who we are chatting with
+  const [hospitalAdmin, setHospitalAdmin] = useState(null);
   const [patientLocation, setPatientLocation] = useState({ lat: 40.7128, lng: -74.0060 }); // Default location
   // const mapContainer = useRef(null);
   // const map = useRef(null);
@@ -80,6 +88,17 @@ const PatientDashboard = () => {
         if (accessRes.ok) {
           setAccessRequests(accessResult.requests);
         }
+
+        // Fetch user profile to get hospital admin info
+        const profileRes = await fetch('http://localhost:5000/profile', { headers });
+        const profileData = await profileRes.json();
+        if (profileData.user && profileData.user.hospitalId && profileData.user.hospitalId.adminId) {
+          setHospitalAdmin({
+            _id: profileData.user.hospitalId.adminId,
+            name: `${profileData.user.hospitalId.name} Admin`
+          });
+        }
+
       } catch (error) {
         console.error('Error fetching data:', error);
         setNotify({ open: true, msg: 'Error loading data. Please refresh the page.', type: 'error' });
@@ -106,6 +125,22 @@ const PatientDashboard = () => {
       };
 
       fetchAppointments();
+    } else if (tabValue === 4) { // Messages Tab
+      const fetchConversations = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch('http://localhost:5000/api/messages/conversations/list', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setConversations(data);
+          }
+        } catch (error) {
+          console.error('Error fetching conversations:', error);
+        }
+      };
+      fetchConversations();
     }
   }, [tabValue]);
 
@@ -243,6 +278,7 @@ const PatientDashboard = () => {
           <Tab label="Book Ambulance" icon={<Ambulance size={18} />} iconPosition="start" />
           <Tab label="My Reports" icon={<FileText size={18} />} iconPosition="start" />
           <Tab label="Access Requests" icon={<User size={18} />} iconPosition="start" />
+          <Tab label="Messages" icon={<MessageCircle size={18} />} iconPosition="start" />
         </Tabs>
       </Box>
 
@@ -749,6 +785,73 @@ const PatientDashboard = () => {
         </div>
       )}
 
+      {/* TAB 5: MESSAGES */}
+      {tabValue === 4 && (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border">
+          <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+            <MessageCircle className="text-blue-600" /> My Messages
+          </h3>
+
+          {conversations.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No conversations yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {conversations.map((convo, index) => (
+                <Card
+                  key={index}
+                  elevation={1}
+                  sx={{ borderRadius: 2, cursor: 'pointer', '&:hover': { bgcolor: '#f9fafb' } }}
+                  onClick={() => {
+                    setChatPartner(convo.user);
+                    setActiveChat(true);
+                  }}
+                >
+                  <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                    <div className="flex items-center gap-4">
+                      <Avatar sx={{ bgcolor: '#3b82f6' }}>{convo.user.name?.charAt(0) || '?'}</Avatar>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-center">
+                          <Typography variant="subtitle1" fontWeight="bold">
+                            {convo.user.name || 'Unknown User'}
+                          </Typography>
+                          <div className="flex flex-col items-end">
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(convo.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </Typography>
+                            {convo.unreadCount > 0 && (
+                              <Box
+                                sx={{
+                                  bgcolor: '#25D366', // WhatsApp green
+                                  color: 'white',
+                                  borderRadius: '50%',
+                                  width: 20,
+                                  height: 20,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 'bold',
+                                  mt: 0.5
+                                }}
+                              >
+                                {convo.unreadCount}
+                              </Box>
+                            )}
+                          </div>
+                        </div>
+                        <Typography variant="body2" color={convo.unreadCount > 0 ? "text.primary" : "text.secondary"} fontWeight={convo.unreadCount > 0 ? "bold" : "normal"} noWrap>
+                          {convo.lastMessage}
+                        </Typography>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Confirm Doctor Booking Dialog */}
       <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false, doctor: null })}>
         <DialogTitle>Confirm Appointment</DialogTitle>
@@ -809,6 +912,39 @@ const PatientDashboard = () => {
           {notify.msg}
         </Alert>
       </Snackbar>
+      {/* Floating Chat Button */}
+      {hospitalAdmin && (
+        <>
+          <Box
+            sx={{
+              position: 'fixed',
+              bottom: 30,
+              right: 30,
+              zIndex: 1200
+            }}
+          >
+            <button
+              onClick={() => setActiveChat(!activeChat)}
+              className="flex items-center justify-center w-14 h-14 bg-blue-600 rounded-full shadow-lg hover:bg-blue-700 transition-colors focus:outline-none text-white"
+              style={{ border: 'none', cursor: 'pointer' }}
+            >
+              <MessageSquare size={28} />
+            </button>
+          </Box>
+
+          {activeChat && (
+            <ChatWindow
+              currentUser={{
+                id: JSON.parse(localStorage.getItem('user') || '{}')._id,
+                name: JSON.parse(localStorage.getItem('user') || '{}').name || 'Me'
+              }}
+              chatPartner={chatPartner || hospitalAdmin}
+              onClose={() => setActiveChat(false)}
+            />
+          )}
+        </>
+      )}
+
     </DashboardLayout>
   );
 };

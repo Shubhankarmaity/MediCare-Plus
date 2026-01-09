@@ -12,6 +12,40 @@ router.post('/book', auth, async (req, res) => {
 
     console.log('Booking appointment - Patient:', user.name, 'Doctor ID:', req.body.doctorId);
 
+    // --- HOSPITAL EXCLUSIVITY CHECK ---
+    const doctor = await User.findById(req.body.doctorId);
+    if (!doctor) return res.status(404).json({ message: "Doctor not found" });
+
+    // Determine Doctor's Hospital ID
+    let doctorHospitalId = doctor.hospitalId;
+
+    // Fallback for doctors registered with legacy 'hospitalName' string
+    if (!doctorHospitalId && doctor.hospitalName) {
+      const docHospital = await Hospital.findOne({ name: doctor.hospitalName });
+      if (docHospital) doctorHospitalId = docHospital._id;
+    }
+
+    if (!doctorHospitalId) {
+      console.log("Doctor not linked to any hospital");
+      // Optionally allow or block. For now, we proceed but can't enforce matching.
+    } else {
+      // 1. If Patient is already admitted (has hospitalId)
+      if (user.hospitalId) {
+        if (user.hospitalId.toString() !== doctorHospitalId.toString()) {
+          return res.status(403).json({
+            message: "You are currently admitted to a different hospital. You cannot book appointments elsewhere until discharged."
+          });
+        }
+      }
+      // 2. If Patient is NOT admitted, auto-admit them to this hospital
+      else {
+        user.hospitalId = doctorHospitalId;
+        // Optional: Set department if not set? Maybe not for simple appointment.
+        await user.save();
+        console.log(`Patient ${user.name} auto-admitted to hospital ${doctorHospitalId}`);
+      }
+    }
+
     const newAppointment = new Appointment({
       patientId: req.user.id,
       doctorId: req.body.doctorId,

@@ -13,6 +13,8 @@ const appointmentRoutes = require('./routes/appointments');
 const adminRoutes = require('./routes/admin');
 const ambulanceRoutes = require('./routes/ambulance');
 const accessRequestRoutes = require('./routes/accessRequests');
+const messageRoutes = require('./routes/messages');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 const server = http.createServer(app); // Wrap Express with HTTP server for Socket.io
@@ -41,6 +43,8 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ambulance', ambulanceRoutes);
 app.use('/api/access-requests', accessRequestRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/notifications', notificationRoutes);
 const hospitalRoutes = require('./routes/hospitals');
 app.use('/api/hospitals', hospitalRoutes);
 
@@ -54,6 +58,23 @@ const io = new Server(server, {
 
 io.on("connection", (socket) => {
   console.log(`User Connected: ${socket.id}`);
+
+  // JOIN USER ROOM
+  socket.on("join_room", (userId) => {
+    if (userId) {
+      socket.join(userId);
+      console.log(`User ${socket.id} joined room: ${userId}`);
+    }
+  });
+
+  // SEND MESSAGE
+  socket.on("send_message", (data) => {
+    // data: { senderId, receiverId, content, etc... }
+    // This is often handled by API + broadcast, but purely socket chat is also Possible.
+    // We rely on the API triggering the 'receive_message' event usually, 
+    // but if we want socket-only:
+    // io.to(data.receiverId).emit("receive_message", data);
+  });
 
   // 1. Driver sends location update
   socket.on("send_location", (data) => {

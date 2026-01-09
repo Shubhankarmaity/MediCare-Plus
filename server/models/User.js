@@ -18,11 +18,14 @@ const UserSchema = new mongoose.Schema({
     index: true
   },
 
-  // Link to Hospital (For Admins and Doctors)
+  // Link to Hospital (For Admins, Doctors, and Patients)
   hospitalId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Hospital'
   },
+
+  // Department (For Doctors and Patients)
+  department: { type: String, trim: true },
 
   // --- APPROVAL SYSTEM FOR DOCTORS ---
   isApproved: {
@@ -121,7 +124,7 @@ const UserSchema = new mongoose.Schema({
   availableTime: { type: String, trim: true }, // 9AM-5PM, etc.
   doctorPhone: { type: String, trim: true },
   licenseNumber: { type: String, trim: true },
-  department: { type: String, trim: true }, // Department in the hospital
+
 
   // --- DRIVER SPECIFIC FIELDS ---
   driverLicenseNumber: { type: String, trim: true },

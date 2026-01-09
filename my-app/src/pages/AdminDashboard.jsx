@@ -3,10 +3,12 @@ import DashboardLayout from '../components/DashboardLayout';
 import {
   Grid, Paper, Typography, Table, TableBody, TableCell,
   TableHead, TableRow, Chip, Avatar, CircularProgress, IconButton,
-  Dialog, DialogTitle, DialogContent, DialogActions, Button, Divider, Box
+  Dialog, DialogTitle, DialogContent, DialogActions, Button, Divider, Box, Tooltip
 } from '@mui/material';
-import { RefreshCw, X, Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { RefreshCw, X, Calendar, CheckCircle, XCircle, Clock, DoorOpen, MessageSquare } from 'lucide-react';
 import io from 'socket.io-client';
+import NotificationBell from '../components/NotificationBell';
+import ChatWindow from '../components/ChatWindow';
 
 const socket = io('http://localhost:5000'); // Connect to WebSocket Server
 
@@ -19,6 +21,8 @@ const AdminDashboard = () => {
   const [openModal, setOpenModal] = useState(false);
   const [pendingDoctors, setPendingDoctors] = useState([]);
   const [accessRequestStatus, setAccessRequestStatus] = useState(null); // New state for access request status
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeChat, setActiveChat] = useState(null);
 
   const fetchData = async () => {
     const token = localStorage.getItem('token');
@@ -50,7 +54,12 @@ const AdminDashboard = () => {
         setSelectedUser(result.user);
       } else if (res.status === 403 && result.requiresApproval) {
         // Handle access restriction
-        setSelectedUser({ _id: userId }); // Store just the ID for request purposes
+        const existingBasicUser = data.users.find(u => u._id === userId);
+        setSelectedUser({
+          _id: userId,
+          name: existingBasicUser?.name || 'Restricted User',
+          email: existingBasicUser?.email
+        });
         setAccessRequestStatus({
           message: result.message,
           requestPending: result.requestPending,
@@ -176,6 +185,30 @@ Enter department name:`);
     }
   };
 
+  const handleDischargePatient = async (patientId) => {
+    if (!window.confirm("Are you sure you want to discharge this patient? They will be removed from your hospital's admitted list.")) return;
+
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`http://localhost:5000/api/admin/discharge-patient/${patientId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        handleCloseModal(); // Close modal if open
+        fetchData(); // Refresh list
+      } else {
+        alert(data.message || "Failed to discharge patient");
+      }
+    } catch (err) {
+      console.error("Error discharging patient:", err);
+      alert("Error processing discharge");
+    }
+  };
+
   useEffect(() => {
     fetchData();
     fetchPendingDoctors();
@@ -224,6 +257,9 @@ Enter department name:`);
 
   return (
     <DashboardLayout title="System Overview" userRole="admin">
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+        <NotificationBell userId={JSON.parse(atob(localStorage.getItem('token').split('.')[1])).id} />
+      </Box>
       <div className="flex justify-between items-center mb-6">
         <Typography variant="body2" color="text.secondary">Live Real-time Data Feed</Typography>
         <IconButton onClick={fetchData} title="Force Refresh"><RefreshCw size={18} /></IconButton>
@@ -309,6 +345,7 @@ Enter department name:`);
               <TableCell>Role</TableCell>
               <TableCell>Details (Specific)</TableCell>
               <TableCell>Status</TableCell>
+              <TableCell>Message</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -362,6 +399,22 @@ Enter department name:`);
                   {(user.role !== 'doctor' || user.approvalStatus === 'approved') && (
                     <Chip label="ACTIVE" size="small" color="success" />
                   )}
+                </TableCell>
+                <TableCell>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveChat(user);
+                    }}
+                    sx={{
+                      bgcolor: '#eff6ff',
+                      '&:hover': { bgcolor: '#dbeafe' }
+                    }}
+                  >
+                    <MessageSquare size={18} />
+                  </IconButton>
                 </TableCell>
               </TableRow>
             ))}
@@ -649,6 +702,49 @@ Enter department name:`);
           >
             Close
           </Button>
+
+          {/* MESSAGE BUTTON */}
+          <Button
+            onClick={() => {
+              setActiveChat(selectedUser);
+              handleCloseModal();
+            }}
+            variant="outlined"
+            color="primary"
+            startIcon={<MessageSquare size={18} />}
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              textTransform: 'none',
+              fontWeight: '600',
+              ml: 2
+            }}
+          >
+            Message
+          </Button>
+
+
+
+          {/* MESSAGE BUTTON */}
+          <Button
+            onClick={() => {
+              setActiveChat(selectedUser);
+              handleCloseModal();
+            }}
+            variant="outlined"
+            color="primary"
+            startIcon={<MessageSquare size={18} />}
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              textTransform: 'none',
+              fontWeight: '600',
+              ml: 2
+            }}
+          >
+            Message
+          </Button>
+
           {(accessRequestStatus && accessRequestStatus.requestPending === false) ||
             (selectedUser && selectedUser.role === 'patient' && !accessRequestStatus) ? (
             <Button
@@ -675,9 +771,40 @@ Enter department name:`);
               Request Access
             </Button>
           ) : null}
+
+
+          {/* DISCHARGE BUTTON FOR PATIENTS */}
+          {selectedUser && selectedUser.role === 'patient' && (!accessRequestStatus || accessRequestStatus.userId) && (
+            <Button
+              onClick={() => handleDischargePatient(selectedUser._id)}
+              variant="outlined"
+              color="error"
+              startIcon={<DoorOpen size={18} />}
+              sx={{
+                borderRadius: 2,
+                px: 4,
+                textTransform: 'none',
+                fontWeight: '600',
+                ml: 2
+              }}
+            >
+              Discharge Patient
+            </Button>
+          )}
+
         </DialogActions>
       </Dialog>
-    </DashboardLayout>
+
+      {
+        activeChat && (
+          <ChatWindow
+            currentUser={{ id: JSON.parse(atob(localStorage.getItem('token').split('.')[1])).id, name: 'Admin' }}
+            chatPartner={activeChat}
+            onClose={() => setActiveChat(null)}
+          />
+        )
+      }
+    </DashboardLayout >
   );
 };
 
