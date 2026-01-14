@@ -6,7 +6,7 @@ import {
   DialogActions, Divider, CircularProgress, Accordion, AccordionSummary, AccordionDetails
 } from '@mui/material';
 import { ExpandMore } from '@mui/icons-material';
-import { MapPin, Stethoscope, Clock, Ambulance, Calendar, Phone, DollarSign, CheckCircle, FileText, Activity, Pill, TestTube, User, Download, XCircle, AlertTriangle, MessageCircle, MessageSquare } from 'lucide-react';
+import { MapPin, Stethoscope, Clock, Ambulance, Calendar, Phone, IndianRupee, CheckCircle, FileText, Activity, Pill, TestTube, User, Download, XCircle, AlertTriangle, MessageCircle, MessageSquare } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ChatWindow from '../components/ChatWindow';
@@ -176,14 +176,14 @@ const PatientDashboard = () => {
       const aptData = await aptRes.json();
       setPatientAppointments(aptData);
 
-      setNotify({ open: true, msg: `âœ… Appointment booked with ${doctor.name}!`, type: 'success' });
+      setNotify({ open: true, msg: `✅ Appointment booked with ${doctor.name}!`, type: 'success' });
     } else {
       // Try to get error message from response
-      let errorMsg = 'âŒ Booking Failed. Please try again.';
+      let errorMsg = 'Booking Failed. Please try again.';
       try {
         const errorData = await res.json();
         if (errorData.message) {
-          errorMsg = `âŒ Booking Failed: ${errorData.message}`;
+          errorMsg = ` Booking Failed: ${errorData.message}`;
         }
       } catch (error) {
         // If we can't parse the error, use the default message
@@ -219,9 +219,9 @@ const PatientDashboard = () => {
     setAmbulanceDialog({ open: false, driver: null });
 
     if (res.ok) {
-      setNotify({ open: true, msg: `ðŸš‘ Ambulance ${driver.name} dispatched to your location!`, type: 'warning' });
+      setNotify({ open: true, msg: `🚑 Ambulance ${driver.name} dispatched to your location!`, type: 'warning' });
     } else {
-      setNotify({ open: true, msg: 'âŒ Request Failed. Please try again.', type: 'error' });
+      setNotify({ open: true, msg: '❌ Request Failed. Please try again.', type: 'error' });
     }
   };
 
@@ -301,7 +301,7 @@ const PatientDashboard = () => {
                     <div className="flex items-center gap-2"><MapPin size={16} /> {doc.hospitalName}</div>
                     <div className="flex items-center gap-2"><Clock size={16} /> {doc.experience} Years Exp.</div>
                     {doc.consultationFee && (
-                      <div className="flex items-center gap-2"><DollarSign size={16} /> â‚¹{doc.consultationFee} Consultation Fee</div>
+                      <div className="flex items-center gap-2"><IndianRupee size={16} /> {doc.consultationFee} Consultation Fee</div>
                     )}
                     {doc.availableTime && (
                       <div className="flex items-center gap-2"><Calendar size={16} /> {doc.availableDays} | {doc.availableTime}</div>
@@ -366,7 +366,7 @@ const PatientDashboard = () => {
                             </div>
                           </div>
                           <div className="flex items-center justify-between bg-red-50 p-2 rounded">
-                            <span className="text-red-700 font-bold text-sm">â— Live Location</span>
+                            <span className="text-red-700 font-bold text-sm">● Live Location</span>
                             <span className="text-xs text-gray-500">2.4 km away</span>
                           </div>
                         </CardContent>
@@ -587,7 +587,7 @@ const PatientDashboard = () => {
                                   <div className="bg-white/20 px-4 py-2 rounded-full">
                                     <Typography variant="body2" className="text-white font-medium">
                                       {appointment.doctorReport.reportDate ?
-                                        new Date(appointment.doctorReport.reportDate).toLocaleDateString('en-US', {
+                                        new Date(appointment.doctorReport.reportDate).toLocaleDateString('en-IN', {
                                           year: 'numeric',
                                           month: 'long',
                                           day: 'numeric'
