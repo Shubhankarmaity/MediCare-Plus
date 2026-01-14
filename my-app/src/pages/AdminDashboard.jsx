@@ -234,7 +234,7 @@ Enter department name:`);
 
     // Listen for general admin role notifications
     socket.on('admin_notification', (data) => {
-      // Check if this notification is meant for this admin (if adminId is specified)
+      // Check if this notification is means for this admin (if adminId is specified)
       const currentUserId = JSON.parse(atob(localStorage.getItem('token').split('.')[1])).id;
 
       if (!data.adminId || data.adminId === currentUserId) {
@@ -282,7 +282,7 @@ Enter department name:`);
                     <Typography variant="subtitle1" fontWeight="bold">{doctor.name}</Typography>
                     <Typography variant="caption" color="text.secondary">{doctor.email}</Typography>
                     <div className="text-sm mt-1">
-                      <span className="font-semibold text-teal-600">{doctor.specialization}</span> • {doctor.hospitalName} • {doctor.experience} years exp.<br />
+                      <span className="font-semibold text-teal-600">{doctor.specialization}</span> • {doctor.hospitalName} • {doctor.experience} Years Exp.<br />
                     </div>
                   </div>
                 </div>
