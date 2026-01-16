@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import ScrollToHash from './components/ScrollToHash';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -17,6 +18,7 @@ import HospitalDetails from './pages/HospitalDetails';
 function App() {
   return (
     <Router>
+      <ScrollToHash />
       {/* We only show Navbar on Home/Login/Signup. Dashboards have their own internal nav. */}
       <Routes>
         {/* Public Routes */}
