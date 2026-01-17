@@ -7,3 +7,55 @@ html {
     scroll-padding-top: 80px;
     /* Account for sticky navbar height */
 }
+
+@layer utilities {
+    .animate-bounce-slow {
+        animation: bounce 3s infinite;
+    }
+
+    .animate-fade-in-up {
+        animation: fadeInUp 1s ease-out;
+    }
+
+    .animate-float {
+        animation: float 6s ease-in-out infinite;
+    }
+}
+
+@keyframes bounce {
+
+    0%,
+    100% {
+        transform: translateY(-5%);
+    }
+
+    50% {
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
