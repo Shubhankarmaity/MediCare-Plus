@@ -38,7 +38,7 @@ const Home = () => {
     {
       icon: <User size={32} />,
       title: "Top Specialists",
-      desc: "Instant access to 500+ board-certified doctors across all departments.",
+      desc: "Instant access to 500+ board-certified doctors across all department.",
       color: "bg-blue-50 text-blue-600",
       border: "border-blue-100"
     },
