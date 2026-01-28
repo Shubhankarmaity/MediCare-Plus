@@ -186,7 +186,7 @@ Enter department name:`);
   };
 
   const handleDischargePatient = async (patientId) => {
-    if (!window.confirm("Are you sure you want to discharge this patient? They will be removed from your hospital's admitted list.")) return;
+    if (!window.confirm("Are you sure you want to discharge this patient? They will be removed from your hospital's admitted lists.")) return;
 
     const token = localStorage.getItem('token');
     try {
