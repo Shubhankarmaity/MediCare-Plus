@@ -809,4 +809,4 @@ Enter department name:`);
   );
 };
 
-export default Dashboard;
+export default AdminDashboard;
