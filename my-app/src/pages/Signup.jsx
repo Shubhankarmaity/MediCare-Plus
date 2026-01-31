@@ -16,6 +16,8 @@ const roleCards = [
   { id: 'admin', label: 'Administrator', icon: <Shield size={32} />, description: 'Manage system resources.', color: 'bg-purple-100 text-purple-600', avatarBg: 'secondary.main' }
 ];
 
+import { API_URL } from '../config';
+
 const Signup = () => {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState(null);
@@ -55,7 +57,7 @@ const Signup = () => {
     const needsHospitalList = ['admin', 'doctor', 'patient'].includes(selectedRole);
 
     if (needsHospitalList) {
-      fetch('http://localhost:5000/api/hospitals')
+      fetch(`${API_URL}/api/hospitals`)
         .then(res => res.json())
         .then(data => setHospitals(data))
         .catch(err => console.error("Error fetching hospitals:", err));
@@ -76,7 +78,7 @@ const Signup = () => {
     const finalData = { ...formData, role: selectedRole };
 
     try {
-      const response = await fetch('http://localhost:5000/register', {
+      const response = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(finalData),

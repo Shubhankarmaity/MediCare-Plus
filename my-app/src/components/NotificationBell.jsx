@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Badge, IconButton, Menu, MenuItem, Typography, Box, ListItemText, Divider, Avatar } from '@mui/material';
 import { Bell, Check } from 'lucide-react';
+import { API_URL } from '../config';
 
 const NotificationBell = ({ userId }) => {
     const [notifications, setNotifications] = useState([]);
@@ -24,7 +25,7 @@ const NotificationBell = ({ userId }) => {
     const fetchNotifications = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:5000/api/notifications', {
+            const res = await fetch(`${API_URL}/api/notifications`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (!res.ok) throw new Error('Failed to fetch notifications');
@@ -38,7 +39,7 @@ const NotificationBell = ({ userId }) => {
     const handleMarkAsRead = async (id) => {
         try {
             const token = localStorage.getItem('token');
-            await fetch(`http://localhost:5000/api/notifications/${id}/read`, {
+            await fetch(`${API_URL}/api/notifications/${id}/read`, {
                 method: 'PUT',
                 headers: { Authorization: `Bearer ${token}` }
             });

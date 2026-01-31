@@ -9,8 +9,9 @@ import { RefreshCw, X, Calendar, CheckCircle, XCircle, Clock, DoorOpen, MessageS
 import io from 'socket.io-client';
 import NotificationBell from '../components/NotificationBell';
 import ChatWindow from '../components/ChatWindow';
+import { API_URL } from '../config';
 
-const socket = io('http://localhost:5000'); // Connect to WebSocket Server
+const socket = io(API_URL); // Connect to WebSocket Server
 
 const AdminDashboard = () => {
   const [data, setData] = useState({ stats: { doctorCount: 0, patientCount: 0, driverCount: 0 }, users: [] });
@@ -27,7 +28,7 @@ const AdminDashboard = () => {
   const fetchData = async () => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:5000/api/admin/dashboard-data', {
+      const res = await fetch(`${API_URL}/api/admin/dashboard-data`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const result = await res.json();
@@ -45,7 +46,7 @@ const AdminDashboard = () => {
     setAccessRequestStatus(null); // Reset access request status
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/user/${userId}`, {
+      const res = await fetch(`${API_URL}/api/admin/user/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const result = await res.json();
@@ -85,7 +86,7 @@ const AdminDashboard = () => {
   const requestAccessToPatient = async (patientId) => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:5000/api/access-requests/request-access/${patientId}`, {
+      const res = await fetch(`${API_URL}/api/access-requests/request-access/${patientId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -111,7 +112,7 @@ const AdminDashboard = () => {
   const fetchPendingDoctors = async () => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:5000/api/admin/pending-doctors', {
+      const res = await fetch(`${API_URL}/api/admin/pending-doctors`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const result = await res.json();
@@ -141,7 +142,7 @@ Enter department name:`);
     if (departmentInput === null) return; // User cancelled
 
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/approve-doctor/${doctorId}`, {
+      const res = await fetch(`${API_URL}/api/admin/approve-doctor/${doctorId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -167,7 +168,7 @@ Enter department name:`);
     const reason = prompt('Enter rejection reason (optional):');
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/reject-doctor/${doctorId}`, {
+      const res = await fetch(`${API_URL}/api/admin/reject-doctor/${doctorId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -190,7 +191,7 @@ Enter department name:`);
 
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/discharge-patient/${patientId}`, {
+      const res = await fetch(`${API_URL}/api/admin/discharge-patient/${patientId}`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -808,4 +809,4 @@ Enter department name:`);
   );
 };
 
-export default  Dashboard;
+export default Dashboard;

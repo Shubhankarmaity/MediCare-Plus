@@ -4,8 +4,9 @@ import { CheckCircle, X, User, Calendar, Clock, FileText } from 'lucide-react';
 import io from 'socket.io-client';
 import DoctorReports from '../components/DoctorReports';
 import PatientDetails from '../components/PatientDetails';
+import { API_URL } from '../config';
 
-const socket = io('http://localhost:5000'); // Connect to server
+const socket = io(API_URL); // Connect to server
 
 const DoctorDashboard = () => {
   const [appointments, setAppointments] = useState([]);
@@ -17,21 +18,21 @@ const DoctorDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       console.log('Fetching doctor appointments...');
-      
-      const res = await fetch('http://localhost:5000/api/appointments/my-appointments', {
+
+      const res = await fetch(`${API_URL}/api/appointments/my-appointments`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       // Check if response is ok before parsing JSON
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-      
+
       const data = await res.json();
-      
+
       console.log('Received appointments:', data.length);
       console.log('Appointments data:', data);
-      
+
       // Ensure data is an array before setting state
       if (Array.isArray(data)) {
         setAppointments(data);
@@ -70,10 +71,10 @@ const DoctorDashboard = () => {
         console.log('Received new appointment:', newAppt);
         console.log('Current doctor ID:', user._id);
         console.log('Appointment doctor ID:', newAppt.doctorId);
-        
+
         // Convert both to string for comparison
         const appointmentDoctorId = typeof newAppt.doctorId === 'object' ? newAppt.doctorId._id : newAppt.doctorId;
-        
+
         // Only update if this appointment is for the logged-in doctor
         if (appointmentDoctorId === user._id || appointmentDoctorId.toString() === user._id.toString()) {
           console.log('Appointment matched! Adding to list');
@@ -97,7 +98,7 @@ const DoctorDashboard = () => {
 
   const updateStatus = async (id, status) => {
     const token = localStorage.getItem('token');
-    await fetch(`http://localhost:5000/api/appointments/status/${id}`, {
+    await fetch(`${API_URL}/api/appointments/status/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ status })
@@ -108,12 +109,12 @@ const DoctorDashboard = () => {
   const handleReportSubmit = async (appointmentId, reportData) => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:5000/api/appointments/report/${appointmentId}`, {
+      const res = await fetch(`${API_URL}/api/appointments/report/${appointmentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(reportData)
       });
-      
+
       if (res.ok) {
         alert('Report submitted successfully!');
         fetchAppointments(); // Refresh list to show updated report status
@@ -155,105 +156,105 @@ const DoctorDashboard = () => {
             <div className="space-y-4">
               <p className="text-sm text-gray-600 mb-2">Total Appointments: {appointments.length}</p>
               {appointments.map((appt, i) => {
-                console.log(`Rendering appointment ${i + 1}:`, { 
-                  id: appt._id, 
+                console.log(`Rendering appointment ${i + 1}:`, {
+                  id: appt._id,
                   patient: appt.patientId?.name || appt.patientName,
                   status: appt.status,
                   doctorReport: appt.doctorReport,
                   hasReport: !!appt.doctorReport,
                   showReportButton: appt.status === 'approved' && !appt.doctorReport
                 });
-                
-                return (
-                <div key={appt._id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-blue-50 transition">
-                  <div className="flex items-center gap-4 mb-3 md:mb-0">
-                    <div className={`p-3 rounded-full font-bold ${appt.status === 'pending' ? 'bg-orange-100 text-orange-600' : appt.status === 'approved' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                      #{i + 1}
-                    </div>
-                    <div>
-                      <p 
-                        className="font-bold text-lg cursor-pointer hover:underline text-blue-600"
-                        onClick={() => {
-                          if (appt.patientId?._id) {
-                            setPatientDetails({ open: true, patientId: appt.patientId._id });
-                          }
-                        }}
-                      >
-                        {appt.patientId?.name || appt.patientName || "Unknown Patient"}
-                      </p>
-                      {appt.patientId?.email && (
-                        <p className="text-xs text-gray-600">{appt.patientId.email}</p>
-                      )}
-                      <p className="text-xs text-gray-500 flex items-center gap-1">
-                        <Clock size={12} /> {new Date(appt.date).toLocaleString()}
-                      </p>
-                      <span className={`text-xs font-bold uppercase ${appt.status === 'pending' ? 'text-orange-500' : appt.status === 'approved' ? 'text-green-500' : 'text-red-500'}`}>
-                        {appt.status}
-                      </span>
-                    </div>
-                  </div>
 
-                  {appt.status === 'pending' && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => updateStatus(appt._id, 'approved')}
-                        className="flex items-center gap-1 px-4 py-2 bg-white text-green-600 rounded-lg shadow hover:bg-green-600 hover:text-white transition"
-                      >
-                        <CheckCircle size={18} /> Accept
-                      </button>
-                      <button
-                        onClick={() => updateStatus(appt._id, 'rejected')}
-                        className="flex items-center gap-1 px-4 py-2 bg-white text-red-500 rounded-lg shadow hover:bg-red-500 hover:text-white transition"
-                      >
-                        <X size={18} /> Decline
-                      </button>
+                return (
+                  <div key={appt._id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-blue-50 transition">
+                    <div className="flex items-center gap-4 mb-3 md:mb-0">
+                      <div className={`p-3 rounded-full font-bold ${appt.status === 'pending' ? 'bg-orange-100 text-orange-600' : appt.status === 'approved' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                        #{i + 1}
+                      </div>
+                      <div>
+                        <p
+                          className="font-bold text-lg cursor-pointer hover:underline text-blue-600"
+                          onClick={() => {
+                            if (appt.patientId?._id) {
+                              setPatientDetails({ open: true, patientId: appt.patientId._id });
+                            }
+                          }}
+                        >
+                          {appt.patientId?.name || appt.patientName || "Unknown Patient"}
+                        </p>
+                        {appt.patientId?.email && (
+                          <p className="text-xs text-gray-600">{appt.patientId.email}</p>
+                        )}
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <Clock size={12} /> {new Date(appt.date).toLocaleString()}
+                        </p>
+                        <span className={`text-xs font-bold uppercase ${appt.status === 'pending' ? 'text-orange-500' : appt.status === 'approved' ? 'text-green-500' : 'text-red-500'}`}>
+                          {appt.status}
+                        </span>
+                      </div>
                     </div>
-                  )}
-                  
-                  {/* Enhanced condition for Submit Report button */}
-                  {(() => {
-                    const showReportButton = appt.status === 'approved' && (!appt.doctorReport || Object.keys(appt.doctorReport).length === 0);
-                    console.log('Appointment ID:', appt._id, 'Status:', appt.status, 'Has Report:', !!appt.doctorReport, 'Show Button:', showReportButton);
-                    return showReportButton && (
+
+                    {appt.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => updateStatus(appt._id, 'approved')}
+                          className="flex items-center gap-1 px-4 py-2 bg-white text-green-600 rounded-lg shadow hover:bg-green-600 hover:text-white transition"
+                        >
+                          <CheckCircle size={18} /> Accept
+                        </button>
+                        <button
+                          onClick={() => updateStatus(appt._id, 'rejected')}
+                          className="flex items-center gap-1 px-4 py-2 bg-white text-red-500 rounded-lg shadow hover:bg-red-500 hover:text-white transition"
+                        >
+                          <X size={18} /> Decline
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Enhanced condition for Submit Report button */}
+                    {(() => {
+                      const showReportButton = appt.status === 'approved' && (!appt.doctorReport || Object.keys(appt.doctorReport).length === 0);
+                      console.log('Appointment ID:', appt._id, 'Status:', appt.status, 'Has Report:', !!appt.doctorReport, 'Show Button:', showReportButton);
+                      return showReportButton && (
+                        <button
+                          onClick={() => {
+                            console.log('Opening report dialog for appointment:', appt);
+                            openReportDialog(appt);
+                          }}
+                          className="flex items-center gap-1 px-4 py-2 bg-white text-teal-600 rounded-lg shadow hover:bg-teal-600 hover:text-white transition"
+                        >
+                          <FileText size={18} /> Submit Report
+                        </button>
+                      );
+                    })()}
+
+                    {appt.doctorReport && (
                       <button
                         onClick={() => {
-                          console.log('Opening report dialog for appointment:', appt);
+                          console.log('Viewing existing report for appointment:', appt);
                           openReportDialog(appt);
                         }}
-                        className="flex items-center gap-1 px-4 py-2 bg-white text-teal-600 rounded-lg shadow hover:bg-teal-600 hover:text-white transition"
+                        className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-lg shadow hover:bg-green-200 transition cursor-pointer"
                       >
-                        <FileText size={18} /> Submit Report
+                        <FileText size={18} />
+                        <span className="text-sm font-medium">Report Submitted - Click to View/Edit</span>
                       </button>
-                    );
-                  })()}
-                  
-                  {appt.doctorReport && (
-                    <button
-                      onClick={() => {
-                        console.log('Viewing existing report for appointment:', appt);
-                        openReportDialog(appt);
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-lg shadow hover:bg-green-200 transition cursor-pointer"
-                    >
-                      <FileText size={18} />
-                      <span className="text-sm font-medium">Report Submitted - Click to View/Edit</span>
-                    </button>
-                  )}
-                </div>
-              );
+                    )}
+                  </div>
+                );
               })}
             </div>
           )}
         </div>
       </DashboardLayout>
-      
-      <DoctorReports 
-        open={reportDialog.open} 
+
+      <DoctorReports
+        open={reportDialog.open}
         onClose={() => setReportDialog({ open: false, appointment: null })}
         appointment={reportDialog.appointment}
         onSubmit={handleReportSubmit}
       />
-      
+
       <PatientDetails
         open={patientDetails.open}
         onClose={() => setPatientDetails({ open: false, patientId: null })}

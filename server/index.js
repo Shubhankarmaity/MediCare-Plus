@@ -20,7 +20,10 @@ const app = express();
 const server = http.createServer(app); // Wrap Express with HTTP server for Socket.io
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL ? [process.env.CLIENT_URL, "http://localhost:5173", "http://localhost:5179"] : ["http://localhost:5173", "http://localhost:5179", "http://localhost:5180"],
+  credentials: true
+}));
 app.use(express.json());
 
 // Inject Socket.io into Request
@@ -51,7 +54,7 @@ app.use('/api/hospitals', hospitalRoutes);
 // --- SOCKET.IO REAL-TIME LOGIC ---
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:5179", "http://localhost:5180"], // Allow Frontend to connect from both ports
+    origin: process.env.CLIENT_URL ? [process.env.CLIENT_URL, "http://localhost:5173", "http://localhost:5179"] : ["http://localhost:5173", "http://localhost:5179", "http://localhost:5180"], // Allow Frontend to connect from both ports
     methods: ["GET", "POST"]
   }
 });

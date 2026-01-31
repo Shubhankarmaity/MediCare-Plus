@@ -10,6 +10,7 @@ import { MapPin, Stethoscope, Clock, Ambulance, Calendar, Phone, IndianRupee, Ch
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ChatWindow from '../components/ChatWindow';
+import { API_URL } from '../config';
 
 
 
@@ -65,23 +66,23 @@ const PatientDashboard = () => {
         const headers = { 'Authorization': `Bearer ${token}` };
 
         // Fetch Doctors
-        const docRes = await fetch('http://localhost:5000/api/doctors', { headers });
+        const docRes = await fetch(`${API_URL}/api/doctors`, { headers });
         const docData = await docRes.json();
         setDoctors(docData);
 
         // Fetch Drivers
-        const driverRes = await fetch('http://localhost:5000/api/ambulance/drivers', { headers });
+        const driverRes = await fetch(`${API_URL}/api/ambulance/drivers`, { headers });
         const driverData = await driverRes.json();
         setDrivers(driverData);
 
         // Fetch Patient's Appointments with populated doctor info
-        const aptRes = await fetch('http://localhost:5000/api/appointments/my-appointments', { headers });
+        const aptRes = await fetch(`${API_URL}/api/appointments/my-appointments`, { headers });
         const aptData = await aptRes.json();
         console.log('Fetched appointments:', aptData);
         setPatientAppointments(aptData);
 
         // Fetch access requests
-        const accessRes = await fetch('http://localhost:5000/api/access-requests/my-requests', {
+        const accessRes = await fetch(`${API_URL}/api/access-requests/my-requests`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const accessResult = await accessRes.json();
@@ -90,7 +91,7 @@ const PatientDashboard = () => {
         }
 
         // Fetch user profile to get hospital admin info
-        const profileRes = await fetch('http://localhost:5000/profile', { headers });
+        const profileRes = await fetch(`${API_URL}/profile`, { headers });
         const profileData = await profileRes.json();
         if (profileData.user && profileData.user.hospitalId && profileData.user.hospitalId.adminId) {
           setHospitalAdmin({
@@ -115,7 +116,7 @@ const PatientDashboard = () => {
           const token = localStorage.getItem('token');
           const headers = { 'Authorization': `Bearer ${token}` };
 
-          const aptRes = await fetch('http://localhost:5000/api/appointments/my-appointments', { headers });
+          const aptRes = await fetch(`${API_URL}/api/appointments/my-appointments`, { headers });
           const aptData = await aptRes.json();
           console.log('Refetched appointments for reports:', aptData);
           setPatientAppointments(aptData);
@@ -129,7 +130,7 @@ const PatientDashboard = () => {
       const fetchConversations = async () => {
         try {
           const token = localStorage.getItem('token');
-          const res = await fetch('http://localhost:5000/api/messages/conversations/list', {
+          const res = await fetch(`${API_URL}/api/messages/conversations/list`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (res.ok) {
@@ -156,7 +157,7 @@ const PatientDashboard = () => {
     const token = localStorage.getItem('token');
     // Remove the user.name from the request body since it's fetched from the token on the backend
 
-    const res = await fetch('http://localhost:5000/api/appointments/book', {
+    const res = await fetch(`${API_URL}/api/appointments/book`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
@@ -170,7 +171,7 @@ const PatientDashboard = () => {
 
     if (res.ok) {
       // Refresh appointments to update the UI
-      const aptRes = await fetch('http://localhost:5000/api/appointments/my-appointments', {
+      const aptRes = await fetch(`${API_URL}/api/appointments/my-appointments`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const aptData = await aptRes.json();
@@ -205,7 +206,7 @@ const PatientDashboard = () => {
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user'));
 
-    const res = await fetch('http://localhost:5000/api/ambulance/book', {
+    const res = await fetch(`${API_URL}/api/ambulance/book`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
@@ -244,7 +245,7 @@ const PatientDashboard = () => {
   // 4. Access Request Response Logic
   const respondToAccessRequest = async (requestId, action) => {
     const token = localStorage.getItem('token');
-    const res = await fetch(`http://localhost:5000/api/access-requests/respond/${requestId}`, {
+    const res = await fetch(`${API_URL}/api/access-requests/respond/${requestId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -256,7 +257,7 @@ const PatientDashboard = () => {
     if (res.ok) {
       setNotify({ open: true, msg: `Access request ${action === 'approve' ? 'approved' : 'rejected'}.`, type: 'success' });
       // Refetch access requests to update the UI
-      const accessRes = await fetch('http://localhost:5000/api/access-requests/my-requests', {
+      const accessRes = await fetch(`${API_URL}/api/access-requests/my-requests`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const accessResult = await accessRes.json();

@@ -7,6 +7,8 @@ import {
 import { Mail, Lock, Eye, EyeOff, HeartPulse, ArrowRight } from 'lucide-react';
 import CssBaseline from '@mui/material/CssBaseline';
 
+import { API_URL } from '../config';
+
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -22,11 +24,11 @@ const Login = () => {
     try {
       // CRITICAL: Clear any existing user data before login
       localStorage.clear();
-      
+
       // Simulate network delay for smooth UX feel
       await new Promise(r => setTimeout(r, 800));
 
-      const response = await fetch('http://localhost:5000/login', {
+      const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -35,11 +37,11 @@ const Login = () => {
 
       if (response.ok) {
         console.log('Login successful - User data:', { name: data.result.name, email: data.result.email, role: data.result.role, id: data.result._id });
-        
+
         // Store fresh token and user data
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.result));
-        
+
         // Verify what was stored
         console.log('Stored in localStorage:', {
           token: localStorage.getItem('token') ? 'Token stored' : 'No token',

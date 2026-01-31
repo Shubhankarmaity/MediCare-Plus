@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Paper, Box, Typography, TextField, IconButton, Avatar, CircularProgress } from '@mui/material';
 import { Send, X, Check, CheckCheck } from 'lucide-react';
 import io from 'socket.io-client';
+import { API_URL } from '../config';
 
-const socket = io('http://localhost:5000');
+const socket = io(API_URL);
 
 const ChatWindow = ({ currentUser, chatPartner, onClose }) => {
     const [messages, setMessages] = useState([]);
@@ -55,7 +56,7 @@ const ChatWindow = ({ currentUser, chatPartner, onClose }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/messages/${chatPartner._id}`, {
+            const res = await fetch(`${API_URL}/api/messages/${chatPartner._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (!res.ok) throw new Error('Failed to fetch messages');
@@ -72,7 +73,7 @@ const ChatWindow = ({ currentUser, chatPartner, onClose }) => {
     const markMessagesAsRead = async () => {
         try {
             const token = localStorage.getItem('token');
-            await fetch(`http://localhost:5000/api/messages/read/${chatPartner._id}`, {
+            await fetch(`${API_URL}/api/messages/read/${chatPartner._id}`, {
                 method: 'PUT',
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -88,7 +89,7 @@ const ChatWindow = ({ currentUser, chatPartner, onClose }) => {
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:5000/api/messages/send', {
+            const res = await fetch(`${API_URL}/api/messages/send`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

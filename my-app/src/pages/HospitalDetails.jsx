@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Container, Grid, Card, CardContent, Button, Typography, Chip, Divider } from '@mui/material';
 import { MapPin, Phone, Mail, CheckCircle, AlertCircle, Bed, Activity, Clock } from 'lucide-react';
+import { API_URL } from '../config';
 
 const HospitalDetails = () => {
     const { id } = useParams();
@@ -11,7 +12,7 @@ const HospitalDetails = () => {
     useEffect(() => {
         const fetchHospital = async () => {
             try {
-                const response = await fetch(`http://localhost:5000/api/hospitals/${id}`);
+                const response = await fetch(`${API_URL}/api/hospitals/${id}`);
                 const data = await response.json();
                 setHospital(data);
             } catch (error) {

@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import io from 'socket.io-client';
 import mapboxgl from 'mapbox-gl';
+import { API_URL } from '../config';
 // Mapbox integration disabled by user request
 
 const DriverDashboard = () => {
@@ -26,7 +27,7 @@ const DriverDashboard = () => {
 
   // Initialize socket connection
   useEffect(() => {
-    const newSocket = io('http://localhost:5000');
+    const newSocket = io(API_URL);
     setSocket(newSocket);
 
     return () => {
@@ -41,7 +42,7 @@ const DriverDashboard = () => {
     const fetchDriverInfo = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:5000/profile', {
+        const res = await fetch(`${API_URL}/profile`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -63,7 +64,7 @@ const DriverDashboard = () => {
       const fetchRequests = async () => {
         try {
           const token = localStorage.getItem('token');
-          const res = await fetch('http://localhost:5000/api/ambulance/requests', {
+          const res = await fetch(`${API_URL}/api/ambulance/requests`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           const data = await res.json();
@@ -121,7 +122,7 @@ const DriverDashboard = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/ambulance/toggle-availability', {
+      const res = await fetch(`${API_URL}/api/ambulance/toggle-availability`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -161,7 +162,7 @@ const DriverDashboard = () => {
   const acceptRequest = async (requestId) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/ambulance/accept/${requestId}`, {
+      const res = await fetch(`${API_URL}/api/ambulance/accept/${requestId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

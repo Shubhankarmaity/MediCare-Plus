@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
+import { API_URL } from '../config';
 import {
   Paper, Grid, Avatar, Typography, TextField, Button, Divider, Box, Chip, Card, CardContent, CircularProgress
 } from '@mui/material';
@@ -26,7 +27,7 @@ const Profile = () => {
       console.log('Fetching profile with token:', token ? 'Token exists' : 'No token');
       console.log('Stored user in localStorage:', JSON.parse(storedUserData || '{}'));
 
-      const res = await fetch('http://localhost:5000/profile', {
+      const res = await fetch(`${API_URL}/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -59,7 +60,7 @@ const Profile = () => {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/profile', {
+      const res = await fetch(`${API_URL}/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

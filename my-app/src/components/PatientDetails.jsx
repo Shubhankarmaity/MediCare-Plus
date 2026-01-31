@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Dialog, DialogTitle, DialogContent, DialogActions, 
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions,
   Button, Typography, Box, CircularProgress, Chip, Avatar,
   Grid, Paper
 } from '@mui/material';
 import { User, Clock, Phone, MapPin } from 'lucide-react';
+import { API_URL } from '../config';
 
 const PatientDetails = ({ open, onClose, patientId }) => {
   const [patientDetails, setPatientDetails] = useState(null);
@@ -16,23 +17,23 @@ const PatientDetails = ({ open, onClose, patientId }) => {
     setLoading(true);
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user'));
-    
+
     try {
       // First check if we're a doctor or admin to determine the correct approach
       if (user.role === 'doctor') {
         // For doctors, check access request status first
-        const accessRes = await fetch(`http://localhost:5000/api/access-requests/request-status/${patientId}`, {
+        const accessRes = await fetch(`${API_URL}/api/access-requests/request-status/${patientId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        
+
         if (accessRes.ok) {
           const accessResult = await accessRes.json();
           if (accessResult.status === 'approved') {
             // We have access, fetch patient details using doctor endpoint
-            const res = await fetch(`http://localhost:5000/api/doctors/patient/${patientId}`, {
+            const res = await fetch(`${API_URL}/api/doctors/patient/${patientId}`, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
-            
+
             const result = await res.json();
             if (res.ok) {
               setPatientDetails(result.patient);
@@ -49,18 +50,18 @@ const PatientDetails = ({ open, onClose, patientId }) => {
         }
       } else if (user.role === 'admin') {
         // For admins, check access request status first
-        const accessRes = await fetch(`http://localhost:5000/api/access-requests/request-status/${patientId}`, {
+        const accessRes = await fetch(`${API_URL}/api/access-requests/request-status/${patientId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        
+
         if (accessRes.ok) {
           const accessResult = await accessRes.json();
           if (accessResult.status === 'approved') {
             // We have access, fetch patient details
-            const res = await fetch(`http://localhost:5000/api/admin/user/${patientId}`, {
+            const res = await fetch(`${API_URL}/api/admin/user/${patientId}`, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
-            
+
             const result = await res.json();
             if (res.ok) {
               setPatientDetails(result.user);
@@ -90,9 +91,9 @@ const PatientDetails = ({ open, onClose, patientId }) => {
   const requestAccessToPatient = async () => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:5000/api/access-requests/request-access/${patientId}`, {
+      const res = await fetch(`${API_URL}/api/access-requests/request-access/${patientId}`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
@@ -123,7 +124,7 @@ const PatientDetails = ({ open, onClose, patientId }) => {
           <Button onClick={onClose} color="secondary">Close</Button>
         </Box>
       </DialogTitle>
-      
+
       <DialogContent>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -225,15 +226,15 @@ const PatientDetails = ({ open, onClose, patientId }) => {
           </Typography>
         )}
       </DialogContent>
-      
+
       <DialogActions sx={{ px: 3, py: 2, bgcolor: '#f9fafb', borderTop: '1px solid #e5e7eb' }}>
         <Button onClick={onClose}>
           Close
         </Button>
         {accessRequestStatus && !requestPending && (
-          <Button 
-            onClick={requestAccessToPatient} 
-            variant="contained" 
+          <Button
+            onClick={requestAccessToPatient}
+            variant="contained"
             color="primary"
           >
             Request Access

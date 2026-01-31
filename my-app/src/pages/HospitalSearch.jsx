@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Grid, Card, CardContent, CardMedia, Typography, TextField, Button, InputAdornment, Chip } from '@mui/material';
 import { Search, MapPin, Phone, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { API_URL } from '../config';
 
 const HospitalSearch = () => {
     const [hospitals, setHospitals] = useState([]);
@@ -28,7 +29,7 @@ const HospitalSearch = () => {
             // I should update backend to use $or, OR just fetch all and filter here. 
             // Fetching all is safer for small data.
 
-            const response = await fetch('http://localhost:5000/api/hospitals');
+            const response = await fetch(`${API_URL}/api/hospitals`);
             const data = await response.json();
             setHospitals(data);
         } catch (error) {
