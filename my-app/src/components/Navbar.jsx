@@ -3,79 +3,217 @@ import { Link } from 'react-router-dom';
 import { HeartPulse } from 'lucide-react';
 import { AppBar, Toolbar, Button, Container } from '@mui/material';
 
+import { AppBar, Toolbar, Button, Container, Dialog, DialogContent, Typography, IconButton, Box, Avatar, Chip, Link as MuiLink } from '@mui/material';
+import { Close, GitHub, LinkedIn, Language, Code } from '@mui/icons-material';
+import { useState } from 'react';
+
 const Navbar = () => {
-  return (
-    <AppBar
-      position="sticky"
-      className="backdrop-blur-md bg-white/80 border-b border-white/20"
-      elevation={0}
-      sx={{
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        backdropFilter: 'blur(10px)',
-        borderBottom: '1px solid rgba(229, 231, 235, 0.5)',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-        py: 1
+  const [openOwner, setOpenOwner] = useState(false);
+
+  <AppBar
+    position="sticky"
+    className="backdrop-blur-md bg-white/80 border-b border-white/20"
+    elevation={0}
+    sx={{
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      backdropFilter: 'blur(10px)',
+      borderBottom: '1px solid rgba(229, 231, 235, 0.5)',
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+      py: 1
+    }}
+  >
+    <Container maxWidth="xl">
+      <Toolbar className="flex justify-between items-center px-2 md:px-4">
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="bg-gradient-to-tr from-blue-600 to-indigo-600 p-2.5 rounded-xl text-white shadow-lg shadow-blue-500/30 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+            <HeartPulse size={28} />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-slate-700 tracking-tight leading-none">
+              MediCare<span className="text-blue-600">Plus</span>
+            </span>
+            <span className="text-xs text-gray-500 font-medium tracking-wider">PREMIUM HEALTHCARE</span>
+          </div>
+        </Link>
+
+        {/* Navigation Links */}
+        <div className="hidden md:flex items-center bg-gray-50/80 px-2 py-1.5 rounded-full border border-gray-100 shadow-inner gap-1">
+          <Link to="/" className="text-gray-600 hover:text-blue-700 px-4 py-2 font-medium transition-all duration-300 rounded-full hover:bg-white hover:shadow-sm text-sm uppercase tracking-wide">
+            Home
+          </Link>
+          <Link to="/#services" className="text-gray-600 hover:text-blue-700 px-4 py-2 font-medium transition-all duration-300 rounded-full hover:bg-white hover:shadow-sm text-sm uppercase tracking-wide">
+            Services
+          </Link>
+          <Link to="/#about" className="text-gray-600 hover:text-blue-700 px-4 py-2 font-medium transition-all duration-300 rounded-full hover:bg-white hover:shadow-sm text-sm uppercase tracking-wide">
+            About
+          </Link>
+          <button
+            onClick={() => setOpenOwner(true)}
+            className="text-gray-600 hover:text-blue-700 px-4 py-2 font-medium transition-all duration-300 rounded-full hover:bg-white hover:shadow-sm text-sm uppercase tracking-wide cursor-pointer"
+          >
+            Owner
+          </button>
+          <Link to="/#contact" className="text-gray-600 hover:text-blue-700 px-4 py-2 font-medium transition-all duration-300 rounded-full hover:bg-white hover:shadow-sm text-sm uppercase tracking-wide">
+            Contact
+          </Link>
+        </div>
+
+        {/* Auth Buttons */}
+        <div className="flex items-center gap-3">
+          <Button
+            component={Link}
+            to="/login"
+            className="text-gray-600 hover:text-blue-700 font-semibold px-4"
+            sx={{ textTransform: 'none', fontSize: '0.95rem' }}
+          >
+            Log In
+          </Button>
+          <Button
+            variant="contained"
+            component={Link}
+            to="/signup"
+            className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-semibold rounded-full px-6 py-2.5 shadow-lg shadow-blue-500/30 hover:shadow-blue-600/40 transition-all duration-300 hover:-translate-y-0.5"
+            sx={{
+              textTransform: 'none',
+              borderRadius: '9999px',
+              fontSize: '0.95rem',
+              background: 'linear-gradient(to right, #2563eb, #4338ca)',
+            }}
+          >
+            Sign Up
+          </Button>
+        </div>
+      </Toolbar>
+    </Container>
+
+    {/* Owner Details Dialog */}
+    <Dialog
+      open={openOwner}
+      onClose={() => setOpenOwner(false)}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        style: {
+          borderRadius: 24,
+          backgroundImage: 'linear-gradient(to bottom right, #ffffff, #f8fafc)',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+        }
       }}
     >
-      <Container maxWidth="xl">
-        <Toolbar className="flex justify-between items-center px-2 md:px-4">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="bg-gradient-to-tr from-blue-600 to-indigo-600 p-2.5 rounded-xl text-white shadow-lg shadow-blue-500/30 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-              <HeartPulse size={28} />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-slate-700 tracking-tight leading-none">
-                MediCare<span className="text-blue-600">Plus</span>
-              </span>
-              <span className="text-xs text-gray-500 font-medium tracking-wider">PREMIUM HEALTHCARE</span>
-            </div>
-          </Link>
+      <DialogContent sx={{ p: 0, position: 'relative', overflow: 'hidden' }}>
+        <IconButton
+          onClick={() => setOpenOwner(false)}
+          sx={{ position: 'absolute', right: 16, top: 16, color: 'white', bgcolor: 'rgba(0,0,0,0.2)', '&:hover': { bgcolor: 'rgba(0,0,0,0.4)' }, zIndex: 10 }}
+        >
+          <Close />
+        </IconButton>
 
-          {/* Navigation Links */}
-          <div className="hidden md:flex items-center bg-gray-50/80 px-2 py-1.5 rounded-full border border-gray-100 shadow-inner">
-            <Link to="/" className="text-gray-600 hover:text-blue-700 px-5 py-2 font-medium transition-all duration-300 rounded-full hover:bg-white hover:shadow-sm text-sm uppercase tracking-wide">
-              Home
-            </Link>
-            <Link to="/#services" className="text-gray-600 hover:text-blue-700 px-5 py-2 font-medium transition-all duration-300 rounded-full hover:bg-white hover:shadow-sm text-sm uppercase tracking-wide">
-              Services
-            </Link>
-            <Link to="/#about" className="text-gray-600 hover:text-blue-700 px-5 py-2 font-medium transition-all duration-300 rounded-full hover:bg-white hover:shadow-sm text-sm uppercase tracking-wide">
-              About
-            </Link>
-            <Link to="/#contact" className="text-gray-600 hover:text-blue-700 px-5 py-2 font-medium transition-all duration-300 rounded-full hover:bg-white hover:shadow-sm text-sm uppercase tracking-wide">
-              Contact
-            </Link>
+        <div className="flex flex-col md:flex-row">
+          {/* Left Side - Profile & Gradient */}
+          <div className="w-full md:w-2/5 bg-gradient-to-br from-blue-600 to-indigo-800 p-8 flex flex-col items-center justify-center text-white text-center relative overflow-hidden">
+            {/* Decorative Circles */}
+            <div className="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-2xl"></div>
+            <div className="absolute bottom-0 right-0 w-48 h-48 bg-indigo-500/20 rounded-full translate-x-1/3 translate-y-1/3 blur-xl"></div>
+
+            <Avatar
+              sx={{ width: 140, height: 140, mb: 3, border: '4px solid rgba(255,255,255,0.3)', boxShadow: '0 8px 30px rgba(0,0,0,0.3)' }}
+              src="https://shubhankarmaity.tech/static/media/profile_photo.6b3d1b6e.png" // Fallback to initial if image fails
+              alt="Shubhankar Maity"
+            >
+              SM
+            </Avatar>
+
+            <Typography variant="h4" fontWeight="bold" sx={{ mb: 1, textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
+              Shubhankar Maity
+            </Typography>
+            <Typography variant="subtitle1" sx={{ opacity: 0.9, fontWeight: 500, mb: 3, letterSpacing: '0.05em' }}>
+              FULL STACK DEVELOPER
+            </Typography>
+
+            <div className="flex gap-4 mt-2">
+              <IconButton
+                href="https://github.com/Shubhankarmaity"
+                target="_blank"
+                sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)', transform: 'translateY(-2px)' }, transition: '0.3s' }}
+              >
+                <GitHub />
+              </IconButton>
+              <IconButton
+                href="https://www.linkedin.com/in/shubhankar-maity-05976b290"
+                target="_blank"
+                sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)', transform: 'translateY(-2px)' }, transition: '0.3s' }}
+              >
+                <LinkedIn />
+              </IconButton>
+              <IconButton
+                href="https://shubhankarmaity.tech"
+                target="_blank"
+                sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)', transform: 'translateY(-2px)' }, transition: '0.3s' }}
+              >
+                <Language />
+              </IconButton>
+            </div>
           </div>
 
-          {/* Auth Buttons */}
-          <div className="flex items-center gap-3">
-            <Button
-              component={Link}
-              to="/login"
-              className="text-gray-600 hover:text-blue-700 font-semibold px-4"
-              sx={{ textTransform: 'none', fontSize: '0.95rem' }}
-            >
-              Log In
-            </Button>
-            <Button
-              variant="contained"
-              component={Link}
-              to="/signup"
-              className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-semibold rounded-full px-6 py-2.5 shadow-lg shadow-blue-500/30 hover:shadow-blue-600/40 transition-all duration-300 hover:-translate-y-0.5"
-              sx={{
-                textTransform: 'none',
-                borderRadius: '9999px',
-                fontSize: '0.95rem',
-                background: 'linear-gradient(to right, #2563eb, #4338ca)',
-              }}
-            >
-              Sign Up
-            </Button>
+          {/* Right Side - Details */}
+          <div className="w-full md:w-3/5 p-8 md:p-10 bg-white">
+            <Typography variant="h5" fontWeight="bold" color="text.primary" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Code className="text-blue-600" /> About Me
+            </Typography>
+
+            <Typography paragraph color="text.secondary" sx={{ lineHeight: 1.8, fontSize: '1rem', mb: 3 }}>
+              Passionate Computer Science student specializing in Data Science and MERN Stack Development.
+              I build robust, user-centric applications like <b>MediCare Plus</b> to solve real-world problems through technology.
+            </Typography>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <Typography variant="subtitle2" color="primary" fontWeight="bold" gutterBottom>
+                  EDUCATION
+                </Typography>
+                <Typography variant="body2" color="text.primary" fontWeight="bold">
+                  Brainware University
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  B.Tech in Computer Science & Engineering (Data Science)
+                </Typography>
+              </div>
+
+              <div>
+                <Typography variant="subtitle2" color="primary" fontWeight="bold" gutterBottom>
+                  SKILLS
+                </Typography>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {['MERN Stack', 'Data Science', 'Machine Learning', 'Java', 'React', 'Node.js', 'MongoDB'].map(skill => (
+                    <Chip key={skill} label={skill} size="small" sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 600, borderRadius: 1.5 }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <Box sx={{ mt: 4, pt: 3, borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                variant="contained"
+                href="https://shubhankarmaity.tech"
+                target="_blank"
+                endIcon={<Language size={16} />}
+                sx={{
+                  borderRadius: 10,
+                  textTransform: 'none',
+                  px: 3,
+                  background: 'linear-gradient(45deg, #2563eb, #7c3aed)',
+                  boxShadow: '0 4px 14px 0 rgba(124, 58, 237, 0.4)'
+                }}
+              >
+                View Full Portfolio
+              </Button>
+            </Box>
           </div>
-        </Toolbar>
-      </Container>
-    </AppBar>
+        </div>
+      </DialogContent>
+    </Dialog>
+  </AppBar>
   );
 };
 
