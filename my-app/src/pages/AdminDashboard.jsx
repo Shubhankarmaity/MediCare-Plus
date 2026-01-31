@@ -808,4 +808,4 @@ Enter department name:`);
   );
 };
 
-export default AdminDashboard;
+export default  Dashboard;

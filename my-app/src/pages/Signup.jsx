@@ -140,7 +140,7 @@ const Signup = () => {
           <Box textAlign="center" mb={4}>
             <Avatar sx={{ bgcolor: currentRoleDetails.avatarBg, width: 56, height: 56, mx: 'auto', mb: 2 }}>{currentRoleDetails.icon}</Avatar>
             <Typography variant="h5" fontWeight="bold">Sign up as {currentRoleDetails.label}</Typography>
-            <Typography variant="body2" color="text.secondary">Please fill in your professional details</Typography>
+            <Typography variant="body2" color="text.secondary">Please fill in your professional detail</Typography>
           </Box>
 
           <form onSubmit={handleSubmit} className="space-y-4">
