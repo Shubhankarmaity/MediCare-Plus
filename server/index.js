@@ -50,6 +50,8 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
 const hospitalRoutes = require('./routes/hospitals');
 app.use('/api/hospitals', hospitalRoutes);
+const seedRoutes = require('./routes/seed');
+app.use('/api/seed', seedRoutes);
 
 // --- SOCKET.IO REAL-TIME LOGIC ---
 const io = new Server(server, {
