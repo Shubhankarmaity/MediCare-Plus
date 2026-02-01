@@ -22,7 +22,6 @@ const AdminDashboard = () => {
   const [openModal, setOpenModal] = useState(false);
   const [pendingDoctors, setPendingDoctors] = useState([]);
   const [accessRequestStatus, setAccessRequestStatus] = useState(null); // New state for access request status
-  const [searchQuery, setSearchQuery] = useState('');
   const [activeChat, setActiveChat] = useState(null);
 
   const fetchData = async () => {

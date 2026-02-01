@@ -16,7 +16,7 @@ const HospitalSearch = () => {
     const fetchHospitals = async (search = '') => {
         setLoading(true);
         try {
-            const query = search ? `?name=${search}&city=${search}` : '';
+            // const query = search ? `?name=${search}&city=${search}` : '';
             // Note: Backend search logic might need adjustment to handle OR condition for single param,
             // but for now we'll fetch all and filter client side or just send one param if backend supports it.
             // Actually, my backend implementation handles name AND city if both present.

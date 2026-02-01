@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import { Navigation, Power, User, Phone, MapPin, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import {
@@ -21,7 +21,7 @@ const DriverDashboard = () => {
   const [socket, setSocket] = useState(null);
   // const mapContainer = useRef(null);
   // const map = useRef(null);
-  const [driverLocation, setDriverLocation] = useState({ lat: 40.7128, lng: -74.0060 }); // Default location
+  const [driverLocation] = useState({ lat: 40.7128, lng: -74.0060 }); // Default location
 
   // Note: GPS location is still tracked via navigator.geolocation logic below
 
@@ -91,23 +91,23 @@ const DriverDashboard = () => {
         fetchRequests();
 
         // Add patient location to map if available
-        if (requestData.patientLocation && map.current) {
-          // Remove existing patient marker if any
-          if (patientMarker.current && typeof patientMarker.current.remove === 'function') {
-            patientMarker.current.remove();
-          }
+        // if (requestData.patientLocation && map.current) {
+        //   // Remove existing patient marker if any
+        //   if (patientMarker.current && typeof patientMarker.current.remove === 'function') {
+        //     patientMarker.current.remove();
+        //   }
 
-          // Add new patient marker
-          patientMarker.current = new mapboxgl.Marker({ color: '#3b82f6' })
-            .setLngLat([requestData.patientLocation.lng, requestData.patientLocation.lat])
-            .addTo(map.current);
+        //   // Add new patient marker
+        //   patientMarker.current = new mapboxgl.Marker({ color: '#3b82f6' })
+        //     .setLngLat([requestData.patientLocation.lng, requestData.patientLocation.lat])
+        //     .addTo(map.current);
 
-          // Fit bounds to show both driver and patient
-          const bounds = new mapboxgl.LngLatBounds();
-          bounds.extend([driverLocation.lng, driverLocation.lat]);
-          bounds.extend([requestData.patientLocation.lng, requestData.patientLocation.lat]);
-          map.current.fitBounds(bounds, { padding: 100 });
-        }
+        //   // Fit bounds to show both driver and patient
+        //   const bounds = new mapboxgl.LngLatBounds();
+        //   bounds.extend([driverLocation.lng, driverLocation.lat]);
+        //   bounds.extend([requestData.patientLocation.lng, requestData.patientLocation.lat]);
+        //   map.current.fitBounds(bounds, { padding: 100 });
+        // }
       });
 
       // Cleanup listener
