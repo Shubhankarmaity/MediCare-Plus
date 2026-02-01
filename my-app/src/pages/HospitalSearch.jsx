@@ -13,7 +13,7 @@ const HospitalSearch = () => {
         fetchHospitals();
     }, []);
 
-    const fetchHospitals = async (search = '') => {
+    const fetchHospitals = async () => {
         setLoading(true);
         try {
             // const query = search ? `?name=${search}&city=${search}` : '';

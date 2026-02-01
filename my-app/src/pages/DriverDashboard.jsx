@@ -6,7 +6,6 @@ import {
   CircularProgress, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
 import io from 'socket.io-client';
-import mapboxgl from 'mapbox-gl';
 import { API_URL } from '../config';
 // Mapbox integration disabled by user request
 
