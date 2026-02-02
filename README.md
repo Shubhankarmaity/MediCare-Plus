@@ -2,19 +2,40 @@
 
 A comprehensive Hospital Management System built with the MERN stack (MongoDB, Express.js, React, Node.js).
 
+## 🚀 Live Demo
+🔗 **Deployment Link:** [https://medi-care-plus-gules.vercel.app/](https://medi-care-plus-gules.vercel.app/)
+
 ## 🚀 Features
 
 ### 👤 User Roles
-- **Patients**: Book appointments, view medical history, request ambulance services.
-- **Doctors**: View and manage appointments, update patient records.
-- **Admins**: Manage users, doctors, and overall system settings.
-- **Drivers**: Receive and respond to ambulance requests in real-time.
+- **Patients**: 
+  - 📅 **Book Appointments**: Schedule visits with doctors.
+  - 🚑 **Ambulance Services**: Book emergency rides and track drivers in real-time.
+  - 📄 **Medical Reports**: View and download PDF reports.
+  - 💬 **Chat**: Communicate with doctors directly.
+  - 🔐 **Profile Management**: Secure login and profile updates.
+  
+- **Doctors**: 
+  - 🗓️ **Appointment Management**: View schedule and manage patient bookings.
+  - 📝 **Medical Records**: upload and manage patient reports.
+  - 💬 **Patient Chat**: Consult with patients via secure chat.
+  
+- **Admins**: 
+  - 👥 **User Management**: Oversee doctors, patients, and drivers.
+  - 📊 **Dashboard Stats**: View platform analytics.
+  - ✅ **Approvals**: Verify doctor registrations.
+  
+- **Drivers**: 
+  - 📍 **Ride Requests**: Receive real-time ambulance requests.
+  - 🗺️ **Navigation**: Integrated map for locating patients.
+  - 🟢 **Availability**: Toggle online/offline status.
 
 ### ⚡ Key Functionalities
-- **Real-time Updates**: Socket.io integration for ambulance tracking and live notifications.
-- **Authentication**: Secure login/signup system with role-based access control.
-- **Dashboard**: Tailored dashboards for each user role (Admin, Doctor, Patient, Driver).
-- **Appointment Booking**: Streamlined process for scheduling doctor visits.
+- **Real-time Updates**: Socket.io integration for instant chat and ambulance tracking.
+- **Interactive Maps**: Mapbox GL integration for location services.
+- **PDF Generation**: Auto-generate medical reports using jsPDF.
+- **Secure Authentication**: JWT-based secure login/signup with role-based access control.
+- **Responsive Design**: Modern UI using Tailwind CSS and Framer Motion animations.
 
 ### 🎬 AI Video Presentation Prompt
 To create an engaging demonstration video for this Hospital Management System, use the following prompt with your preferred AI video generation tool:
@@ -42,18 +63,19 @@ Voiceover: Friendly, professional narrator explaining benefits
 ```
 
 ## 🛠️ Tech Stack
-- **Frontend**: React (Vite), Tailwind CSS, Framer Motion
+- **Frontend**: React (Vite), Tailwind CSS, Framer Motion, Material UI (@mui/material), Lucide React
 - **Backend**: Node.js, Express.js
-- **Database**: MongoDB
+- **Database**: MongoDB (Mongoose)
 - **Real-time**: Socket.io
+- **Utilities**: Mapbox GL, jsPDF, html2canvas, Axios
 
 ## 📂 Project Structure
 - **`/server`**: Backend API and database logic.
-  - `models/`: Database schemas (User, Appointment, AmbulanceRequest).
-  - `routes/`: API endpoints.
+  - `models/`: Database schemas (User, Appointment, AmbulanceRequest, etc.).
+  - `routes/`: API endpoints (Auth, Doctors, Appointments, etc.).
 - **`/my-app`**: Frontend React application.
   - `src/pages/`: Main application views (Dashboards, Home, Auth).
-  - `src/components/`: Reusable UI components.
+  - `src/components/`: Reusable UI components (Navbar, ChatWindow, etc.).
 
 ## 🏃‍♂️ How to Run
 
