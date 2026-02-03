@@ -57,7 +57,7 @@ const DoctorReports = ({ open, onClose, appointment, onSubmit }) => {
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ bgcolor: '#14b8a6', color: 'white', display: 'flex', alignItems: 'center', gap: 1 }}>
         <FileText size={24} />
-        {appointment && appointment.doctorReport ? 'View/Edit Patient Medical Report' : 'Comprehensive Patient Medical Report'}
+        {appointment && appointment.doctorReport ? 'View/Edit Patient Medical Report' : 'Comprehensive Patient Medical Reports'}
       </DialogTitle>
       
       <DialogContent sx={{ mt: 3 }}>
