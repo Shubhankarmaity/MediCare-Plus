@@ -7,7 +7,7 @@ import {
 import { Mail, Lock, Eye, EyeOff, HeartPulse, ArrowRight } from 'lucide-react';
 import CssBaseline from '@mui/material/CssBaseline';
 
-import { API_URL } from '../config';
+import authService from '../services/authService';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -28,38 +28,32 @@ const Login = () => {
       // Simulate network delay for smooth UX feel
       await new Promise(r => setTimeout(r, 800));
 
-      const response = await fetch(`${API_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+      const data = await authService.login(formData);
+
+      console.log('Login successful - User data:', { name: data.result.name, email: data.result.email, role: data.result.role, id: data.result._id });
+
+      // Store fresh token and user data
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.result));
+
+      // Verify what was stored
+      console.log('Stored in localStorage:', {
+        token: localStorage.getItem('token') ? 'Token stored' : 'No token',
+        user: JSON.parse(localStorage.getItem('user'))
       });
-      const data = await response.json();
 
-      if (response.ok) {
-        console.log('Login successful - User data:', { name: data.result.name, email: data.result.email, role: data.result.role, id: data.result._id });
+      const role = data.result.role;
+      const target = role === 'patient' ? '/patient-dashboard' :
+        role === 'doctor' ? '/doctor-dashboard' :
+          role === 'admin' ? '/admin-dashboard' :
+            role === 'driver' ? '/driver-dashboard' : '/';
+      navigate(target);
 
-        // Store fresh token and user data
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.result));
-
-        // Verify what was stored
-        console.log('Stored in localStorage:', {
-          token: localStorage.getItem('token') ? 'Token stored' : 'No token',
-          user: JSON.parse(localStorage.getItem('user'))
-        });
-
-        const role = data.result.role;
-        const target = role === 'patient' ? '/patient-dashboard' :
-          role === 'doctor' ? '/doctor-dashboard' :
-            role === 'admin' ? '/admin-dashboard' :
-              role === 'driver' ? '/driver-dashboard' : '/';
-        navigate(target);
-      } else {
-        setError(data.message || "Login failed");
-      }
     } catch (err) {
       console.error('Login error:', err);
-      setError("Server error. Please try again later.");
+      // Handle axios error object
+      const errorMessage = err.response?.data?.message || err.message || "Login failed";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

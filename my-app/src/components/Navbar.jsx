@@ -115,7 +115,7 @@ const Navbar = () => {
               onClick={() => setActiveTab('owner')}
               className={`flex-1 py-4 text-sm font-semibold tracking-wide uppercase transition-all ${activeTab === 'owner' ? 'border-b-2 border-blue-600 text-blue-700 bg-white' : 'text-gray-500 hover:bg-gray-100'}`}
             >
-              Project Owner
+              Project Developer
             </button>
             <button
               onClick={() => setActiveTab('guide')}

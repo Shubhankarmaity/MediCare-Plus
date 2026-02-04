@@ -16,7 +16,8 @@ const roleCards = [
   { id: 'admin', label: 'Administrator', icon: <Shield size={32} />, description: 'Manage system resources.', color: 'bg-purple-100 text-purple-600', avatarBg: 'secondary.main' }
 ];
 
-import { API_URL } from '../config';
+import authService from '../services/authService';
+import hospitalService from '../services/hospitalService';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -57,8 +58,7 @@ const Signup = () => {
     const needsHospitalList = ['admin', 'doctor', 'patient'].includes(selectedRole);
 
     if (needsHospitalList) {
-      fetch(`${API_URL}/api/hospitals`)
-        .then(res => res.json())
+      hospitalService.getAll()
         .then(data => setHospitals(data))
         .catch(err => console.error("Error fetching hospitals:", err));
     }
@@ -78,26 +78,19 @@ const Signup = () => {
     const finalData = { ...formData, role: selectedRole };
 
     try {
-      const response = await fetch(`${API_URL}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalData),
-      });
+      const data = await authService.register(finalData);
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.requiresApproval) {
-          alert(data.message); // Doctor pending approval message
-        } else {
-          alert("Registration Successful! Please Login.");
-        }
-        navigate('/login');
+      if (data.requiresApproval) {
+        alert(data.message); // Doctor pending approval message
       } else {
-        const data = await response.json();
-        alert(data.message || "Registration failed");
+        alert("Registration Successful! Please Login.");
       }
+      navigate('/login');
+
     } catch (error) {
       console.error("Error:", error);
+      const errorMessage = error.response?.data?.message || "Registration failed";
+      alert(errorMessage);
     }
   };
 
