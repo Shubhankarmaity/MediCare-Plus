@@ -21,7 +21,7 @@ const server = http.createServer(app); // Wrap Express with HTTP server for Sock
 
 // Middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL ? [process.env.CLIENT_URL, "http://localhost:5173", "http://localhost:5179", "http://localhost:5180"] : ["http://localhost:5173", "http://localhost:5179", "http://localhost:5180"],
+  origin: process.env.CLIENT_URL ? [process.env.CLIENT_URL, "http://localhost:5173", "http://localhost:5179", "http://localhost:5180", "https://medi-care-plus-gules.vercel.app"] : ["http://localhost:5173", "http://localhost:5179", "http://localhost:5180", "https://medi-care-plus-gules.vercel.app"],
   credentials: true
 }));
 app.use(express.json());
@@ -56,7 +56,7 @@ app.use('/api/seed', seedRoutes);
 // --- SOCKET.IO REAL-TIME LOGIC ---
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL ? [process.env.CLIENT_URL, "http://localhost:5173", "http://localhost:5179", "http://localhost:5180"] : ["http://localhost:5173", "http://localhost:5179", "http://localhost:5180"], // Allow Frontend to connect from both ports
+    origin: process.env.CLIENT_URL ? [process.env.CLIENT_URL, "http://localhost:5173", "http://localhost:5179", "http://localhost:5180", "https://medi-care-plus-gules.vercel.app"] : ["http://localhost:5173", "http://localhost:5179", "http://localhost:5180", "https://medi-care-plus-gules.vercel.app"], // Allow Frontend to connect from both ports
     methods: ["GET", "POST"]
   }
 });
