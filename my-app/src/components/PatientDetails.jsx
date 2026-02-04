@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, Typography, Box, CircularProgress, Chip, Avatar,
@@ -13,7 +13,7 @@ const PatientDetails = ({ open, onClose, patientId }) => {
   const [accessRequestStatus, setAccessRequestStatus] = useState(null);
   const [requestPending, setRequestPending] = useState(false);
 
-  const fetchPatientDetails = async () => {
+  const fetchPatientDetails = useCallback(async () => {
     setLoading(true);
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user'));
@@ -86,7 +86,7 @@ const PatientDetails = ({ open, onClose, patientId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [patientId]);
 
   const requestAccessToPatient = async () => {
     const token = localStorage.getItem('token');
@@ -114,7 +114,7 @@ const PatientDetails = ({ open, onClose, patientId }) => {
     if (open && patientId) {
       fetchPatientDetails();
     }
-  }, [open, patientId]);
+  }, [open, patientId, fetchPatientDetails]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>

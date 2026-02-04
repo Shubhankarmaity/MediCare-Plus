@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Paper, Box, Typography, TextField, IconButton, Avatar, CircularProgress } from '@mui/material';
 import { Send, X, Check, CheckCheck } from 'lucide-react';
 import io from 'socket.io-client';
@@ -11,6 +11,43 @@ const ChatWindow = ({ currentUser, chatPartner, onClose }) => {
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const messagesEndRef = useRef(null);
+
+    const scrollToBottom = useCallback(() => {
+        setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+    }, []);
+
+    const fetchMessages = useCallback(async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_URL}/api/messages/${chatPartner._id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Failed to fetch messages');
+            const data = await res.json();
+            setMessages(data);
+            scrollToBottom();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    }, [chatPartner._id, scrollToBottom]);
+
+    const markMessagesAsRead = useCallback(async () => {
+        try {
+            const token = localStorage.getItem('token');
+            await fetch(`${API_URL}/api/messages/read/${chatPartner._id}`, {
+                method: 'PUT',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            // Update UI for incoming messages (optional, mainly affects other user)
+        } catch (err) {
+            console.error("Failed to mark read", err);
+        }
+    }, [chatPartner._id]);
 
     // Initial Join & Fetch
     useEffect(() => {
@@ -50,38 +87,7 @@ const ChatWindow = ({ currentUser, chatPartner, onClose }) => {
             socket.off("receive_message");
             socket.off("messages_read");
         };
-    }, [chatPartner._id]);
-
-    const fetchMessages = async () => {
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/api/messages/${chatPartner._id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (!res.ok) throw new Error('Failed to fetch messages');
-            const data = await res.json();
-            setMessages(data);
-            scrollToBottom();
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const markMessagesAsRead = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            await fetch(`${API_URL}/api/messages/read/${chatPartner._id}`, {
-                method: 'PUT',
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            // Update UI for incoming messages (optional, mainly affects other user)
-        } catch (err) {
-            console.error("Failed to mark read", err);
-        }
-    };
+    }, [chatPartner._id, currentUser.id, fetchMessages, markMessagesAsRead, scrollToBottom]);
 
     const handleSend = async (e) => {
         e.preventDefault();
@@ -110,12 +116,6 @@ const ChatWindow = ({ currentUser, chatPartner, onClose }) => {
         } catch (err) {
             console.error("Failed to send", err);
         }
-    };
-
-    const scrollToBottom = () => {
-        setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
     };
 
     return (
