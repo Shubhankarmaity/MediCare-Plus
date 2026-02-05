@@ -133,7 +133,7 @@ const Home = () => {
           </div>
           <div className="ml-4 text-left">
             <Typography variant="caption" className="block text-gray-500 font-bold uppercase tracking-wider text-[10px]">Emergency</Typography>
-            <Typography variant="h6" className="font-bold text-gray-900 leading-none">911</Typography>
+            <Typography variant="h6" className="font-bold text-gray-900 leading-none">112</Typography>
           </div>
         </a>
       </motion.div>
