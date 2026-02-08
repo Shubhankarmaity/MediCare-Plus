@@ -49,7 +49,10 @@ const Navbar = () => {
               About
             </Link>
             <button
-              onClick={() => setOpenOwner(true)}
+              onClick={(e) => {
+                e.currentTarget.blur();
+                setOpenOwner(true);
+              }}
               className="text-gray-600 hover:text-blue-700 px-4 py-2 font-medium transition-all duration-300 rounded-full hover:bg-white hover:shadow-sm text-sm uppercase tracking-wide cursor-pointer"
             >
               Owner

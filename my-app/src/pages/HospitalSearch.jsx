@@ -4,6 +4,10 @@ import { Search, MapPin, Phone, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
 
+import cityGeneralImg from '../assets/images/city hospital.avif';
+import metropolitanImg from '../assets/images/hospital2.avif';
+import greenValleyImg from '../assets/images/hospital3.avif';
+
 const HospitalSearch = () => {
     const [hospitals, setHospitals] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -16,22 +20,27 @@ const HospitalSearch = () => {
     const fetchHospitals = async () => {
         setLoading(true);
         try {
-            // const query = search ? `?name=${search}&city=${search}` : '';
-            // Note: Backend search logic might need adjustment to handle OR condition for single param,
-            // but for now we'll fetch all and filter client side or just send one param if backend supports it.
-            // Actually, my backend implementation handles name AND city if both present.
-            // Let's just fetch all and filter client-side for smoother typed interaction, or better, 
-            // fetch all initially, then use API for specific searches if dataset grows.
-            // For this size, client side filtering of the "all" list is fine, or simple API call.
-            // Let's stick to API call to demonstrate integration.
-            // But wait, the backend `hospitals.js` uses `if (city)` and `if (name)`. 
-            // If I send `?name=X&city=X`, it looks for name=X AND city=X.
-            // I should update backend to use $or, OR just fetch all and filter here. 
-            // Fetching all is safer for small data.
-
             const response = await fetch(`${API_URL}/api/hospitals`);
             const data = await response.json();
-            setHospitals(data);
+
+            // Map API data to local images for consistency
+            const mappedData = data.map(hospital => {
+                // Normalize name for matching
+                const name = hospital.name.toLowerCase();
+
+                if (name.includes('city general')) {
+                    return { ...hospital, image: cityGeneralImg };
+                } else if (name.includes('metropolitan')) {
+                    return { ...hospital, image: metropolitanImg };
+                } else if (name.includes('green valley')) {
+                    return { ...hospital, image: greenValleyImg };
+                } else if (name.includes('sunrise')) {
+                    return { ...hospital, image: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" };
+                }
+                return hospital;
+            });
+
+            setHospitals(mappedData);
         } catch (error) {
             console.error('Error fetching hospitals:', error);
         } finally {

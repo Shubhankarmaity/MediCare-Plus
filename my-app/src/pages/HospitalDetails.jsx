@@ -4,6 +4,10 @@ import { Container, Grid, Card, CardContent, Button, Typography, Chip, Divider }
 import { MapPin, Phone, Mail, CheckCircle, AlertCircle, Bed, Activity, Clock } from 'lucide-react';
 import { API_URL } from '../config';
 
+import cityGeneralImg from '../assets/images/city hospital.avif';
+import metropolitanImg from '../assets/images/hospital2.avif';
+import greenValleyImg from '../assets/images/hospital3.avif';
+
 const HospitalDetails = () => {
     const { id } = useParams();
     const [hospital, setHospital] = useState(null);
@@ -14,7 +18,22 @@ const HospitalDetails = () => {
             try {
                 const response = await fetch(`${API_URL}/api/hospitals/${id}`);
                 const data = await response.json();
-                setHospital(data);
+
+                // Map API data to local images for consistency
+                let hospitalData = data;
+                const name = data.name.toLowerCase();
+
+                if (name.includes('city general')) {
+                    hospitalData = { ...data, image: cityGeneralImg };
+                } else if (name.includes('metropolitan')) {
+                    hospitalData = { ...data, image: metropolitanImg };
+                } else if (name.includes('green valley')) {
+                    hospitalData = { ...data, image: greenValleyImg };
+                } else if (name.includes('sunrise')) {
+                    hospitalData = { ...data, image: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" };
+                }
+
+                setHospital(hospitalData);
             } catch (error) {
                 console.error('Error fetching hospital details:', error);
             } finally {
@@ -49,100 +68,102 @@ const HospitalDetails = () => {
             </div>
 
             <Container maxWidth="lg" className="mt-8">
-                <Grid container spacing={4}>
-                    {/* Left Column: Main Info */}
-                    <Grid item xs={12} md={8}>
-                        <Card className="mb-6 rounded-xl shadow-sm border border-gray-100">
-                            <CardContent className="p-6">
-                                <Typography variant="h5" className="font-bold mb-4">About the Hospital</Typography>
-                                <Typography className="text-gray-600 mb-6 leading-relaxed">
-                                    {hospital.description}
-                                </Typography>
+                <Container maxWidth="lg" className="mt-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {/* Left Column: Main Info */}
+                        <div className="md:col-span-2">
+                            <Card className="mb-6 rounded-xl shadow-sm border border-gray-100">
+                                <CardContent className="p-6">
+                                    <Typography variant="h5" className="font-bold mb-4">About the Hospital</Typography>
+                                    <Typography className="text-gray-600 mb-6 leading-relaxed">
+                                        {hospital.description}
+                                    </Typography>
 
-                                <Typography variant="h6" className="font-bold mb-3">Facilities & Services</Typography>
-                                <div className="flex flex-wrap gap-2 mb-6">
-                                    {hospital.facilities.map((fac, idx) => (
-                                        <Chip key={idx} icon={<CheckCircle size={14} />} label={fac} className="bg-blue-50 text-blue-800" />
-                                    ))}
-                                </div>
+                                    <Typography variant="h6" className="font-bold mb-3">Facilities & Services</Typography>
+                                    <div className="flex flex-wrap gap-2 mb-6">
+                                        {hospital.facilities.map((fac, idx) => (
+                                            <Chip key={idx} icon={<CheckCircle size={14} />} label={fac} className="bg-blue-50 text-blue-800" />
+                                        ))}
+                                    </div>
 
-                                <Divider className="my-6" />
+                                    <Divider className="my-6" />
 
-                                <Typography variant="h6" className="font-bold mb-3">Resource Availability</Typography>
-                                <Grid container spacing={3}>
-                                    <Grid item xs={6} sm={4}>
-                                        <div className="bg-green-50 p-4 rounded-lg border border-green-100 text-center">
-                                            <Bed className="text-green-600 mx-auto mb-2" size={24} />
-                                            <div className="text-2xl font-bold text-green-700">{hospital.availableBeds}</div>
-                                            <div className="text-xs text-green-800 uppercase font-semibold">Beds Available</div>
-                                            <div className="text-xs text-gray-500 mt-1">out of {hospital.totalBeds} total</div>
-                                        </div>
-                                    </Grid>
-                                    <Grid item xs={6} sm={4}>
-                                        <div className={`p-4 rounded-lg border text-center ${hospital.icuAvailable ? 'bg-indigo-50 border-indigo-100' : 'bg-red-50 border-red-100'}`}>
-                                            <Activity className={`${hospital.icuAvailable ? 'text-indigo-600' : 'text-red-500'} mx-auto mb-2`} size={24} />
-                                            <div className={`text-lg font-bold ${hospital.icuAvailable ? 'text-indigo-700' : 'text-red-700'}`}>
-                                                {hospital.icuAvailable ? 'Available' : 'Full'}
+                                    <Typography variant="h6" className="font-bold mb-3">Resource Availability</Typography>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                        <div>
+                                            <div className="bg-green-50 p-4 rounded-lg border border-green-100 text-center">
+                                                <Bed className="text-green-600 mx-auto mb-2" size={24} />
+                                                <div className="text-2xl font-bold text-green-700">{hospital.availableBeds}</div>
+                                                <div className="text-xs text-green-800 uppercase font-semibold">Beds Available</div>
+                                                <div className="text-xs text-gray-500 mt-1">out of {hospital.totalBeds} total</div>
                                             </div>
-                                            <div className="text-xs text-gray-600 uppercase font-semibold">ICU Status</div>
                                         </div>
-                                    </Grid>
-                                    <Grid item xs={6} sm={4}>
-                                        <div className={`p-4 rounded-lg border text-center ${hospital.emergencyServices ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
-                                            <AlertCircle className={`${hospital.emergencyServices ? 'text-red-600' : 'text-gray-500'} mx-auto mb-2`} size={24} />
-                                            <div className={`text-lg font-bold ${hospital.emergencyServices ? 'text-red-700' : 'text-gray-700'}`}>
-                                                {hospital.emergencyServices ? '24/7' : 'Limited'}
+                                        <div>
+                                            <div className={`p-4 rounded-lg border text-center ${hospital.icuAvailable ? 'bg-indigo-50 border-indigo-100' : 'bg-red-50 border-red-100'}`}>
+                                                <Activity className={`${hospital.icuAvailable ? 'text-indigo-600' : 'text-red-500'} mx-auto mb-2`} size={24} />
+                                                <div className={`text-lg font-bold ${hospital.icuAvailable ? 'text-indigo-700' : 'text-red-700'}`}>
+                                                    {hospital.icuAvailable ? 'Available' : 'Full'}
+                                                </div>
+                                                <div className="text-xs text-gray-600 uppercase font-semibold">ICU Status</div>
                                             </div>
-                                            <div className="text-xs text-gray-600 uppercase font-semibold">Emergency Services</div>
                                         </div>
-                                    </Grid>
-                                </Grid>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-
-                    {/* Right Column: Contact & Actions */}
-                    <Grid item xs={12} md={4}>
-                        <Card className="rounded-xl shadow-sm border border-gray-100 sticky top-24">
-                            <CardContent className="p-6">
-                                <Typography variant="h6" className="font-bold mb-4">Contact Information</Typography>
-
-                                <div className="space-y-4 mb-6">
-                                    <div className="flex items-center text-gray-600">
-                                        <Phone size={18} className="mr-3 text-blue-600" />
-                                        <span>{hospital.phone}</span>
+                                        <div>
+                                            <div className={`p-4 rounded-lg border text-center ${hospital.emergencyServices ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
+                                                <AlertCircle className={`${hospital.emergencyServices ? 'text-red-600' : 'text-gray-500'} mx-auto mb-2`} size={24} />
+                                                <div className={`text-lg font-bold ${hospital.emergencyServices ? 'text-red-700' : 'text-gray-700'}`}>
+                                                    {hospital.emergencyServices ? '24/7' : 'Limited'}
+                                                </div>
+                                                <div className="text-xs text-gray-600 uppercase font-semibold">Emergency Services</div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center text-gray-600">
-                                        <Mail size={18} className="mr-3 text-blue-600" />
-                                        <span>{hospital.email}</span>
-                                    </div>
-                                    <div className="flex items-center text-gray-600">
-                                        <Clock size={18} className="mr-3 text-blue-600" />
-                                        <span>Open 24 Hours</span>
-                                    </div>
-                                </div>
+                                </CardContent>
+                            </Card>
+                        </div>
 
-                                <Button
-                                    variant="contained"
-                                    fullWidth
-                                    size="large"
-                                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 mb-3"
-                                    component={Link}
-                                    to="/login" // Redirect to login for booking, assuming user must be logged in
-                                >
-                                    Book Appointment
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    fullWidth
-                                    className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                                >
-                                    Request Ambulance
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                </Grid>
+                        {/* Right Column: Contact & Actions */}
+                        <div className="md:col-span-1">
+                            <Card className="rounded-xl shadow-sm border border-gray-100 sticky top-24">
+                                <CardContent className="p-6">
+                                    <Typography variant="h6" className="font-bold mb-4">Contact Information</Typography>
+
+                                    <div className="space-y-4 mb-6">
+                                        <div className="flex items-center text-gray-600">
+                                            <Phone size={18} className="mr-3 text-blue-600" />
+                                            <span>{hospital.phone}</span>
+                                        </div>
+                                        <div className="flex items-center text-gray-600">
+                                            <Mail size={18} className="mr-3 text-blue-600" />
+                                            <span>{hospital.email}</span>
+                                        </div>
+                                        <div className="flex items-center text-gray-600">
+                                            <Clock size={18} className="mr-3 text-blue-600" />
+                                            <span>Open 24 Hours</span>
+                                        </div>
+                                    </div>
+
+                                    <Button
+                                        variant="contained"
+                                        fullWidth
+                                        size="large"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 mb-3"
+                                        component={Link}
+                                        to="/login" // Redirect to login for booking, assuming user must be logged in
+                                    >
+                                        Book Appointment
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        fullWidth
+                                        className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                                    >
+                                        Request Ambulance
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </Container>
             </Container>
         </div>
     );
