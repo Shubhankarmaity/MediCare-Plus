@@ -46,12 +46,12 @@ const Home = () => {
   const handleProtectedAction = (path) => {
     const token = localStorage.getItem('token');
     if (!token) {
-      alert("Please Login or Signup first to access this feature.");
       navigate('/login');
     } else {
       navigate(path);
     }
   };
+
 
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -483,7 +483,7 @@ const Home = () => {
                 ))}
               </div>
 
-              <Link to="/profile" className="btn-primary inline-flex items-center">
+              <Link to="/team" className="btn-primary inline-flex items-center">
                 Meet Our Team
               </Link>
             </motion.div>

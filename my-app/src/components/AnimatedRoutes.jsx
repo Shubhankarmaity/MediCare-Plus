@@ -19,6 +19,7 @@ import DoctorDetails from '../pages/DoctorDetails';
 import AmbulanceServices from '../pages/AmbulanceServices';
 import LabTests from '../pages/LabTests';
 import SuperAdminDashboard from '../pages/SuperAdminDashboard';
+import ProjectTeam from '../pages/ProjectTeam';
 
 const AnimatedRoutes = () => {
     const location = useLocation();
@@ -45,6 +46,7 @@ const AnimatedRoutes = () => {
                 <Route path="/driver-dashboard" element={<PageTransition><DriverDashboard /></PageTransition>} />
                 <Route path="/super-admin-dashboard" element={<PageTransition><SuperAdminDashboard /></PageTransition>} />
                 <Route path="/profile" element={<PageTransition><Profile /></PageTransition>} />
+                <Route path="/team" element={<PageTransition><ProjectTeam /></PageTransition>} />
             </Routes>
         </AnimatePresence>
     );

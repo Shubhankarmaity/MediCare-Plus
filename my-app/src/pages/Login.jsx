@@ -1,13 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-  TextField, Button, Box, Typography, InputAdornment,
-  IconButton, Alert, CircularProgress
-} from '@mui/material';
-import { Mail, Lock, Eye, EyeOff, HeartPulse, ArrowRight } from 'lucide-react';
-import CssBaseline from '@mui/material/CssBaseline';
-
+import { motion } from 'framer-motion';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Activity, HeartPulse } from 'lucide-react';
 import authService from '../services/authService';
+import hospitalImg from '../assets/images/hospital4.avif'; // Ensure this path is correct or use a URL if needed
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -36,12 +32,6 @@ const Login = () => {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.result));
 
-      // Verify what was stored
-      console.log('Stored in localStorage:', {
-        token: localStorage.getItem('token') ? 'Token stored' : 'No token',
-        user: JSON.parse(localStorage.getItem('user'))
-      });
-
       const role = data.result.role;
       const target = role === 'patient' ? '/patient-dashboard' :
         role === 'doctor' ? '/doctor-dashboard' :
@@ -52,7 +42,6 @@ const Login = () => {
 
     } catch (err) {
       console.error('Login error:', err);
-      // Handle axios error object
       const errorMessage = err.response?.data?.message || err.message || "Login failed";
       setError(errorMessage);
     } finally {
@@ -61,117 +50,194 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
-      <CssBaseline />
-
-      {/* Healthcare-themed background elements */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-10 left-10 w-32 h-32 rounded-full bg-blue-200 opacity-50"></div>
-        <div className="absolute bottom-20 right-20 w-48 h-48 rounded-full bg-indigo-200 opacity-50"></div>
-        <div className="absolute top-1/3 right-10 w-24 h-24 rounded-full bg-cyan-200 opacity-50"></div>
-        <div className="absolute bottom-1/3 left-20 w-40 h-40 rounded-full bg-blue-100 opacity-50"></div>
-      </div>
-
-      {/* Healthcare-themed Card */}
-      <div
-        className="z-10 w-full max-w-md p-8 bg-white backdrop-blur-sm border border-blue-100 rounded-2xl shadow-xl mx-4"
+    <div className="min-h-screen flex w-full bg-slate-50">
+      {/* Left Side - Hero Section */}
+      <motion.div
+        initial={{ opacity: 0, x: -50 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.8 }}
+        className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-slate-900"
       >
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-4 rounded-full mb-4 shadow-lg">
-            <HeartPulse className="text-white w-10 h-10" />
+        {/* Desktop Home Button */}
+        <Link to="/" className="absolute top-6 left-6 z-30 flex items-center gap-2 text-white/80 hover:text-white transition-colors group">
+          <div className="p-2 bg-white/10 rounded-full group-hover:bg-white/20 transition-all backdrop-blur-sm">
+            <ArrowRight className="w-4 h-4 rotate-180" />
           </div>
-          <Typography variant="h4" fontWeight="bold" className="text-gray-800 tracking-wide">
-            MediCare Plus
-          </Typography>
-          <Typography variant="body2" className="text-gray-600 mt-2">
-            Sign in to access your healthcare portal
-          </Typography>
-        </div>
+          <span className="text-sm font-medium">Back to Home</span>
+        </Link>
 
-        {error && (
-          <div
-            className="mb-4"
-          >
-            <Alert severity="error" sx={{ bgcolor: 'rgba(211, 47, 47, 0.1)', color: '#d32f2f', border: '1px solid #ffcdd2' }}>
+        <div className="absolute inset-0 bg-gradient-to-br from-sky-600/90 to-indigo-900/90 z-10" />
+        <img
+          src={hospitalImg}
+          alt="Hospital Building"
+          className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-overlay"
+          onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1538108149393-fbbd81895907?auto=format&fit=crop&q=80&w=2000" }} // Fallback image
+        />
+
+        <div className="relative z-20 flex flex-col justify-between h-full p-12 text-white">
+          <div className="flex items-center gap-2 mt-12">
+            <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+              <HeartPulse className="w-8 h-8 text-white" />
+            </div>
+            <span className="text-2xl font-bold tracking-tight">MediCare Plus</span>
+          </div>
+
+          <div className="space-y-6 max-w-lg">
+            <h1 className="text-5xl font-bold leading-tight">
+              Advanced Healthcare, <br />
+              <span className="text-sky-300">Simplified.</span>
+            </h1>
+            <p className="text-lg text-slate-200 leading-relaxed">
+              Experience the future of medical management. Secure, efficient, and designed for healthcare professionals and patients alike.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4 text-sm text-slate-300 font-medium">
+            <span>© 2024 MediCare Plus</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+            <Link to="/contact" className="hover:text-white transition cursor-pointer">Contact Support</Link>
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+            <Link to="/privacy" className="hover:text-white transition cursor-pointer">Privacy Policy</Link>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Right Side - Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 relative">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="w-full max-w-md space-y-8"
+        >
+          {/* Mobile Home Button */}
+          <div className="lg:hidden">
+            <Link to="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-6">
+              <ArrowRight className="w-4 h-4 rotate-180" />
+              <span className="text-sm font-medium">Back to Home</span>
+            </Link>
+          </div>
+
+          <div className="text-center lg:text-left">
+            <div className="inline-flex lg:hidden items-center gap-2 mb-8 justify-center">
+              <div className="bg-sky-600 p-2 rounded-lg">
+                <HeartPulse className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xl font-bold text-slate-900">MediCare Plus</span>
+            </div>
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Welcome back</h2>
+            <p className="mt-2 text-slate-600">Please enter your details to sign in.</p>
+          </div>
+
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2"
+            >
+              <Activity className="w-4 h-4" />
               {error}
-            </Alert>
+            </motion.div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-1">
+              <label className="text-sm font-semibold text-slate-700 ml-1">Email Address</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-slate-400 group-focus-within:text-sky-600 transition-colors" />
+                </div>
+                <input
+                  type="email"
+                  required
+                  className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm"
+                  placeholder="Enter your email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-semibold text-slate-700 ml-1">Password</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-sky-600 transition-colors" />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  className="block w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm"
+                  placeholder="Enter your password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-gray-300 rounded cursor-pointer"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-600 cursor-pointer select-none">
+                  Remember me
+                </label>
+              </div>
+
+              <div className="text-sm">
+                <a href="#" className="font-medium text-sky-600 hover:text-sky-500 transition-colors">
+                  Forgot password?
+                </a>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-[0.98] cursor-pointer"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                'Sign in'
+              )}
+            </button>
+          </form>
+
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-slate-500">Or continue with</span>
+            </div>
           </div>
-        )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <TextField
-            fullWidth
-            label="Email Address"
-            variant="outlined"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            InputProps={{
-              startAdornment: <InputAdornment position="start"><Mail className="text-blue-500 w-5 h-5" /></InputAdornment>,
-              sx: {
-                color: 'gray',
-                '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgb(209 213 219)' },
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgb(156 163 175)' },
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#3b82f6' }
-              }
-            }}
-            InputLabelProps={{ sx: { color: 'rgb(107 114 128)', '&.Mui-focused': { color: '#3b82f6' } } }}
-          />
-
-          <TextField
-            fullWidth
-            label="Password"
-            type={showPassword ? 'text' : 'password'}
-            variant="outlined"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            InputProps={{
-              startAdornment: <InputAdornment position="start"><Lock className="text-blue-500 w-5 h-5" /></InputAdornment>,
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" className="text-blue-500">
-                    {showPassword ? <EyeOff className="text-blue-500 w-5 h-5" /> : <Eye className="text-blue-500 w-5 h-5" />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-              sx: {
-                color: 'gray',
-                '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgb(209 213 219)' },
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgb(156 163 175)' },
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#3b82f6' }
-              }
-            }}
-            InputLabelProps={{ sx: { color: 'rgb(107 114 128)', '&.Mui-focused': { color: '#3b82f6' } } }}
-          />
-
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            disabled={loading}
-            sx={{
-              py: 1.5,
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              borderRadius: '12px',
-              textTransform: 'none',
-              background: 'linear-gradient(to right, #3b82f6, #6366f1)',
-              boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
-              '&:hover': {
-                background: 'linear-gradient(to right, #2563eb, #4f46e5)',
-                boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)',
-              }
-            }}
-          >
-            {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
-          </Button>
-        </form>
-
-        <div className="mt-8 text-center text-gray-600 text-sm">
-          Don't have an account?{' '}
-          <Link to="/signup" className="text-blue-600 font-semibold hover:text-blue-800 transition ml-1 inline-flex items-center gap-1 group">
-            Create Account <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </Link>
-        </div>
+          <div className="mt-8 text-center">
+            <p className="text-slate-600 text-sm">
+              Don't have an account?{' '}
+              <Link to="/signup" className="font-bold text-sky-600 hover:text-sky-500 transition-colors inline-flex items-center gap-1 group">
+                Create Account
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </p>
+          </div>
+        </motion.div>
       </div>
     </div>
   );
