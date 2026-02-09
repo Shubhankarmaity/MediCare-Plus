@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Hospital = require('./models/Hospital');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const hospitals = [
     {
@@ -67,7 +68,7 @@ const hospitals = [
 
 const seedHospitals = async () => {
     try {
-        const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hospital-app';
+        const MONGODB_URI = process.env.MONGODB_URI;
         await mongoose.connect(MONGODB_URI);
         console.log('Connected to MongoDB');
 

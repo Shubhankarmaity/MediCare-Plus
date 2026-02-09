@@ -1,11 +1,12 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('./models/User');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const createPatient = async () => {
     try {
-        const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hospital-app';
+        const MONGODB_URI = process.env.MONGODB_URI;
         await mongoose.connect(MONGODB_URI);
         console.log("Connected to MongoDB");
 

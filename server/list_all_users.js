@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
 const User = require('./models/User');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-const MONGODB_URI = "mongodb+srv://shubhankarmaity795_db_user:fbTgB7CseNeUliNl@medicare.0qfor8w.mongodb.net/?appName=medicare";
+const MONGODB_URI = process.env.MONGODB_URI;
 
 const listUsers = async () => {
     try {

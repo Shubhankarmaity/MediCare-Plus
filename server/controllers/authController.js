@@ -150,7 +150,7 @@ exports.login = async (req, res) => {
         }
 
         // Create token with user ID and role
-        const token = jwt.sign({ id: user._id, role: user.role }, "supersecretkey123", { expiresIn: '7d' });
+        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || "supersecretkey123", { expiresIn: '7d' });
 
         // Remove password from response
         const userResponse = user.toObject();
