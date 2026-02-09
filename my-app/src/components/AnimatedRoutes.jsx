@@ -18,6 +18,7 @@ import HospitalDetails from '../pages/HospitalDetails';
 import DoctorDetails from '../pages/DoctorDetails';
 import AmbulanceServices from '../pages/AmbulanceServices';
 import LabTests from '../pages/LabTests';
+import SuperAdminDashboard from '../pages/SuperAdminDashboard';
 
 const AnimatedRoutes = () => {
     const location = useLocation();
@@ -42,6 +43,7 @@ const AnimatedRoutes = () => {
                 <Route path="/doctor-dashboard" element={<PageTransition><DoctorDashboard /></PageTransition>} />
                 <Route path="/admin-dashboard" element={<PageTransition><AdminDashboard /></PageTransition>} />
                 <Route path="/driver-dashboard" element={<PageTransition><DriverDashboard /></PageTransition>} />
+                <Route path="/super-admin-dashboard" element={<PageTransition><SuperAdminDashboard /></PageTransition>} />
                 <Route path="/profile" element={<PageTransition><Profile /></PageTransition>} />
             </Routes>
         </AnimatePresence>

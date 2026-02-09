@@ -46,7 +46,8 @@ const Login = () => {
       const target = role === 'patient' ? '/patient-dashboard' :
         role === 'doctor' ? '/doctor-dashboard' :
           role === 'admin' ? '/admin-dashboard' :
-            role === 'driver' ? '/driver-dashboard' : '/';
+            role === 'super-admin' ? '/super-admin-dashboard' :
+              role === 'driver' ? '/driver-dashboard' : '/';
       navigate(target);
 
     } catch (err) {
