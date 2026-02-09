@@ -21,13 +21,15 @@ import {
 import { motion } from 'framer-motion';
 import { Avatar } from '@mui/material'; // Keeping for Avatar support if needed, or replace with img
 import cityGeneralImg from '../assets/images/city hospital.avif';
-import metropolitanImg from '../assets/images/hospital2.avif';
+import metropolitanImg from '../assets/images/hospital4.avif';
 import greenValleyImg from '../assets/images/hospital3.avif';
+import { API_URL } from '../config';
 
 const Home = () => {
   const navigate = useNavigate();
 
-  // Restored Video Carousel logic
+  // Import moved to top of file
+
   const videoSources = [
     "https://assets.mixkit.co/videos/5568/5568-720.mp4",
     "https://assets.mixkit.co/videos/23069/23069-720.mp4",
@@ -130,11 +132,13 @@ const Home = () => {
   // Real Hospital Data State
   const [hospitals, setHospitals] = useState([]);
 
+  // Import moved to top of file
+
   // Fetch Hospitals on Mount
   React.useEffect(() => {
     const fetchHospitals = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/hospitals');
+        const response = await fetch(`${API_URL}/api/hospitals`);
         const data = await response.json();
 
         // Take first 4 for the featured section and map images

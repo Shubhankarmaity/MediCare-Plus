@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('./models/User');
+require('dotenv').config();
 
 // Connect to Database
-mongoose.connect('mongodb://127.0.0.1:27017/hospital-app')
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hospital-app';
+mongoose.connect(MONGODB_URI)
   .then(() => console.log("🔌 Connected to MongoDB..."))
   .catch(err => console.error("Connection Error:", err));
 
@@ -30,9 +32,9 @@ const createAmbulanceDriver = async () => {
       isAvailable: true
     });
 
-    console.log("🚗 Ambulance Driver Created:", { 
-      id: driver._id, 
-      email: driver.email, 
+    console.log("🚗 Ambulance Driver Created:", {
+      id: driver._id,
+      email: driver.email,
       role: driver.role,
       name: driver.name
     });
@@ -40,7 +42,7 @@ const createAmbulanceDriver = async () => {
     console.log("\n📋 Login Credentials:");
     console.log("   Email: ambulance@gmail.com");
     console.log("   Password: 123456");
-    
+
     process.exit();
   } catch (error) {
     console.error("Error creating ambulance driver:", error);
