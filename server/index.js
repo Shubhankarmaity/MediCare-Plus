@@ -33,7 +33,7 @@ app.use((req, res, next) => {
 });
 
 // Database
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/hospital-app';
+const MONGODB_URI = process.env.MONGODB_URI;
 console.log("Attempting to connect to MongoDB at:", MONGODB_URI);
 mongoose.connect(MONGODB_URI)
   .then(() => console.log("✅ MongoDB Connected"))
