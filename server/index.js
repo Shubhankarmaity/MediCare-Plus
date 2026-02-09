@@ -48,6 +48,8 @@ app.use('/api/ambulance', ambulanceRoutes);
 app.use('/api/access-requests', accessRequestRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
+const superAdminRoutes = require('./routes/superAdmin');
+app.use('/api/super-admin', superAdminRoutes);
 const hospitalRoutes = require('./routes/hospitals');
 app.use('/api/hospitals', hospitalRoutes);
 const seedRoutes = require('./routes/seed');
