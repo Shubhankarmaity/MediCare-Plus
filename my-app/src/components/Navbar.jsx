@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { HeartPulse } from 'lucide-react';
 import { AppBar, Toolbar, Button, Container, Dialog, DialogContent, Typography, IconButton, Box, Avatar, Chip, Link as MuiLink } from '@mui/material';
