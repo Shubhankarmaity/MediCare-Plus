@@ -220,7 +220,7 @@ const DriverDashboard = () => {
         {driverInfo && (
           <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
             <CardContent>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <Avatar sx={{ width: 60, height: 60, bgcolor: '#ef4444' }}>
                     {driverInfo.name?.charAt(0) || 'D'}
@@ -247,7 +247,7 @@ const DriverDashboard = () => {
                   startIcon={<Power size={18} />}
                   onClick={toggleAvailability}
                   disabled={loading}
-                  sx={{ borderRadius: 2, px: 3 }}
+                  sx={{ borderRadius: 2, px: 3, width: { xs: '100%', sm: 'auto' } }}
                 >
                   {loading ? <CircularProgress size={20} /> : isOnline ? 'Go Offline' : 'Go Online'}
                 </Button>

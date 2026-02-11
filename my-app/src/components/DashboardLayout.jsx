@@ -39,22 +39,22 @@ const DashboardLayout = ({ title, userRole, children }) => {
 
     const handleLogout = () => {
         console.log('Logging out - Clearing all data');
-        
+
         // Clear all localStorage items
         localStorage.clear();
-        
+
         // Also explicitly remove token and user for safety
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        
+
         console.log('LocalStorage cleared');
-        
+
         // Clear session storage as well
         sessionStorage.clear();
-        
+
         // Navigate to login
         navigate('/login', { replace: true });
-        
+
         // Force reload to clear any cached state and React components
         setTimeout(() => {
             window.location.href = '/login';
@@ -107,7 +107,7 @@ const DashboardLayout = ({ title, userRole, children }) => {
                 </Toolbar>
             </AppBar>
 
-            <main className="max-w-7xl mx-auto p-6">
+            <main className="max-w-7xl mx-auto p-4 md:p-6">
                 {children}
             </main>
         </div>

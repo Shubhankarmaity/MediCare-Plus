@@ -274,7 +274,13 @@ const PatientDashboard = () => {
     <DashboardLayout title="Medical Services" userRole="patient">
       {/* TABS */}
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
-        <Tabs value={tabValue} onChange={(e, val) => setTabValue(val)}>
+        <Tabs
+          value={tabValue}
+          onChange={(e, val) => setTabValue(val)}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
+        >
           <Tab label="Find Doctors" icon={<Stethoscope size={18} />} iconPosition="start" />
           <Tab label="Book Ambulance" icon={<Ambulance size={18} />} iconPosition="start" />
           <Tab label="My Reports" icon={<FileText size={18} />} iconPosition="start" />

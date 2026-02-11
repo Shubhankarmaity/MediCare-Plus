@@ -338,88 +338,90 @@ Enter department name:`);
       {/* Detailed User Database */}
       <Paper sx={{ p: 3, borderRadius: 3, mb: 4 }}>
         <Typography variant="h6" fontWeight="bold" mb={2}>Master User Database (Live)</Typography>
-        <Table>
-          <TableHead sx={{ bgcolor: '#f8fafc' }}>
-            <TableRow>
-              <TableCell>User</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>Details (Specific)</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Message</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {data?.users.map((user) => (
-              <TableRow key={user._id} hover sx={{ '&:first-of-type': { bgcolor: '#f0f9ff' } }}>
-                <TableCell>
-                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => fetchUserDetails(user._id)}>
-                    <Avatar sx={{ bgcolor: user.role === 'doctor' ? 'teal' : user.role === 'driver' ? 'red' : 'orange' }}>
-                      {user.name[0]}
-                    </Avatar>
-                    <div>
-                      <Typography variant="subtitle2" fontWeight="bold" sx={{ '&:hover': { color: '#3b82f6', textDecoration: 'underline' } }}>
-                        {user.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">{user.email}</Typography>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={user.role.toUpperCase()}
-                    size="small"
-                    color={user.role === 'doctor' ? 'primary' : user.role === 'driver' ? 'error' : 'default'}
-                  />
-                </TableCell>
-                <TableCell>
-                  {/* LOGIC TO SHOW SPECIFIC DATA BASED ON ROLE */}
-                  {user.role === 'doctor' && (
-                    <div className="text-sm">
-                      <span className="font-bold text-gray-600">🏥 {user.hospitalName}</span><br />
-                      <span className="text-gray-500">{user.specialization}</span><br />
-                      <span className="text-gray-600">Department: {user.department || 'Not assigned'}</span>
-                    </div>
-                  )}
-                  {user.role === 'driver' && (
-                    <div className="text-sm">
-                      <span className="font-bold text-gray-600">🚑 {user.vehicleNumber}</span><br />
-                      <span className="text-gray-500">Lic: {user.licenseNumber}</span>
-                    </div>
-                  )}
-                  {user.role === 'patient' && <span className="text-gray-400 italic">Standard Access</span>}
-                  {user.role === 'admin' && <span className="text-purple-600 font-bold">System Administrator</span>}
-                </TableCell>
-                <TableCell>
-                  {user.role === 'doctor' && user.approvalStatus === 'pending' && (
-                    <Chip label="PENDING APPROVAL" size="small" color="warning" icon={<Clock size={14} />} />
-                  )}
-                  {user.role === 'doctor' && user.approvalStatus === 'rejected' && (
-                    <Chip label="REJECTED" size="small" color="error" />
-                  )}
-                  {(user.role !== 'doctor' || user.approvalStatus === 'approved') && (
-                    <Chip label="ACTIVE" size="small" color="success" />
-                  )}
-                </TableCell>
-                <TableCell>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveChat(user);
-                    }}
-                    sx={{
-                      bgcolor: '#eff6ff',
-                      '&:hover': { bgcolor: '#dbeafe' }
-                    }}
-                  >
-                    <MessageSquare size={18} />
-                  </IconButton>
-                </TableCell>
+        <Box sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 650 }}>
+            <TableHead sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow>
+                <TableCell>User</TableCell>
+                <TableCell>Role</TableCell>
+                <TableCell>Details (Specific)</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Message</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHead>
+            <TableBody>
+              {data?.users.map((user) => (
+                <TableRow key={user._id} hover sx={{ '&:first-of-type': { bgcolor: '#f0f9ff' } }}>
+                  <TableCell>
+                    <div className="flex items-center gap-3 cursor-pointer" onClick={() => fetchUserDetails(user._id)}>
+                      <Avatar sx={{ bgcolor: user.role === 'doctor' ? 'teal' : user.role === 'driver' ? 'red' : 'orange' }}>
+                        {user.name[0]}
+                      </Avatar>
+                      <div>
+                        <Typography variant="subtitle2" fontWeight="bold" sx={{ '&:hover': { color: '#3b82f6', textDecoration: 'underline' } }}>
+                          {user.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">{user.email}</Typography>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={user.role.toUpperCase()}
+                      size="small"
+                      color={user.role === 'doctor' ? 'primary' : user.role === 'driver' ? 'error' : 'default'}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {/* LOGIC TO SHOW SPECIFIC DATA BASED ON ROLE */}
+                    {user.role === 'doctor' && (
+                      <div className="text-sm">
+                        <span className="font-bold text-gray-600">🏥 {user.hospitalName}</span><br />
+                        <span className="text-gray-500">{user.specialization}</span><br />
+                        <span className="text-gray-600">Department: {user.department || 'Not assigned'}</span>
+                      </div>
+                    )}
+                    {user.role === 'driver' && (
+                      <div className="text-sm">
+                        <span className="font-bold text-gray-600">🚑 {user.vehicleNumber}</span><br />
+                        <span className="text-gray-500">Lic: {user.licenseNumber}</span>
+                      </div>
+                    )}
+                    {user.role === 'patient' && <span className="text-gray-400 italic">Standard Access</span>}
+                    {user.role === 'admin' && <span className="text-purple-600 font-bold">System Administrator</span>}
+                  </TableCell>
+                  <TableCell>
+                    {user.role === 'doctor' && user.approvalStatus === 'pending' && (
+                      <Chip label="PENDING APPROVAL" size="small" color="warning" icon={<Clock size={14} />} />
+                    )}
+                    {user.role === 'doctor' && user.approvalStatus === 'rejected' && (
+                      <Chip label="REJECTED" size="small" color="error" />
+                    )}
+                    {(user.role !== 'doctor' || user.approvalStatus === 'approved') && (
+                      <Chip label="ACTIVE" size="small" color="success" />
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveChat(user);
+                      }}
+                      sx={{
+                        bgcolor: '#eff6ff',
+                        '&:hover': { bgcolor: '#dbeafe' }
+                      }}
+                    >
+                      <MessageSquare size={18} />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
       </Paper>
 
       {/* User Details Modal */}

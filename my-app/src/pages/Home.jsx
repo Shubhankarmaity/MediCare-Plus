@@ -217,7 +217,7 @@ const Home = () => {
               <Award className="w-4 h-4" />
               <span>#1 Ranked Hospital in the Region</span>
             </div>
-            <h1 className="text-5xl lg:text-7xl font-extrabold text-white leading-tight mb-8">
+            <h1 className="text-4xl md:text-5xl lg:text-7xl font-extrabold text-white leading-tight mb-8">
               Modern Healthcare <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-teal-300">
                 For Your Whole Family
@@ -288,7 +288,7 @@ const Home = () => {
       </section>
 
       {/* Quick Access / Services Section */}
-      <section id="services" className="py-20 lg:py-28 bg-white">
+      <section id="services" className="py-12 md:py-20 lg:py-28 bg-white">
         <div className="container mx-auto px-4">
           <motion.div
             className="text-center max-w-3xl mx-auto mb-16"
@@ -348,7 +348,7 @@ const Home = () => {
       </section>
 
       {/* Featured Hospitals Section (New from DB) */}
-      <section className="py-20 bg-slate-50">
+      <section className="py-12 md:py-20 bg-slate-50">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-end mb-12">
             <div>
@@ -401,7 +401,7 @@ const Home = () => {
       </section>
 
       {/* About Section - Modern Split with Parallax effect */}
-      <section id="about" className="py-24 bg-white relative overflow-hidden">
+      <section id="about" className="py-12 md:py-24 bg-white relative overflow-hidden">
         {/* Background blobs */}
         <div className="absolute top-20 left-0 w-96 h-96 bg-blue-200/30 rounded-full blur-[100px]"></div>
         <div className="absolute bottom-20 right-0 w-96 h-96 bg-purple-200/30 rounded-full blur-[100px]"></div>
@@ -492,7 +492,7 @@ const Home = () => {
       </section>
 
       {/* Testimonials - Staggered Cards */}
-      <section className="py-24 bg-slate-50">
+      <section className="py-12 md:py-24 bg-slate-50">
         <div className="container mx-auto px-4">
           <motion.div
             initial="hidden"
@@ -535,7 +535,7 @@ const Home = () => {
       </section>
 
       {/* Doctors Preview */}
-      <section className="py-20 bg-white">
+      <section className="py-12 md:py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-end mb-12">
             <div>
@@ -577,7 +577,7 @@ const Home = () => {
       </section>
 
       {/* Contact / CTA Section */}
-      <section id="contact" className="py-20 bg-slate-900 text-white relative overflow-hidden">
+      <section id="contact" className="py-12 md:py-20 bg-slate-900 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/2 h-full bg-slate-800/50 clip-path-slant"></div>
         {/* Animated Background Shapes */}
         <motion.div
