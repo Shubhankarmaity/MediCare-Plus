@@ -45,6 +45,8 @@ const superAdminRoutes = require('./routes/superAdmin');
 app.use('/api/super-admin', superAdminRoutes);
 const hospitalRoutes = require('./routes/hospitals');
 app.use('/api/hospitals', hospitalRoutes);
+const debugRoutes = require('./routes/debug');
+app.use('/api/debug', debugRoutes);
 const seedRoutes = require('./routes/seed');
 app.use('/api/seed', seedRoutes);
 
