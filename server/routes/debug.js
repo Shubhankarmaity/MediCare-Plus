@@ -37,6 +37,30 @@ router.get('/email-v2', async (req, res) => {
 });
 
 // Keep network test for reference
+// NEW: Test the exact OTP function
+const { sendOtpEmail } = require('../utils/emailService');
+
+router.get('/test-otp-format', async (req, res) => {
+    try {
+        const { to } = req.query;
+        if (!to) return res.status(400).json({ message: "Provide 'to' param" });
+
+        // Simulate a random OTP
+        const testOtp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        console.log(`Testing OTP send to ${to} with code ${testOtp}`);
+        const result = await sendOtpEmail(to, testOtp);
+
+        if (result) {
+            res.json({ message: "OTP Email Sent via Brevo", result, otpUsed: testOtp });
+        } else {
+            res.status(500).json({ message: "Failed to send OTP via Brevo (Check Logs)" });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 const dns = require('dns');
 const net = require('net');
 
