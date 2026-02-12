@@ -4,7 +4,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const MONGODB_URI = process.env.MONGODB_URI;
-
+ṭ
 const listUsers = async () => {
     try {
         await mongoose.connect(MONGODB_URI);
