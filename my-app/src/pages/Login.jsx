@@ -12,6 +12,10 @@ const Login = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  const [step, setStep] = useState(1); // 1: Login, 2: OTP
+  const [otp, setOtp] = useState('');
+  const [emailToVerify, setEmailToVerify] = useState('');
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -42,8 +46,36 @@ const Login = () => {
 
     } catch (err) {
       console.error('Login error:', err);
-      const errorMessage = err.response?.data?.message || err.message || "Login failed";
+      const errorData = err.response?.data;
+
+      // Handle Unverified Email
+      if (err.response?.status === 403 && errorData?.requiresVerification) {
+        setError(errorData.message);
+        setEmailToVerify(errorData.email || formData.email);
+        setStep(2); // Switch to OTP view
+        return;
+      }
+
+      const errorMessage = errorData?.message || err.message || "Login failed";
       setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      await authService.verifyEmail({ email: emailToVerify, otp });
+      alert('Email verified successfully! Please sign in again.');
+      setStep(1); // Back to login
+      setOtp('');
+      // Optionally auto-login here via a new call to authService.login
+    } catch (err) {
+      setError(err.response?.data?.message || "Verification failed");
     } finally {
       setLoading(false);
     }
@@ -125,8 +157,12 @@ const Login = () => {
               </div>
               <span className="text-xl font-bold text-slate-900">MediCare Plus</span>
             </div>
-            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Welcome back</h2>
-            <p className="mt-2 text-slate-600">Please enter your details to sign in.</p>
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+              {step === 1 ? "Welcome back" : "Verify Email"}
+            </h2>
+            <p className="mt-2 text-slate-600">
+              {step === 1 ? "Please enter your details to sign in." : `Enter the OTP sent to ${emailToVerify}`}
+            </p>
           </div>
 
           {error && (
@@ -140,103 +176,142 @@ const Login = () => {
             </motion.div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1">
-              <label className="text-sm font-semibold text-slate-700 ml-1">Email Address</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-slate-400 group-focus-within:text-sky-600 transition-colors" />
+          {step === 1 ? (
+            // LOGIN FORM
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-1">
+                <label className="text-sm font-semibold text-slate-700 ml-1">Email Address</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-slate-400 group-focus-within:text-sky-600 transition-colors" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm"
+                    placeholder="Enter your email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
                 </div>
-                <input
-                  type="email"
-                  required
-                  className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm"
-                  placeholder="Enter your email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-semibold text-slate-700 ml-1">Password</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-sky-600 transition-colors" />
+              <div className="space-y-1">
+                <label className="text-sm font-semibold text-slate-700 ml-1">Password</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-sky-600 transition-colors" />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    className="block w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm"
+                    placeholder="Enter your password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" />
+                    )}
+                  </button>
                 </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  className="block w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm"
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-gray-300 rounded cursor-pointer"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-600 cursor-pointer select-none">
-                  Remember me
-                </label>
               </div>
 
-              <div className="text-sm">
-                <a href="#" className="font-medium text-sky-600 hover:text-sky-500 transition-colors">
-                  Forgot password?
-                </a>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    id="remember-me"
+                    name="remember-me"
+                    type="checkbox"
+                    className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-gray-300 rounded cursor-pointer"
+                  />
+                  <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-600 cursor-pointer select-none">
+                    Remember me
+                  </label>
+                </div>
+
+                <div className="text-sm">
+                  <Link to="/forgot-password" className="font-medium text-sky-600 hover:text-sky-500 transition-colors">
+                    Forgot password?
+                  </Link>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-[0.98] cursor-pointer"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  'Sign in'
+                )}
+              </button>
+            </form>
+          ) : (
+            // OTP FORM
+            <form onSubmit={handleVerifyOtp} className="space-y-6">
+              <input
+                type="text"
+                required
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all outline-none text-center tracking-widest text-2xl font-bold"
+                placeholder="• • • • • •"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                maxLength={6}
+              />
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  'Verify Account'
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="w-full text-slate-500 hover:text-slate-700 text-sm font-medium"
+              >
+                Back to Login
+              </button>
+            </form>
+          )}
+
+          {step === 1 && (
+            <div className="relative my-8">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-slate-500">Or continue with</span>
               </div>
             </div>
+          )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-[0.98] cursor-pointer"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                'Sign in'
-              )}
-            </button>
-          </form>
-
-          <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200"></div>
+          {step === 1 && (
+            <div className="mt-8 text-center">
+              <p className="text-slate-600 text-sm">
+                Don't have an account?{' '}
+                <Link to="/signup" className="font-bold text-sky-600 hover:text-sky-500 transition-colors inline-flex items-center gap-1 group">
+                  Create Account
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </p>
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-slate-500">Or continue with</span>
-            </div>
-          </div>
-
-          <div className="mt-8 text-center">
-            <p className="text-slate-600 text-sm">
-              Don't have an account?{' '}
-              <Link to="/signup" className="font-bold text-sky-600 hover:text-sky-500 transition-colors inline-flex items-center gap-1 group">
-                Create Account
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </p>
-          </div>
+          )}
         </motion.div>
       </div>
     </div>

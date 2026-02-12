@@ -3,6 +3,12 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Hospital = require('../models/Hospital');
 const Notification = require('../models/Notification');
+const { sendOtpEmail } = require('../utils/emailService'); // Import email service
+
+// Helper to generate 6-digit OTP
+const generateOTP = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+};
 
 exports.register = async (req, res) => {
     try {
@@ -44,10 +50,27 @@ exports.register = async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
+        // Determine if verification is needed
+        const needsVerification = ['patient', 'doctor', 'driver'].includes(req.body.role);
+
+        let otp = undefined;
+        let otpExpires = undefined;
+        let isVerified = true; // Default to true (for admins/super-admins)
+
+        if (needsVerification) {
+            otp = generateOTP();
+            otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+            isVerified = false;
+        }
+
         const userData = {
             ...finalUserData,
             email: req.body.email.toLowerCase(),
-            password: hashedPassword
+            password: hashedPassword,
+            otp,
+            otpExpires,
+            isVerified
         };
 
         // Remove empty string fields to avoid enum validation errors
@@ -98,15 +121,32 @@ exports.register = async (req, res) => {
             req.io.emit('new_user', userForBroadcast);
         }
 
+        // Send OTP Email if needed
+        if (needsVerification && otp) {
+            await sendOtpEmail(user.email, otp);
+        }
+
         // Different message based on role
         if (user.role === 'doctor') {
             res.json({
-                message: "Registration Successful! Your account is pending admin approval. You will be notified once approved.",
+                message: "Registration Successful! Please check your email for OTP to verify your account.",
                 requiresApproval: true,
-                approvalStatus: 'pending'
+                approvalStatus: 'pending',
+                requiresVerification: true,
+                email: user.email
+            });
+        } else if (needsVerification) {
+            res.json({
+                message: "Registration Successful! Please check your email for OTP.",
+                requiresVerification: true,
+                email: user.email
             });
         } else {
-            res.json({ message: "User Created Successfully" });
+            res.json({
+                message: "Registration Successful! You can now login.",
+                requiresVerification: false, // Explicitly false for admins
+                email: user.email
+            });
         }
     } catch (err) {
         console.error('Registration error:', err);
@@ -130,6 +170,23 @@ exports.login = async (req, res) => {
         if (!validPass) {
             console.log('Invalid password for:', req.body.email);
             return res.status(400).json({ message: "Invalid Password" });
+        }
+
+        // CHECK VERIFICATION STATUS
+        if (user.isVerified === false) {
+            // Generate and send new OTP
+            const otp = generateOTP();
+            user.otp = otp;
+            user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+            await user.save();
+
+            await sendOtpEmail(user.email, otp);
+
+            return res.status(403).json({
+                message: "Email not verified. A new OTP has been sent to your email.",
+                requiresVerification: true,
+                email: user.email
+            });
         }
 
         // CHECK APPROVAL STATUS FOR DOCTORS
@@ -329,6 +386,131 @@ exports.getProfileAccessList = async (req, res) => {
         res.json({ accessList });
     } catch (err) {
         console.error('Error fetching access list:', err);
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// --- NEW AUTH METHODS ---
+
+exports.verifyEmail = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        const user = await User.findOne({ email: email.toLowerCase() }).select('+otp +otpExpires');
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        if (user.isVerified) {
+            return res.status(400).json({ message: "Email already verified. Please login." });
+        }
+
+        if (!user.otp || !user.otpExpires) {
+            return res.status(400).json({ message: "Invalid request. Please Request OTP again." });
+        }
+
+        if (user.otp !== otp) {
+            return res.status(400).json({ message: "Invalid OTP" });
+        }
+
+        if (user.otpExpires < Date.now()) {
+            return res.status(400).json({ message: "OTP has expired" });
+        }
+
+        // OTP Valid
+        user.isVerified = true;
+        user.otp = undefined;
+        user.otpExpires = undefined;
+        await user.save();
+
+        res.json({ message: "Email verified successfully! You can now login." });
+    } catch (err) {
+        console.error('Verification error:', err);
+        res.status(500).json({ message: err.message });
+    }
+};
+
+exports.resendOtp = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email: email.toLowerCase() });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        if (user.isVerified) {
+            return res.status(400).json({ message: "Email already verified." });
+        }
+
+        const otp = generateOTP();
+        user.otp = otp;
+        user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+        await user.save();
+
+        await sendOtpEmail(user.email, otp);
+
+        res.json({ message: "OTP resent successfully." });
+
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+exports.forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email: email.toLowerCase() });
+
+        if (!user) {
+            // Security: Don't reveal if user exists or not, but for this app we might want to for UX?
+            // Standard: "If an account exists, an OTP has been sent."
+            // But for dev/MVP:
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const otp = generateOTP();
+        user.otp = otp;
+        user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+        await user.save();
+
+        await sendOtpEmail(user.email, otp);
+
+        res.json({ message: "OTP sent to your email." });
+
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+exports.resetPassword = async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+        const user = await User.findOne({ email: email.toLowerCase() }).select('+otp +otpExpires');
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        if (!user.otp || user.otp !== otp) {
+            return res.status(400).json({ message: "Invalid OTP" });
+        }
+
+        if (user.otpExpires < Date.now()) {
+            return res.status(400).json({ message: "OTP has expired" });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+        user.otp = undefined;
+        user.otpExpires = undefined;
+        // Also verify them if they weren't
+        user.isVerified = true;
+        await user.save();
+
+        res.json({ message: "Password reset successfully. You can now login." });
+
+    } catch (err) {
         res.status(500).json({ message: err.message });
     }
 };

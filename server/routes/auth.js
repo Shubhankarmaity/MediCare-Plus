@@ -5,6 +5,18 @@ const authController = require('../controllers/authController');
 // REGISTER
 router.post('/register', authController.register);
 
+// VERIFY EMAIL
+router.post('/verify-email', authController.verifyEmail);
+
+// RESEND OTP
+router.post('/resend-otp', authController.resendOtp);
+
+// FORGOT PASSWORD
+router.post('/forgot-password', authController.forgotPassword);
+
+// RESET PASSWORD
+router.post('/reset-password', authController.resetPassword);
+
 // LOGIN
 router.post('/login', authController.login);
 

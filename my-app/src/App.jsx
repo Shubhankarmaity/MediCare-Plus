@@ -10,7 +10,13 @@ function App() {
     <Router>
       <ScrollProgress />
       <ScrollToHash />
+      <ScrollToHash />
       <AnimatedRoutes />
+      {/* Route for Forgot Password is likely inside AnimatedRoutes or should be added where routes are defined. 
+          Wait, AnimatedRoutes usually handles routes. I need to check AnimatedRoutes.jsx
+          But if I can add it here... no, better check AnimatedRoutes.jsx first.
+      */}
+      <BackToTop />
       <BackToTop />
     </Router>
   );

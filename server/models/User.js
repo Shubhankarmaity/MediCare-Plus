@@ -18,6 +18,11 @@ const UserSchema = new mongoose.Schema({
     index: true
   },
 
+  // --- OTP & VERIFICATION ---
+  otp: { type: String, select: false },
+  otpExpires: { type: Date, select: false },
+  isVerified: { type: Boolean, default: false },
+
   // Link to Hospital (For Admins, Doctors, and Patients)
   hospitalId: {
     type: mongoose.Schema.Types.ObjectId,

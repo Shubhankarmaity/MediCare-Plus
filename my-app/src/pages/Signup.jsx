@@ -17,12 +17,59 @@ const roleCards = [
   { id: 'admin', label: 'Admin', icon: Shield, description: 'Manage hospital resources.', color: 'bg-violet-50 text-violet-600 border-violet-200' }
 ];
 
+const InputField = ({ label, type = "text", value, onChange, required = true, icon: Icon, placeholder }) => (
+  <div className="space-y-1">
+    <label className="text-sm font-semibold text-slate-700 ml-1">{label}</label>
+    <div className="relative group">
+      {Icon && (
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Icon className="h-5 w-5 text-slate-400 group-focus-within:text-sky-600 transition-colors" />
+        </div>
+      )}
+      <input
+        type={type}
+        required={required}
+        className={`block w-full ${Icon ? 'pl-10' : 'pl-4'} pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm`}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+      />
+    </div>
+  </div>
+);
+
+const SelectField = ({ label, value, onChange, options, required = true, disabled = false, placeholder = "Select..." }) => (
+  <div className="space-y-1">
+    <label className="text-sm font-semibold text-slate-700 ml-1">{label}</label>
+    <div className="relative">
+      <select
+        required={required}
+        disabled={disabled}
+        className="block w-full pl-4 pr-10 py-3 border border-slate-200 rounded-xl leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm appearance-none disabled:bg-slate-100 disabled:text-slate-400"
+        value={value}
+        onChange={onChange}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((opt, idx) => (
+          <option key={idx} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+        <ChevronRight className="h-5 w-5 text-slate-400 rotate-90" />
+      </div>
+    </div>
+  </div>
+);
+
 const Signup = () => {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState(null);
   const [loading, setLoading] = useState(false);
   const [hospitals, setHospitals] = useState([]);
   const [error, setError] = useState('');
+  const [step, setStep] = useState(1); // 1: Role, 2: Form, 3: OTP
+  const [otp, setOtp] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   // Initial State
   const [formData, setFormData] = useState({
@@ -59,15 +106,36 @@ const Signup = () => {
 
     try {
       const data = await authService.register(finalData);
-      if (data.requiresApproval) {
+
+      if (data.requiresVerification) {
+        setRegisteredEmail(data.email);
+        setStep(3); // Move to OTP step
+      } else if (data.requiresApproval) {
         alert(data.message);
+        navigate('/login');
       } else {
         alert("Registration Successful! Please Login.");
+        navigate('/login');
       }
-      navigate('/login');
     } catch (err) {
       console.error("Error:", err);
       setError(err.response?.data?.message || "Registration failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      await authService.verifyEmail({ email: registeredEmail, otp });
+      alert('Email verified successfully! Please Login.');
+      navigate('/login');
+    } catch (err) {
+      setError(err.response?.data?.message || "Verification failed");
     } finally {
       setLoading(false);
     }
@@ -79,49 +147,7 @@ const Signup = () => {
 
   const currentRoleDetails = roleCards.find(r => r.id === selectedRole);
 
-  const InputField = ({ label, type = "text", field, required = true, icon: Icon, placeholder }) => (
-    <div className="space-y-1">
-      <label className="text-sm font-semibold text-slate-700 ml-1">{label}</label>
-      <div className="relative group">
-        {Icon && (
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Icon className="h-5 w-5 text-slate-400 group-focus-within:text-sky-600 transition-colors" />
-          </div>
-        )}
-        <input
-          type={type}
-          required={required}
-          className={`block w-full ${Icon ? 'pl-10' : 'pl-4'} pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm`}
-          placeholder={placeholder}
-          value={formData[field]}
-          onChange={(e) => handleInputChange(field, e.target.value)}
-        />
-      </div>
-    </div>
-  );
 
-  const SelectField = ({ label, field, options, required = true, disabled = false, placeholder = "Select..." }) => (
-    <div className="space-y-1">
-      <label className="text-sm font-semibold text-slate-700 ml-1">{label}</label>
-      <div className="relative">
-        <select
-          required={required}
-          disabled={disabled}
-          className="block w-full pl-4 pr-10 py-3 border border-slate-200 rounded-xl leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm appearance-none disabled:bg-slate-100 disabled:text-slate-400"
-          value={formData[field]}
-          onChange={(e) => handleInputChange(field, e.target.value)}
-        >
-          <option value="">{placeholder}</option>
-          {options.map((opt, idx) => (
-            <option key={idx} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-          <ChevronRight className="h-5 w-5 text-slate-400 rotate-90" />
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <div className="min-h-screen flex w-full bg-slate-50">
@@ -212,7 +238,7 @@ const Signup = () => {
                       key={role.id}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => setSelectedRole(role.id)}
+                      onClick={() => { setSelectedRole(role.id); setStep(2); }}
                       className={`relative p-6 rounded-2xl border-2 text-left transition-all duration-200 group hover:shadow-lg ${role.color} hover:border-current bg-white border-slate-100 hover:bg-opacity-5`}
                     >
                       <div className={`p-3 rounded-xl inline-block mb-4 ${role.color} bg-opacity-20`}>
@@ -233,6 +259,56 @@ const Signup = () => {
                   </p>
                 </div>
               </motion.div>
+            ) : step === 3 ? (
+              // VIEW 3: OTP VERIFICATION
+              <motion.div
+                key="otp-verification"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.4 }}
+                className="space-y-8 text-center"
+              >
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-sky-100 text-sky-600 mb-4">
+                  <Mail className="w-8 h-8" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900">Verify Email</h2>
+                <p className="text-slate-600">
+                  We have sent a 6-digit OTP to <strong>{registeredEmail}</strong>.
+                  <br />Please enter it below to verify your account.
+                </p>
+
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2 justify-center">
+                    <AlertCircle className="w-4 h-4" />
+                    {error}
+                  </div>
+                )}
+
+                <form onSubmit={handleVerifyOtp} className="space-y-6 max-w-sm mx-auto">
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all outline-none text-center tracking-widest text-2xl font-bold"
+                    placeholder="• • • • • •"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    maxLength={6}
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      'Verify Account'
+                    )}
+                  </button>
+                </form>
+              </motion.div>
             ) : (
               // VIEW 2: REGISTRATION FORM
               <motion.div
@@ -245,7 +321,7 @@ const Signup = () => {
               >
                 <div className="flex items-center gap-4 mb-8">
                   <button
-                    onClick={() => setSelectedRole(null)}
+                    onClick={() => { setSelectedRole(null); setStep(1); }}
                     className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
                   >
                     <ArrowLeft className="w-6 h-6" />
@@ -266,9 +342,9 @@ const Signup = () => {
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div className="grid grid-cols-1 gap-5">
                     {/* Common Fields */}
-                    <InputField label="Full Name" field="name" icon={User} placeholder="John Doe" />
-                    <InputField label="Email Address" field="email" type="email" icon={Mail} placeholder="john@example.com" />
-                    <InputField label="Password" field="password" type="password" icon={Lock} placeholder="••••••••" />
+                    <InputField label="Full Name" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} icon={User} placeholder="John Doe" />
+                    <InputField label="Email Address" value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)} type="email" icon={Mail} placeholder="john@example.com" />
+                    <InputField label="Password" value={formData.password} onChange={(e) => handleInputChange('password', e.target.value)} type="password" icon={Lock} placeholder="••••••••" />
                   </div>
 
                   {/* Dynamic Fields Based on Role */}
@@ -278,20 +354,20 @@ const Signup = () => {
                     {selectedRole === 'patient' && (
                       <>
                         <div className="grid grid-cols-2 gap-4">
-                          <InputField label="Age" field="age" type="number" placeholder="25" />
-                          <SelectField label="Gender" field="gender" options={[
+                          <InputField label="Age" value={formData.age} onChange={(e) => handleInputChange('age', e.target.value)} type="number" placeholder="25" />
+                          <SelectField label="Gender" value={formData.gender} onChange={(e) => handleInputChange('gender', e.target.value)} options={[
                             { label: 'Male', value: 'Male' }, { label: 'Female', value: 'Female' }, { label: 'Other', value: 'Other' }
                           ]} />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                          <InputField label="Phone" field="phone" icon={Phone} placeholder="+1 234..." />
-                          <SelectField label="Blood Group" field="bloodGroup" options={[
+                          <InputField label="Phone" value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} icon={Phone} placeholder="+1 234..." />
+                          <SelectField label="Blood Group" value={formData.bloodGroup} onChange={(e) => handleInputChange('bloodGroup', e.target.value)} options={[
                             { label: 'A+', value: 'A+' }, { label: 'B+', value: 'B+' }, { label: 'O+', value: 'O+' }, { label: 'AB+', value: 'AB+' },
                             { label: 'A-', value: 'A-' }, { label: 'B-', value: 'B-' }, { label: 'O-', value: 'O-' }, { label: 'AB-', value: 'AB-' }
                           ]} />
                         </div>
-                        <InputField label="Address" field="address" icon={MapPin} placeholder="123 Main St" />
-                        <InputField label="Emergency Contact" field="emergencyContact" icon={Phone} placeholder="Parent/Guardian Name & Phone" />
+                        <InputField label="Address" value={formData.address} onChange={(e) => handleInputChange('address', e.target.value)} icon={MapPin} placeholder="123 Main St" />
+                        <InputField label="Emergency Contact" value={formData.emergencyContact} onChange={(e) => handleInputChange('emergencyContact', e.target.value)} icon={Phone} placeholder="Parent/Guardian Name & Phone" />
 
                         <div className="space-y-1">
                           <label className="text-sm font-semibold text-slate-700 ml-1">Medical History</label>
@@ -306,11 +382,11 @@ const Signup = () => {
 
                         <div className="pt-4 border-t border-slate-100 mt-4">
                           <p className="text-sm font-medium text-slate-900 mb-4">Hospital Admission Preferences</p>
-                          <SelectField label="Preferred Hospital" field="hospitalId"
+                          <SelectField label="Preferred Hospital" value={formData.hospitalId} onChange={(e) => handleInputChange('hospitalId', e.target.value)}
                             options={hospitals.map(h => ({ label: `${h.name} (${h.city})`, value: h._id }))}
                           />
                           <div className="mt-4">
-                            <SelectField label="Department" field="department" disabled={!formData.hospitalId}
+                            <SelectField label="Department" value={formData.department} onChange={(e) => handleInputChange('department', e.target.value)} disabled={!formData.hospitalId}
                               options={availableDepartments.map(d => ({ label: d, value: d }))}
                             />
                           </div>
@@ -322,23 +398,23 @@ const Signup = () => {
                     {selectedRole === 'doctor' && (
                       <>
                         <div className="grid grid-cols-2 gap-4">
-                          <InputField label="License Number" field="licenseNumber" placeholder="MED123456" />
-                          <InputField label="Experience (Years)" field="experience" type="number" placeholder="5" />
+                          <InputField label="License Number" value={formData.licenseNumber} onChange={(e) => handleInputChange('licenseNumber', e.target.value)} placeholder="MED123456" />
+                          <InputField label="Experience (Years)" value={formData.experience} onChange={(e) => handleInputChange('experience', e.target.value)} type="number" placeholder="5" />
                         </div>
-                        <InputField label="Qualification" field="qualification" placeholder="MBBS, MD Cardiology" />
-                        <InputField label="Specialization" field="specialization" placeholder="Cardiologist" />
+                        <InputField label="Qualification" value={formData.qualification} onChange={(e) => handleInputChange('qualification', e.target.value)} placeholder="MBBS, MD Cardiology" />
+                        <InputField label="Specialization" value={formData.specialization} onChange={(e) => handleInputChange('specialization', e.target.value)} placeholder="Cardiologist" />
 
-                        <SelectField label="Hospital / Clinic" field="hospitalId"
+                        <SelectField label="Hospital / Clinic" value={formData.hospitalId} onChange={(e) => handleInputChange('hospitalId', e.target.value)}
                           options={hospitals.map(h => ({ label: `${h.name} (${h.city})`, value: h._id }))}
                         />
 
                         <div className="grid grid-cols-2 gap-4">
-                          <InputField label="Consultation Fee (₹)" field="consultationFee" type="number" placeholder="500" />
-                          <InputField label="Contact Phone" field="doctorPhone" icon={Phone} placeholder="+1 234..." />
+                          <InputField label="Consultation Fee (₹)" value={formData.consultationFee} onChange={(e) => handleInputChange('consultationFee', e.target.value)} type="number" placeholder="500" />
+                          <InputField label="Contact Phone" value={formData.doctorPhone} onChange={(e) => handleInputChange('doctorPhone', e.target.value)} icon={Phone} placeholder="+1 234..." />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                          <InputField label="Available Days" field="availableDays" icon={Calendar} placeholder="Mon-Fri" />
-                          <InputField label="Available Time" field="availableTime" icon={Clock} placeholder="9:00 AM - 5:00 PM" />
+                          <InputField label="Available Days" value={formData.availableDays} onChange={(e) => handleInputChange('availableDays', e.target.value)} icon={Calendar} placeholder="Mon-Fri" />
+                          <InputField label="Available Time" value={formData.availableTime} onChange={(e) => handleInputChange('availableTime', e.target.value)} icon={Clock} placeholder="9:00 AM - 5:00 PM" />
                         </div>
                       </>
                     )}
@@ -346,19 +422,19 @@ const Signup = () => {
                     {/* DRIVER FIELDS */}
                     {selectedRole === 'driver' && (
                       <>
-                        <InputField label="Driver License" field="driverLicenseNumber" placeholder="DL-1234567890" />
+                        <InputField label="Driver License" value={formData.driverLicenseNumber} onChange={(e) => handleInputChange('driverLicenseNumber', e.target.value)} placeholder="DL-1234567890" />
                         <div className="grid grid-cols-2 gap-4">
-                          <InputField label="Vehicle Number" field="vehicleNumber" placeholder="ABC-1234" />
-                          <InputField label="Vehicle Type" field="vehicleType" placeholder="ALS Ambulance" />
+                          <InputField label="Vehicle Number" value={formData.vehicleNumber} onChange={(e) => handleInputChange('vehicleNumber', e.target.value)} placeholder="ABC-1234" />
+                          <InputField label="Vehicle Type" value={formData.vehicleType} onChange={(e) => handleInputChange('vehicleType', e.target.value)} placeholder="ALS Ambulance" />
                         </div>
-                        <InputField label="Contact Phone" field="driverPhone" icon={Phone} placeholder="+1 234..." />
+                        <InputField label="Contact Phone" value={formData.driverPhone} onChange={(e) => handleInputChange('driverPhone', e.target.value)} icon={Phone} placeholder="+1 234..." />
                       </>
                     )}
 
                     {/* ADMIN FIELDS */}
                     {selectedRole === 'admin' && (
                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <SelectField label="Select Hospital to Manage" field="hospitalId"
+                        <SelectField label="Select Hospital to Manage" value={formData.hospitalId} onChange={(e) => handleInputChange('hospitalId', e.target.value)}
                           options={hospitals.map(h => ({
                             label: `${h.name} (${h.city}) ${h.adminId ? '⚠️ Admin Exists' : '✅ Available'}`,
                             value: h._id

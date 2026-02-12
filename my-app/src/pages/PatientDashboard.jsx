@@ -78,7 +78,6 @@ const PatientDashboard = () => {
         // Fetch Patient's Appointments with populated doctor info
         const aptRes = await fetch(`${API_URL}/api/appointments/my-appointments`, { headers });
         const aptData = await aptRes.json();
-        console.log('Fetched appointments:', aptData);
         setPatientAppointments(aptData);
 
         // Fetch access requests
@@ -118,7 +117,6 @@ const PatientDashboard = () => {
 
           const aptRes = await fetch(`${API_URL}/api/appointments/my-appointments`, { headers });
           const aptData = await aptRes.json();
-          console.log('Refetched appointments for reports:', aptData);
           setPatientAppointments(aptData);
         } catch (error) {
           console.error('Error fetching appointments for reports:', error);
@@ -460,21 +458,10 @@ const PatientDashboard = () => {
                     }
                   })
                   .map((appointment, index) => {
-                    // Add extensive debugging
-                    console.log(`Rendering report ${index + 1}:`, {
-                      appointmentId: appointment._id,
-                      hasDoctorReport: !!appointment.doctorReport,
-                      doctorReportKeys: appointment.doctorReport ? Object.keys(appointment.doctorReport) : null,
-                      doctorReport: appointment.doctorReport,
-                      doctorId: appointment.doctorId,
-                      patientId: appointment.patientId
-                    });
-
                     // Add safety checks for report data
                     try {
                       // Validate that we have a doctor report with meaningful content
                       if (!appointment.doctorReport || Object.keys(appointment.doctorReport).length === 0) {
-                        console.log('Skipping appointment - no doctor report or empty report');
                         return null;
                       }
 
@@ -486,19 +473,16 @@ const PatientDashboard = () => {
                         (appointment.doctorReport.recommendations && appointment.doctorReport.recommendations.trim() !== '');
 
                       if (!hasMeaningfulContent) {
-                        console.log('Skipping appointment - report has no meaningful content');
                         return null;
                       }
 
                       // Validate required fields
                       if (!appointment._id) {
-                        console.warn('Appointment missing _id:', appointment);
                         return null;
                       }
 
                       // Additional validation for doctor and patient info
                       if (!appointment.doctorId || !appointment.patientId) {
-                        console.warn('Appointment missing doctor or patient info:', appointment);
                         return null;
                       }
 
@@ -520,13 +504,17 @@ const PatientDashboard = () => {
                                   {appointment.doctorId?.name || 'Unknown Doctor'}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
-                                  {appointment.doctorId?.specialization || 'General Physician'} â€¢
+                                  {appointment.doctorId?.specialization || 'General Physician'}
+                                  &nbsp;
                                   {appointment.doctorReport.reportDate ?
                                     (() => {
                                       try {
-                                        return new Date(appointment.doctorReport.reportDate).toLocaleDateString();
+                                        return new Date(appointment.doctorReport.reportDate).toLocaleDateString('en-US', {
+                                          year: 'numeric',
+                                          month: 'short',
+                                          day: 'numeric'
+                                        });
                                       } catch (e) {
-                                        console.error('Date parsing error:', e);
                                         return 'Invalid Date';
                                       }
                                     })() :
@@ -711,7 +699,6 @@ const PatientDashboard = () => {
                         </Accordion>
                       );
                     } catch (error) {
-                      console.error('Error rendering report:', error);
                       return null;
                     }
                   })
@@ -868,7 +855,7 @@ const PatientDashboard = () => {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDialog({ open: false, doctor: null })}>Cancel</Button>
+          <Button onClick={() => setConfirmDialog({ open: false, doctor: null })} autoFocus>Cancel</Button>
           <Button
             onClick={confirmBooking}
             variant="contained"
@@ -892,7 +879,7 @@ const PatientDashboard = () => {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAmbulanceDialog({ open: false, driver: null })}>Cancel</Button>
+          <Button onClick={() => setAmbulanceDialog({ open: false, driver: null })} autoFocus>Cancel</Button>
           <Button
             onClick={confirmAmbulance}
             variant="contained"

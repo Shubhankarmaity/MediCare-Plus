@@ -8,6 +8,7 @@ import PageTransition from './PageTransition';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Signup from '../pages/Signup';
+import ForgotPassword from '../pages/ForgotPassword';
 import Profile from '../pages/Profile';
 import PatientDashboard from '../pages/PatientDashboard';
 import DoctorDashboard from '../pages/DoctorDashboard';
@@ -38,6 +39,7 @@ const AnimatedRoutes = () => {
                 {/* Auth Routes */}
                 <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
                 <Route path="/signup" element={<PageTransition><Signup /></PageTransition>} />
+                <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
 
                 {/* Private Dashboards (No Navbar, internal nav usually) */}
                 <Route path="/patient-dashboard" element={<PageTransition><PatientDashboard /></PageTransition>} />

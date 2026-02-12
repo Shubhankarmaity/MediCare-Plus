@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import DashboardLayout from '../components/DashboardLayout';
 import { API_URL } from '../config';
 import {
-  Paper, Grid, Avatar, Typography, TextField, Button, Divider, Box, Chip, Card, CardContent, CircularProgress
+  Paper, Grid, Avatar, Typography, TextField, Button, Divider, Box, Chip, CircularProgress, MenuItem, Container
 } from '@mui/material';
-import { Save, Camera, Mail, Phone, MapPin, Calendar, Briefcase, Award, Stethoscope, Truck } from 'lucide-react';
+import {
+  Save, Camera, Mail, Phone, Calendar, Award, Stethoscope, Truck,
+  User, Shield, Edit2, X, Activity, HeartPulse, MapPin
+} from 'lucide-react';
 
 const Profile = () => {
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -24,30 +28,19 @@ const Profile = () => {
       const token = localStorage.getItem('token');
       const storedUserData = localStorage.getItem('user');
 
-      console.log('Fetching profile with token:', token ? 'Token exists' : 'No token');
-      console.log('Stored user in localStorage:', JSON.parse(storedUserData || '{}'));
-
       const res = await fetch(`${API_URL}/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
 
-      console.log('Profile API response status:', res.status);
-      console.log('Profile API response data:', data);
-
       if (res.ok) {
-        console.log('Setting user data:', data.user);
         setUserData(data.user);
-        // Update localStorage with fresh data
         localStorage.setItem('user', JSON.stringify(data.user));
       } else {
-        console.error('Error response:', data);
-        // Fallback to stored user
         setUserData(JSON.parse(storedUserData || '{}'));
       }
     } catch (err) {
       console.error('Error fetching user data:', err);
-      // Fallback to stored user
       const storedUserData = localStorage.getItem('user');
       setUserData(JSON.parse(storedUserData || '{}'));
     } finally {
@@ -72,13 +65,11 @@ const Profile = () => {
       const data = await res.json();
 
       if (res.ok) {
-        // Update local storage with new data
         const updatedUser = { ...storedUser, ...data.user };
         localStorage.setItem('user', JSON.stringify(updatedUser));
-
         alert("Profile Updated Successfully!");
         setEditMode(false);
-        fetchUserData(); // Refresh data
+        fetchUserData();
       } else {
         alert(data.message || 'Failed to update profile');
       }
@@ -90,30 +81,31 @@ const Profile = () => {
     }
   };
 
-  const getRoleColor = () => {
-    if (!userData) return 'bg-blue-600';
+  const getRoleTheme = () => {
+    if (!userData) return { gradient: 'from-blue-600 to-indigo-700', color: '#3b82f6', bg: 'bg-blue-50', border: 'border-blue-200' };
     switch (userData.role) {
-      case 'doctor': return 'linear-gradient(135deg, #14b8a6 0%, #0891b2 100%)';
-      case 'driver': return 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
-      case 'admin': return 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)';
-      default: return 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+      case 'doctor': return { gradient: 'from-teal-500 to-emerald-600', color: '#14b8a6', bg: 'bg-teal-50', border: 'border-teal-200' };
+      case 'driver': return { gradient: 'from-red-500 to-rose-600', color: '#ef4444', bg: 'bg-red-50', border: 'border-red-200' };
+      case 'admin': return { gradient: 'from-purple-500 to-violet-600', color: '#8b5cf6', bg: 'bg-purple-50', border: 'border-purple-200' };
+      default: return { gradient: 'from-blue-500 to-indigo-600', color: '#3b82f6', bg: 'bg-blue-50', border: 'border-blue-200' };
     }
   };
 
   const getRoleIcon = () => {
-    if (!userData) return <Briefcase size={20} />;
+    if (!userData) return <User size={18} />;
     switch (userData.role) {
-      case 'doctor': return <Stethoscope size={20} />;
-      case 'driver': return <Truck size={20} />;
-      default: return <Briefcase size={20} />;
+      case 'doctor': return <Stethoscope size={18} />;
+      case 'driver': return <Truck size={18} />;
+      case 'admin': return <Shield size={18} />;
+      default: return <User size={18} />;
     }
   };
 
   if (loading) {
     return (
       <DashboardLayout title="My Profile" userRole={userData?.role}>
-        <div className="flex justify-center mt-20">
-          <CircularProgress />
+        <div className="flex justify-center items-center h-[60vh]">
+          <CircularProgress size={60} thickness={4} />
         </div>
       </DashboardLayout>
     );
@@ -122,466 +114,398 @@ const Profile = () => {
   if (!userData) {
     return (
       <DashboardLayout title="My Profile" userRole={storedUser.role}>
-        <Typography color="error">Failed to load user data</Typography>
+        <div className="text-center mt-20">
+          <Typography variant="h5" color="error" fontWeight="bold">Failed to load user data</Typography>
+          <Button variant="outlined" onClick={() => window.location.reload()} sx={{ mt: 2 }}>Retry</Button>
+        </div>
       </DashboardLayout>
     );
   }
 
+  const theme = getRoleTheme();
+
   return (
     <DashboardLayout title="My Profile" userRole={userData.role}>
-      <Grid container spacing={4}>
+      <Container maxWidth="xl" sx={{ mt: 2, mb: 4 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <form onSubmit={handleSave}>
+            <Grid container spacing={3} alignItems="flex-start">
 
-        {/* Left Column: Profile Card */}
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Paper elevation={4} sx={{ borderRadius: 4, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
-            <Box sx={{ height: 140, background: getRoleColor(), position: 'relative' }}>
-              <div className="absolute inset-0 bg-black opacity-10"></div>
-            </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: -8, px: 3, pb: 4 }}>
-              <Box sx={{ position: 'relative' }}>
-                <Avatar
-                  sx={{
-                    width: 130,
-                    height: 130,
-                    border: '5px solid white',
-                    fontSize: '3.5rem',
-                    bgcolor: '#e5e7eb',
-                    color: '#6b7280',
-                    fontWeight: 'bold',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                  }}
-                >
-                  {userData.name.charAt(0).toUpperCase()}
-                </Avatar>
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    bottom: 5,
-                    right: 5,
-                    bgcolor: 'white',
-                    p: 1.5,
-                    borderRadius: '50%',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                    cursor: 'pointer',
-                    '&:hover': { bgcolor: '#f3f4f6' },
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Camera size={18} color="#6b7280" />
-                </Box>
-              </Box>
+              {/* LEFT COLUMN: Identity & Role Details */}
+              <Grid item xs={12} md={4} lg={4}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 
-              <Typography variant="h5" fontWeight="bold" sx={{ mt: 2, color: '#1f2937' }}>
-                {userData.name}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Mail size={14} />
-                {userData.email}
-              </Typography>
-
-              <Chip
-                icon={getRoleIcon()}
-                label={userData.role.toUpperCase()}
-                sx={{
-                  mt: 2,
-                  fontWeight: 'bold',
-                  color: 'white',
-                  background: getRoleColor(),
-                  px: 2,
-                  fontSize: '0.75rem',
-                  letterSpacing: '0.5px'
-                }}
-              />
-
-              <Divider sx={{ width: '100%', my: 3 }} />
-
-              <Box sx={{ width: '100%' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.5, px: 2, bgcolor: '#f9fafb', borderRadius: 2, mb: 1.5 }}>
-                  <Box sx={{ p: 1, bgcolor: '#dbeafe', borderRadius: 1.5 }}>
-                    <Calendar size={18} color="#3b82f6" />
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Joined</Typography>
-                    <Typography variant="body2" fontWeight="600">
-                      {userData.createdAt ? new Date(userData.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'N/A'}
-                    </Typography>
-                  </Box>
-                </Box>
-
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.5, px: 2, bgcolor: '#f0fdf4', borderRadius: 2 }}>
-                  <Box sx={{ p: 1, bgcolor: '#d1fae5', borderRadius: 1.5 }}>
-                    <Award size={18} color="#10b981" />
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Status</Typography>
-                    <Typography variant="body2" fontWeight="600" color="#10b981">Active</Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
-          </Paper>
-
-          {/* Role-Specific Quick Info Card */}
-          {(userData.role === 'doctor' || userData.role === 'driver') && (
-            <Card sx={{ mt: 3, borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
-              <CardContent>
-                <Typography variant="subtitle2" fontWeight="bold" color="text.secondary" gutterBottom>
-                  Professional Details
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-                {userData.role === 'doctor' && (
-                  <>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                      <Typography variant="body2" color="text.secondary">Specialization</Typography>
-                      <Typography variant="body2" fontWeight="600">{userData.specialization || 'N/A'}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" color="text.secondary">Hospital</Typography>
-                      <Typography variant="body2" fontWeight="600">
-                        {userData.hospitalId?.name || userData.hospitalName || 'N/A'}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5 }}>
-                      <Typography variant="body2" color="text.secondary">Department</Typography>
-                      <Typography variant="body2" fontWeight="600">{userData.department || 'N/A'}</Typography>
-                    </Box>
-                  </>
-                )}
-                {userData.role === 'driver' && (
-                  <>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                      <Typography variant="body2" color="text.secondary">Vehicle Number</Typography>
-                      <Typography variant="body2" fontWeight="600">{userData.vehicleNumber || 'N/A'}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" color="text.secondary">License</Typography>
-                      <Typography variant="body2" fontWeight="600">{userData.licenseNumber || 'N/A'}</Typography>
-                    </Box>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </Grid>
-
-        {/* Right Column: Information & Edit Form */}
-        <Grid size={{ xs: 12, md: 8 }}>
-          <Paper elevation={4} sx={{ borderRadius: 4, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
-            <Box sx={{ p: 4 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h5" fontWeight="bold" color="#1f2937">
-                  Account Information
-                </Typography>
-                <Button
-                  variant={editMode ? 'outlined' : 'contained'}
-                  onClick={() => setEditMode(!editMode)}
-                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: '600' }}
-                >
-                  {editMode ? 'Cancel' : 'Edit Profile'}
-                </Button>
-              </Box>
-              <Divider sx={{ mb: 4 }} />
-
-              <form onSubmit={handleSave}>
-                <Grid container spacing={3}>
-                  {/* Basic Information Section */}
-                  <Grid size={{ xs: 12 }}>
-                    <Typography variant="subtitle2" fontWeight="bold" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Briefcase size={18} />
-                      Basic Information
-                    </Typography>
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      label="Full Name"
-                      variant="outlined"
-                      value={userData.name || ''}
-                      onChange={(e) => setUserData({ ...userData, name: e.target.value })}
-                      disabled={!editMode}
-                      InputProps={{
-                        sx: { borderRadius: 2 }
-                      }}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth
-                      label="Email Address"
-                      variant="outlined"
-                      disabled
-                      value={userData.email || ''}
-                      helperText="Email cannot be changed"
-                      InputProps={{
-                        sx: { borderRadius: 2 }
-                      }}
-                    />
-                  </Grid>
-
-                  {/* Role Specific Fields */}
-                  {userData.role === 'doctor' && (
-                    <>
-                      <Grid size={{ xs: 12 }}>
-                        <Divider sx={{ my: 2 }} />
-                        <Typography variant="subtitle2" fontWeight="bold" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Stethoscope size={18} />
-                          Professional Details
-                        </Typography>
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
-                          label="Specialization"
-                          variant="outlined"
-                          value={userData.specialization || ''}
-                          onChange={(e) => setUserData({ ...userData, specialization: e.target.value })}
-                          disabled={!editMode}
-                          InputProps={{
-                            sx: { borderRadius: 2 }
-                          }}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
-                          label="Hospital Name"
-                          variant="outlined"
-                          value={userData.hospitalName || ''}
-                          onChange={(e) => setUserData({ ...userData, hospitalName: e.target.value })}
-                          disabled={!editMode}
-                          InputProps={{
-                            sx: { borderRadius: 2 }
-                          }}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 12 }}>
-                        <TextField
-                          fullWidth
-                          label="Experience"
-                          variant="outlined"
-                          value={userData.experience || ''}
-                          onChange={(e) => setUserData({ ...userData, experience: e.target.value })}
-                          disabled={!editMode}
-                          placeholder="e.g., 5 years in Cardiology"
-                          InputProps={{
-                            sx: { borderRadius: 2 }
-                          }}
-                        />
-                      </Grid>
-                    </>
-                  )}
-
-                  {userData.role === 'driver' && (
-                    <>
-                      <Grid size={{ xs: 12 }}>
-                        <Divider sx={{ my: 2 }} />
-                        <Typography variant="subtitle2" fontWeight="bold" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Truck size={18} />
-                          Driver Details
-                        </Typography>
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
-                          label="Vehicle Number"
-                          variant="outlined"
-                          value={userData.vehicleNumber || ''}
-                          onChange={(e) => setUserData({ ...userData, vehicleNumber: e.target.value })}
-                          disabled={!editMode}
-                          InputProps={{
-                            sx: { borderRadius: 2 }
-                          }}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
-                          label="License Number"
-                          variant="outlined"
-                          value={userData.licenseNumber || ''}
-                          onChange={(e) => setUserData({ ...userData, licenseNumber: e.target.value })}
-                          disabled={!editMode}
-                          InputProps={{
-                            sx: { borderRadius: 2 }
-                          }}
-                        />
-                      </Grid>
-                    </>
-                  )}
-
-                  {editMode && (
-                    <Grid size={{ xs: 12 }} sx={{ mt: 2 }}>
-                      <Box sx={{ display: 'flex', gap: 2 }}>
-                        <Button
-                          type="submit"
-                          variant="contained"
-                          size="large"
-                          disabled={saving}
-                          startIcon={saving ? <CircularProgress size={18} /> : <Save size={18} />}
+                  {/* CARD 1: Profile Summary */}
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      borderRadius: 3,
+                      overflow: 'hidden',
+                      backgroundColor: '#fff',
+                      border: '1px solid #e2e8f0',
+                    }}
+                  >
+                    <div className={`h-24 bg-gradient-to-r ${theme.gradient}`}></div>
+                    <div className="px-6 flex flex-col items-center -mt-12 text-center pb-6">
+                      <Box
+                        sx={{
+                          position: 'relative',
+                          borderRadius: '50%',
+                          padding: '4px',
+                          bgcolor: 'white',
+                          boxShadow: 1,
+                        }}
+                      >
+                        <Avatar
                           sx={{
-                            borderRadius: 2,
-                            px: 4,
+                            width: 100,
+                            height: 100,
+                            bgcolor: theme.color,
+                            fontSize: '2.5rem',
                             fontWeight: 'bold',
-                            textTransform: 'none',
-                            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                            border: '2px solid white'
                           }}
+                          src={userData.avatar}
                         >
-                          {saving ? 'Saving...' : 'Save Changes'}
-                        </Button>
+                          {userData.name?.charAt(0).toUpperCase()}
+                        </Avatar>
+                      </Box>
+
+                      <Typography variant="h6" fontWeight="700" sx={{ mt: 1.5, color: '#1e293b' }}>
+                        {userData.name}
+                      </Typography>
+
+                      <Chip
+                        icon={getRoleIcon()}
+                        label={userData.role?.charAt(0).toUpperCase() + userData.role?.slice(1)}
+                        size="small"
+                        sx={{
+                          mt: 1,
+                          fontWeight: 600,
+                          bgcolor: theme.bg,
+                          color: theme.color,
+                          border: `1px solid transparent`,
+                          '& .MuiChip-icon': { color: 'inherit' }
+                        }}
+                      />
+
+                      <div className="w-full mt-6 space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+                          <Typography variant="caption" color="text.secondary" fontWeight="600">Joined</Typography>
+                          <Typography variant="body2" fontWeight="600">
+                            {userData.createdAt ? new Date(userData.createdAt).toLocaleDateString() : 'N/A'}
+                          </Typography>
+                        </div>
+                      </div>
+                    </div>
+                  </Paper>
+
+                  {/* CARD 2: Role Specific Details (Inputs) */}
+                  {(userData.role === 'doctor' || userData.role === 'driver' || userData.role === 'patient') && (
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        borderRadius: 3,
+                        overflow: 'hidden',
+                        backgroundColor: '#fff',
+                        border: '1px solid #e2e8f0',
+                        p: 3
+                      }}
+                    >
+                      <Typography variant="subtitle2" fontWeight="700" sx={{ mb: 2, color: theme.color, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                        {userData.role === 'doctor' ? 'Professional Details' : userData.role === 'driver' ? 'Vehicle Info' : 'Medical Profile'}
+                      </Typography>
+
+                      <Grid container spacing={2}>
+                        {userData.role === 'doctor' && (
+                          <>
+                            <Grid item xs={12}>
+                              <TextField
+                                fullWidth
+                                label="Specialization"
+                                value={userData.specialization || ''}
+                                onChange={(e) => setUserData({ ...userData, specialization: e.target.value })}
+                                disabled={!editMode}
+                                size="small"
+                              />
+                            </Grid>
+                            <Grid item xs={12}>
+                              <TextField
+                                fullWidth
+                                label="Department"
+                                value={userData.department || ''}
+                                onChange={(e) => setUserData({ ...userData, department: e.target.value })}
+                                disabled={!editMode}
+                                size="small"
+                              />
+                            </Grid>
+                            <Grid item xs={12}>
+                              <TextField
+                                fullWidth
+                                label="Hospital Name"
+                                value={userData.hospitalName || ''}
+                                onChange={(e) => setUserData({ ...userData, hospitalName: e.target.value })}
+                                disabled={!editMode}
+                                size="small"
+                              />
+                            </Grid>
+                            <Grid item xs={12}>
+                              <TextField
+                                fullWidth
+                                label="Experience"
+                                value={userData.experience || ''}
+                                onChange={(e) => setUserData({ ...userData, experience: e.target.value })}
+                                disabled={!editMode}
+                                size="small"
+                                placeholder="e.g. 5 Years"
+                              />
+                            </Grid>
+                          </>
+                        )}
+
+                        {userData.role === 'driver' && (
+                          <>
+                            <Grid item xs={12}>
+                              <TextField
+                                fullWidth
+                                label="Vehicle Number"
+                                value={userData.vehicleNumber || ''}
+                                onChange={(e) => setUserData({ ...userData, vehicleNumber: e.target.value })}
+                                disabled={!editMode}
+                                size="small"
+                              />
+                            </Grid>
+                            <Grid item xs={12}>
+                              <TextField
+                                fullWidth
+                                label="License Number"
+                                value={userData.licenseNumber || ''}
+                                onChange={(e) => setUserData({ ...userData, licenseNumber: e.target.value })}
+                                disabled={!editMode}
+                                size="small"
+                              />
+                            </Grid>
+                          </>
+                        )}
+
+                        {userData.role === 'patient' && (
+                          <>
+                            <Grid item xs={6}>
+                              <TextField
+                                fullWidth
+                                label="Age"
+                                type="number"
+                                value={userData.age || ''}
+                                onChange={(e) => setUserData({ ...userData, age: e.target.value })}
+                                disabled={!editMode}
+                                size="small"
+                              />
+                            </Grid>
+                            <Grid item xs={6}>
+                              <TextField
+                                fullWidth
+                                label="Gender"
+                                select
+                                value={userData.gender || ''}
+                                onChange={(e) => setUserData({ ...userData, gender: e.target.value })}
+                                disabled={!editMode}
+                                size="small"
+                              >
+                                <MenuItem value="Male">Male</MenuItem>
+                                <MenuItem value="Female">Female</MenuItem>
+                                <MenuItem value="Other">Other</MenuItem>
+                              </TextField>
+                            </Grid>
+                            <Grid item xs={12}>
+                              <TextField
+                                fullWidth
+                                label="Blood Group"
+                                value={userData.bloodGroup || ''}
+                                onChange={(e) => setUserData({ ...userData, bloodGroup: e.target.value })}
+                                disabled={!editMode}
+                                size="small"
+                              />
+                            </Grid>
+                            <Grid item xs={12}>
+                              <TextField
+                                fullWidth
+                                label="Medical History"
+                                multiline
+                                rows={3}
+                                value={userData.medicalHistory || ''}
+                                onChange={(e) => setUserData({ ...userData, medicalHistory: e.target.value })}
+                                disabled={!editMode}
+                                size="small"
+                                placeholder="Allergies, conditions..."
+                              />
+                            </Grid>
+                          </>
+                        )}
+                      </Grid>
+                    </Paper>
+                  )}
+                </Box>
+              </Grid>
+
+              {/* RIGHT COLUMN: General Details & Settings */}
+              <Grid item xs={12} md={8} lg={8}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    borderRadius: 3,
+                    p: { xs: 3, md: 4 },
+                    bgcolor: '#fff',
+                    border: '1px solid #e2e8f0',
+                    height: '100%' // Match height logic if possible, but auto is fine
+                  }}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 border-b border-gray-100 pb-4">
+                    <div>
+                      <Typography variant="h6" fontWeight="700" color="text.primary">General Information</Typography>
+                      <Typography variant="body2" color="text.secondary">Manage your account details and contact info.</Typography>
+                    </div>
+                    <Button
+                      variant={editMode ? 'outlined' : 'contained'}
+                      color="primary"
+                      onClick={() => {
+                        if (editMode) fetchUserData(); // Reset
+                        setEditMode(!editMode);
+                      }}
+                      startIcon={editMode ? <X size={16} /> : <Edit2 size={16} />}
+                      sx={{
+                        textTransform: 'none',
+                        borderRadius: 2,
+                        fontWeight: 600,
+                        boxShadow: editMode ? 0 : 2,
+                        bgcolor: editMode ? 'transparent' : theme.color,
+                        borderColor: editMode ? '#cbd5e1' : 'transparent',
+                        color: editMode ? '#64748b' : '#fff',
+                        '&:hover': {
+                          bgcolor: editMode ? '#f1f5f9' : theme.color,
+                          borderColor: editMode ? '#94a3b8' : 'transparent',
+                          opacity: editMode ? 1 : 0.9
+                        }
+                      }}
+                    >
+                      {editMode ? 'Cancel' : 'Edit Profile'}
+                    </Button>
+                  </div>
+
+                  <Grid container spacing={3}>
+                    {/* Personal Info */}
+                    <Grid item xs={12}>
+                      <Typography variant="subtitle2" fontWeight="700" sx={{ color: theme.color, letterSpacing: '0.05em' }}>
+                        PERSONAL DETAILS
+                      </Typography>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Full Name"
+                        value={userData.name || ''}
+                        onChange={(e) => setUserData({ ...userData, name: e.target.value })}
+                        disabled={!editMode}
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Email Address"
+                        value={userData.email || ''}
+                        disabled
+                        size="small"
+                        helperText="Email cannot be changed."
+                      />
+                    </Grid>
+
+                    {/* Contact Info */}
+                    <Grid item xs={12} sx={{ mt: 1 }}>
+                      <Typography variant="subtitle2" fontWeight="700" sx={{ color: theme.color, letterSpacing: '0.05em' }}>
+                        CONTACT INFORMATION
+                      </Typography>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Phone Number"
+                        value={userData.phone || ''}
+                        onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
+                        disabled={!editMode}
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Emergency Contact"
+                        value={userData.emergencyContact || ''}
+                        onChange={(e) => setUserData({ ...userData, emergencyContact: e.target.value })}
+                        disabled={!editMode}
+                        size="small"
+                      />
+                    </Grid>
+
+                    {userData.role === 'patient' && (
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          label="Home Address"
+                          value={userData.address || ''}
+                          onChange={(e) => setUserData({ ...userData, address: e.target.value })}
+                          disabled={!editMode}
+                          size="small"
+                          multiline
+                          rows={3}
+                        />
+                      </Grid>
+                    )}
+
+                    {/* Save Button */}
+                    {editMode && (
+                      <Grid item xs={12} sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
                         <Button
                           variant="outlined"
-                          size="large"
                           onClick={() => {
                             setEditMode(false);
                             fetchUserData();
                           }}
-                          sx={{ borderRadius: 2, px: 4, textTransform: 'none' }}
+                          sx={{ textTransform: 'none', px: 3, borderRadius: 2 }}
                         >
-                          Discard
+                          Discard Changes
                         </Button>
-                      </Box>
-                    </Grid>
-                  )}
-                </Grid>
-              </form>
-            </Box>
-          </Paper>
-
-          {/* Additional Info Card */}
-          <Card sx={{ mt: 3, borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Account Details
-              </Typography>
-              <Divider sx={{ mb: 3 }} />
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2 }}>
-                    <Typography variant="caption" color="text.secondary" display="block">User ID</Typography>
-                    <Typography variant="body2" fontWeight="600" sx={{ mt: 0.5, fontFamily: 'monospace' }}>
-                      {userData._id}
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2 }}>
-                    <Typography variant="caption" color="text.secondary" display="block">Account Type</Typography>
-                    <Typography variant="body2" fontWeight="600" sx={{ mt: 0.5, textTransform: 'capitalize' }}>
-                      {userData.role}
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid size={{ xs: 12 }}>
-                  <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2 }}>
-                    <Typography variant="caption" color="text.secondary" display="block">Last Updated</Typography>
-                    <Typography variant="body2" fontWeight="600" sx={{ mt: 0.5 }}>
-                      {userData.updatedAt || userData.createdAt ? new Date(userData.updatedAt || userData.createdAt).toLocaleString() : 'N/A'}
-                    </Typography>
-                  </Box>
-                </Grid>
+                        <Button
+                          type="submit"
+                          variant="contained"
+                          disabled={saving}
+                          startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <Save size={18} />}
+                          sx={{
+                            textTransform: 'none',
+                            px: 4,
+                            borderRadius: 2,
+                            fontWeight: 600,
+                            bgcolor: theme.color,
+                            '&:hover': { bgcolor: theme.color, opacity: 0.9 }
+                          }}
+                        >
+                          {saving ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Paper>
               </Grid>
-            </CardContent>
-          </Card>
-
-          {/* Patient-Specific Medical Information Card */}
-          {userData.role === 'patient' && (
-            <Card sx={{ mt: 3, borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Medical Information
-                </Typography>
-                <Divider sx={{ mb: 3 }} />
-                <Grid container spacing={2}>
-                  {userData.phone && (
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                      <Box sx={{ p: 2, bgcolor: '#f0f9ff', borderRadius: 2 }}>
-                        <Typography variant="caption" color="text.secondary" display="block">Phone Number</Typography>
-                        <Typography variant="body2" fontWeight="600" sx={{ mt: 0.5 }}>
-                          {userData.phone}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-                  {userData.age && (
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                      <Box sx={{ p: 2, bgcolor: '#f0f9ff', borderRadius: 2 }}>
-                        <Typography variant="caption" color="text.secondary" display="block">Age</Typography>
-                        <Typography variant="body2" fontWeight="600" sx={{ mt: 0.5 }}>
-                          {userData.age}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-                  {userData.gender && (
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                      <Box sx={{ p: 2, bgcolor: '#f0f9ff', borderRadius: 2 }}>
-                        <Typography variant="caption" color="text.secondary" display="block">Gender</Typography>
-                        <Typography variant="body2" fontWeight="600" sx={{ mt: 0.5 }}>
-                          {userData.gender}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-                  {userData.bloodGroup && (
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                      <Box sx={{ p: 2, bgcolor: '#f0f9ff', borderRadius: 2 }}>
-                        <Typography variant="caption" color="text.secondary" display="block">Blood Group</Typography>
-                        <Typography variant="body2" fontWeight="600" sx={{ mt: 0.5 }}>
-                          {userData.bloodGroup}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-                  {userData.address && (
-                    <Grid size={{ xs: 12 }}>
-                      <Box sx={{ p: 2, bgcolor: '#f0f9ff', borderRadius: 2 }}>
-                        <Typography variant="caption" color="text.secondary" display="block">Address</Typography>
-                        <Typography variant="body2" fontWeight="600" sx={{ mt: 0.5 }}>
-                          {userData.address}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-                  {userData.emergencyContact && (
-                    <Grid size={{ xs: 12 }}>
-                      <Box sx={{ p: 2, bgcolor: '#f0f9ff', borderRadius: 2 }}>
-                        <Typography variant="caption" color="text.secondary" display="block">Emergency Contact</Typography>
-                        <Typography variant="body2" fontWeight="600" sx={{ mt: 0.5 }}>
-                          {userData.emergencyContact}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-                  {userData.medicalHistory && (
-                    <Grid size={{ xs: 12 }}>
-                      <Box sx={{ p: 2, bgcolor: '#f0f9ff', borderRadius: 2 }}>
-                        <Typography variant="caption" color="text.secondary" display="block">Medical History</Typography>
-                        <Typography variant="body2" fontWeight="600" sx={{ mt: 0.5 }}>
-                          {userData.medicalHistory}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-                  {userData.hospitalId && (
-                    <Grid size={{ xs: 12 }}>
-                      <Box sx={{ p: 2, bgcolor: '#f0f9ff', borderRadius: 2 }}>
-                        <Typography variant="caption" color="text.secondary" display="block">Registered Hospital</Typography>
-                        <Typography variant="body2" fontWeight="600" sx={{ mt: 0.5 }}>
-                          {userData.hospitalId.name || 'Unknown Hospital'}
-                          {userData.hospitalId.city && ` (${userData.hospitalId.city})`}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-                </Grid>
-              </CardContent>
-            </Card>
-          )}
-        </Grid>
-      </Grid>
-    </DashboardLayout >
+            </Grid>
+          </form>
+        </motion.div>
+      </Container>
+    </DashboardLayout>
   );
 };
 

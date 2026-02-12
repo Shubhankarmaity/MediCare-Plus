@@ -32,13 +32,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Database
-const MONGODB_URI = process.env.MONGODB_URI;
-console.log("Attempting to connect to MongoDB at:", MONGODB_URI);
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch(err => console.log(err));
-
 // Routes
 app.use('/', authRoutes); // /login, /register
 app.use('/api/doctors', doctorRoutes);
@@ -103,7 +96,26 @@ io.on("connection", (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 Server & Socket.io running on port ${PORT}`);
-});
+// Database & Server Startup
+const startServer = async () => {
+  try {
+    const MONGODB_URI = process.env.MONGODB_URI;
+    console.log("Attempting to connect to MongoDB at:", MONGODB_URI);
+
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000 // Fail after 5 seconds if cannot connect
+    });
+    console.log("✅ MongoDB Connected");
+
+    const PORT = process.env.PORT || 5000;
+    server.listen(PORT, () => {
+      console.log(`🚀 Server & Socket.io running on port ${PORT}`);
+    });
+
+  } catch (err) {
+    console.error("❌ MongoDB Connection Error:", err.message);
+    process.exit(1); // Exit process with failure
+  }
+};
+
+startServer();
