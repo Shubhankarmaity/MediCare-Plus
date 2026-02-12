@@ -1,57 +1,48 @@
-const nodemailer = require('nodemailer');
+const axios = require('axios');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 console.log("Email Service Config:", {
     user: process.env.EMAIL_USER ? "Set" : "Not Set",
-    pass: process.env.EMAIL_PASS ? "Set" : "Not Set"
-});
-
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // use STARTTLS
-    family: 4, // Force IPv4 to avoid ENETUNREACH errors
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
+    brevoKey: process.env.BREVO_API_KEY ? "Set" : "Not Set" // Security: Don't log the full key
 });
 
 const sendEmail = async (to, subject, text, html) => {
     try {
-        // DEV MODE: If credentials assume mock mode
-        if (!process.env.EMAIL_USER || process.env.EMAIL_USER === 'your-email@gmail.com') {
+        // Mock Mode for Dev or Missing Credentials
+        if (!process.env.BREVO_API_KEY || !process.env.EMAIL_USER) {
             console.log("-----------------------------------------");
-            console.log("📧 [MOCK EMAIL SERVICE] - Credentials Missing");
+            console.log("📧 [MOCK EMAIL] - Missing Brevo Key or Sender");
             console.log(`To: ${to}`);
             console.log(`Subject: ${subject}`);
-            console.log(`Body (Text): ${text}`);
             console.log("-----------------------------------------");
-            return { response: '250 OK (Mock)' };
+            return { messageId: 'mock-id' };
         }
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to,
-            subject,
-            text,
-            html,
+        const data = {
+            sender: { email: process.env.EMAIL_USER, name: "MediCare Plus" },
+            to: [{ email: to }],
+            subject: subject,
+            htmlContent: html,
+            textContent: text
         };
 
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent: ' + info.response);
-        return info;
+        const config = {
+            headers: {
+                'api-key': process.env.BREVO_API_KEY,
+                'Content-Type': 'application/json',
+                'accept': 'application/json'
+            }
+        };
+
+        const response = await axios.post('https://api.brevo.com/v3/smtp/email', data, config);
+        console.log('✅ Brevo Email Sent:', response.data);
+        return response.data;
+
     } catch (error) {
-        console.error('Error sending email:', error);
-        // Fallback to mock if real send fails (e.g. bad password)
-        console.log("-----------------------------------------");
-        console.log("📧 [EMAIL FAILED - FALLBACK LOG]");
-        console.log(`To: ${to}`);
-        console.log(`Subject: ${subject}`);
-        console.log(`Body (Text): ${text}`);
-        console.log("-----------------------------------------");
-        return null; // Return null so we don't crash, but logged the OTP
+        console.error('❌ Brevo Email Error:', error.response ? error.response.data : error.message);
+        // DO NOT THROW, just return null so app doesn't crash, but log it.
+        return null;
     }
 };
 
@@ -59,16 +50,14 @@ const sendOtpEmail = async (to, otp) => {
     const subject = 'Your OTP for MediCare Plus';
     const text = `Your OTP is: ${otp}. It is valid for 10 minutes.`;
     const html = `
-    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; border: 1px solid #e0e0e0; border-radius: 8px;">
       <h2 style="color: #0284c7;">MediCare Plus</h2>
       <p>Hello,</p>
-      <p>Your One-Time Password (OTP) for verification is:</p>
-      <h1 style="color: #0284c7; letter-spacing: 5px;">${otp}</h1>
-      <p>This OTP is valid for 10 minutes.</p>
-      <p>If you did not request this, please ignore this email.</p>
-      <br>
-      <p>Best regards,</p>
-      <p>The MediCare Plus Team</p>
+      <p>Your verification code is below:</p>
+      <h1 style="color: #0284c7; letter-spacing: 5px; background: #f0f9ff; padding: 10px; display: inline-block;">${otp}</h1>
+      <p>This code expires in 10 minutes.</p>
+      <hr style="border: 0; border-top: 1px solid #eee;">
+      <p style="font-size: 12px; color: #888;">If you did not request this, please ignore this email.</p>
     </div>
   `;
     return await sendEmail(to, subject, text, html);
