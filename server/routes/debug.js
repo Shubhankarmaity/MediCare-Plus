@@ -11,8 +11,8 @@ router.get('/email', async (req, res) => {
         // define transporter
         const transporter = nodemailer.createTransport({
             host: 'smtp.gmail.com',
-            port: 465,
-            secure: true, // use SSL
+            port: 587,
+            secure: false, // use STARTTLS
             family: 4, // Force IPv4
             auth: {
                 user: process.env.EMAIL_USER,

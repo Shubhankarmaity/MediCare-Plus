@@ -9,8 +9,8 @@ console.log("Email Service Config:", {
 
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // use SSL
+    port: 587,
+    secure: false, // use STARTTLS
     family: 4, // Force IPv4 to avoid ENETUNREACH errors
     auth: {
         user: process.env.EMAIL_USER,
