@@ -514,7 +514,7 @@ const PatientDashboard = () => {
                                           month: 'short',
                                           day: 'numeric'
                                         });
-                                      } catch (e) {
+                                      } catch {
                                         return 'Invalid Date';
                                       }
                                     })() :
@@ -698,7 +698,7 @@ const PatientDashboard = () => {
                           </AccordionDetails>
                         </Accordion>
                       );
-                    } catch (error) {
+                    } catch {
                       return null;
                     }
                   })
