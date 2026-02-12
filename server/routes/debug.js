@@ -61,4 +61,46 @@ router.get('/email', async (req, res) => {
     }
 });
 
+// Version 2 Route to force-bypassing cache
+router.get('/email-v2', async (req, res) => {
+    // Exact same logic as above
+    try {
+        const { to } = req.query;
+        if (!to) return res.status(400).json({ message: "Provide 'to' param" });
+
+        const transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false,
+            family: 4,
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const configTest = {
+            version: 'V2 - FORCE UPDATE',
+            user: process.env.EMAIL_USER ? "Set" : "Not Set",
+            host: 'smtp.gmail.com',
+            port: 587
+        };
+
+        const info = await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to,
+            subject: 'V2 Debug Email',
+            text: 'It works!'
+        });
+
+        res.json({ message: "V2 Email Sent", info, config: configTest });
+    } catch (error) {
+        res.status(500).json({
+            message: "V2 Failed",
+            error: error.message,
+            config: { version: 'V2', host: 'smtp.gmail.com', port: 587 }
+        });
+    }
+});
+
 module.exports = router;
