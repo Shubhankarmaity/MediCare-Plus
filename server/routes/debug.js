@@ -23,7 +23,11 @@ router.get('/email', async (req, res) => {
         // Test configuration
         const configTest = {
             user: process.env.EMAIL_USER ? `Set (${process.env.EMAIL_USER.substring(0, 3)}...)` : 'NOT SET',
-            pass: process.env.EMAIL_PASS ? `Set (Length: ${process.env.EMAIL_PASS.length})` : 'NOT SET'
+            pass: process.env.EMAIL_PASS ? `Set (Length: ${process.env.EMAIL_PASS.length})` : 'NOT SET',
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false,
+            family: 4
         };
 
         console.log("Debug Email Config:", configTest);
