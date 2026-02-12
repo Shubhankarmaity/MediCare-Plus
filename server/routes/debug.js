@@ -106,66 +106,48 @@ router.get('/email-v2', async (req, res) => {
 const dns = require('dns');
 const net = require('net');
 
-router.get('/network-test', (req, res) => {
-    const results = {
-        dns: 'pending',
-        tcp_587: 'pending',
-        tcp_465: 'pending'
+router.get('/network-test', async (req, res) => {
+    const tests = [
+        { host: 'smtp.gmail.com', port: 587 },
+        { host: 'smtp.gmail.com', port: 465 },
+        { host: 'smtp.gmail.com', port: 2525 }, // Alternative Gmail port
+        { host: 'smtp.ethereal.email', port: 587 }, // Third-party SMTP
+        { host: 'google.com', port: 80 } // General Internet
+    ];
+
+    const results = {};
+
+    const checkConnection = (host, port) => {
+        return new Promise((resolve) => {
+            const socket = new net.Socket();
+            socket.setTimeout(3000);
+            const start = Date.now();
+
+            socket.on('connect', () => {
+                socket.destroy();
+                resolve({ status: 'Success', time: Date.now() - start });
+            });
+
+            socket.on('error', (err) => {
+                resolve({ status: 'Error', error: err.message, code: err.code });
+            });
+
+            socket.on('timeout', () => {
+                socket.destroy();
+                resolve({ status: 'Timeout' });
+            });
+
+            socket.connect(port, host);
+        });
     };
 
-    // 1. Check DNS
-    dns.resolve4('smtp.gmail.com', (err, addresses) => {
-        if (err) {
-            results.dns = { error: err.message };
-            return finish();
-        }
-        results.dns = { ips: addresses };
-
-        // 2. Check TCP 587
-        const sock587 = new net.Socket();
-        sock587.setTimeout(3000);
-        sock587.on('connect', () => {
-            results.tcp_587 = "Success";
-            sock587.destroy();
-            check465();
-        });
-        sock587.on('error', (e) => {
-            results.tcp_587 = { error: e.message };
-            check465();
-        });
-        sock587.on('timeout', () => {
-            results.tcp_587 = { error: 'Timeout' };
-            sock587.destroy();
-            check465();
-        });
-        sock587.connect(587, 'smtp.gmail.com');
-    });
-
-    function check465() {
-        const sock465 = new net.Socket();
-        sock465.setTimeout(3000);
-        sock465.on('connect', () => {
-            results.tcp_465 = "Success";
-            sock465.destroy();
-            finish();
-        });
-        sock465.on('error', (e) => {
-            results.tcp_465 = { error: e.message };
-            finish();
-        });
-        sock465.on('timeout', () => {
-            results.tcp_465 = { error: 'Timeout' };
-            sock465.destroy();
-            finish();
-        });
-        sock465.connect(465, 'smtp.gmail.com');
+    // Parallel execution
+    for (const t of tests) {
+        const key = `${t.host}:${t.port}`;
+        results[key] = await checkConnection(t.host, t.port);
     }
 
-    function finish() {
-        if (!res.headersSent) {
-            res.json(results);
-        }
-    }
+    res.json(results);
 });
 
 module.exports = router;
