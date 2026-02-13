@@ -30,7 +30,22 @@ const Login = () => {
 
       const data = await authService.login(formData);
 
-      console.log('Login successful - User data:', { name: data.result.name, email: data.result.email, role: data.result.role, id: data.result._id });
+      console.log('Login successful - User data:', { name: data.result?.name, email: data.result?.email, role: data.result?.role, id: data.result?._id });
+
+      // Handle Unverified/Unapproved cases (returned as 200 OK now)
+      if (data.requiresVerification) {
+        setLoading(false);
+        setError(data.message);
+        setEmailToVerify(data.email || formData.email);
+        setStep(2); // Switch to OTP view
+        return;
+      }
+
+      if (data.approvalStatus === 'pending' || data.approvalStatus === 'rejected') {
+        setLoading(false);
+        setError(data.message);
+        return;
+      }
 
       // Store fresh token and user data
       localStorage.setItem('token', data.token);

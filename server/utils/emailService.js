@@ -15,6 +15,7 @@ const sendEmail = async (to, subject, text, html) => {
             console.log("📧 [MOCK EMAIL] - Missing Brevo Key or Sender");
             console.log(`To: ${to}`);
             console.log(`Subject: ${subject}`);
+            console.log(`Content: ${text}`);
             console.log("-----------------------------------------");
             return { messageId: 'mock-id' };
         }

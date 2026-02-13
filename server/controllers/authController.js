@@ -182,7 +182,7 @@ exports.login = async (req, res) => {
 
             await sendOtpEmail(user.email, otp);
 
-            return res.status(403).json({
+            return res.status(200).json({
                 message: "Email not verified. A new OTP has been sent to your email.",
                 requiresVerification: true,
                 email: user.email
@@ -194,13 +194,13 @@ exports.login = async (req, res) => {
             console.log('Doctor login blocked - not approved:', req.body.email, 'Status:', user.approvalStatus);
 
             if (user.approvalStatus === 'rejected') {
-                return res.status(403).json({
+                return res.status(200).json({
                     message: `Your account has been rejected. Reason: ${user.rejectionReason || 'Not specified'}`,
                     approvalStatus: 'rejected'
                 });
             }
 
-            return res.status(403).json({
+            return res.status(200).json({
                 message: "Your account is pending admin approval. Please wait for approval before logging in.",
                 approvalStatus: 'pending'
             });
