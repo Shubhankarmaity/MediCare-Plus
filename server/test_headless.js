@@ -32,7 +32,7 @@ async function testBackend() {
             }
         }
     } catch (err) {
-        console.error(`❌ Backend connection failed: ${err.message}`);
+        console.error(`Backend connection failed: ${err.message}`);
         return; // Stop if backend is down
     }
 
