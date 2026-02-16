@@ -36,7 +36,7 @@ async function testBackend() {
         return; // Stop if backend is down
     }
 
-    // 3. Test Login
+    // 3. Test Login and this is the fundamental concept that i have to learn.
     let token;
     try {
         console.log(`\n[3/4] Testing Login...`);
