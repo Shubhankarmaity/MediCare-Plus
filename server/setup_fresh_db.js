@@ -22,7 +22,7 @@ const resetDatabase = async () => {
         console.log('- Appointments cleared');
         await AmbulanceRequest.deleteMany({});
         console.log('- AmbulanceRequests cleared');
-        // Hospital cleared by seedHospitals good to be explicit or leave it to that script
+        // Hospital cleared by seen Hospitals good to be explicit or leave it to that script
 
         await mongoose.connection.close();
         console.log('Data wipe complete.\n');
