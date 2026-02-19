@@ -108,7 +108,7 @@ const DoctorDashboard = () => {
     return () => {
       socket.off('new_appointment');
     };
-  }, []);
+  }, [user._id]);
 
   const updateStatus = async (id, status) => {
     const token = localStorage.getItem('token');

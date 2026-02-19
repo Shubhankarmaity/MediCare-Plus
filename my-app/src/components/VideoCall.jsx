@@ -12,6 +12,7 @@ const VideoCall = ({ socket, user, partnerId, incomingSignal, isInitiator, onEnd
     const userVideo = useRef();
     const connectionRef = useRef();
 
+
     const endCall = React.useCallback(() => {
         socket.emit("endCall", { to: partnerId });
         if (connectionRef.current) {
@@ -22,6 +23,20 @@ const VideoCall = ({ socket, user, partnerId, incomingSignal, isInitiator, onEnd
         }
         onEnd();
     }, [socket, partnerId, stream, onEnd]);
+
+    const toggleMic = () => {
+        setMicOn((prev) => !prev);
+        if (stream) {
+            stream.getAudioTracks()[0].enabled = !micOn;
+        }
+    };
+
+    const toggleVideo = () => {
+        setVideoOn((prev) => !prev);
+        if (stream) {
+            stream.getVideoTracks()[0].enabled = !videoOn;
+        }
+    };
 
     useEffect(() => {
         let stream = null;

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import {
   Grid, Card, CardContent, Typography, Button, CardActions, Chip, Avatar,
@@ -59,6 +59,7 @@ const PatientDashboard = () => {
     const newSocket = io(API_URL);
     setSocketInstance(newSocket);
 
+    // Use newSocket directly instead of waiting for state update
     newSocket.emit("join_room", user._id);
 
     newSocket.on("callUser", (data) => {
