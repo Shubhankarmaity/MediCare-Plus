@@ -21,9 +21,9 @@ const HealthVitals = () => {
 
     useEffect(() => {
         fetchVitals();
-    }, []);
+    }, [fetchVitals]);
 
-    const fetchVitals = async () => {
+    const fetchVitals = React.useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(`${API_URL}/api/vitals`, {
@@ -39,7 +39,7 @@ const HealthVitals = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     const processDataForChart = (data) => {
         // Sort by date ascending for chart
@@ -68,7 +68,7 @@ const HealthVitals = () => {
             });
 
             if (res.ok) {
-                const newVital = await res.json();
+                await res.json();
                 setFormData({ systolic: '', diastolic: '', heartRate: '', bloodSugar: '', weight: '', temperature: '', notes: '' });
                 setNotification({ open: true, message: 'Vitals logged successfully!', severity: 'success' });
                 fetchVitals(); // Refresh list
@@ -76,6 +76,7 @@ const HealthVitals = () => {
                 throw new Error('Failed to save');
             }
         } catch (err) {
+            console.error(err);
             setNotification({ open: true, message: 'Error saving vitals.', severity: 'error' });
         } finally {
             setSubmitting(false);

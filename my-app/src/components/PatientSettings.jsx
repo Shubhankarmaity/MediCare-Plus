@@ -87,6 +87,7 @@ const PatientSettings = () => {
                 setNotification({ open: true, message: data.message || 'Update failed.', type: 'error' });
             }
         } catch (err) {
+            console.error(err);
             setNotification({ open: true, message: 'Error updating profile.', type: 'error' });
         } finally {
             setSubmitting(false);

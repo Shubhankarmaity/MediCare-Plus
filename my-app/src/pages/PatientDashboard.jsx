@@ -50,13 +50,18 @@ const PatientDashboard = () => {
   // Note: initializing socket inside useEffect without ref might cause reconnects on render if not careful, but dependency [] handles it.
 
   // However, I need to pass THIS socket to `VideoCall` component. So I should store it in ref or state.
-  const socketRef = useRef();
+  // const socketRef = useRef(); // Removed ref in favor of state for render access
+  const [socketInstance, setSocketInstance] = useState(null);
 
   useEffect(() => {
-    socketRef.current = io(API_URL);
-    socketRef.current.emit("join_room", user._id);
+    if (!user?._id) return;
 
-    socketRef.current.on("callUser", (data) => {
+    const newSocket = io(API_URL);
+    setSocketInstance(newSocket);
+
+    newSocket.emit("join_room", user._id);
+
+    newSocket.on("callUser", (data) => {
       setReceivingCall(true);
       setCaller(data.from);
       setCallerName(data.name);
@@ -76,9 +81,9 @@ const PatientDashboard = () => {
         window.ringtone.pause();
         window.ringtone = null;
       }
-      socketRef.current.disconnect();
+      newSocket.disconnect();
     }
-  }, []);
+  }, [user?._id]);
 
   // ... video call logic ends here ...
 
@@ -438,9 +443,9 @@ const PatientDashboard = () => {
       </Dialog>
 
       {/* Video Call Component */}
-      {callAccepted && (
+      {callAccepted && socketInstance && (
         <VideoCall
-          socket={socketRef.current}
+          socket={socketInstance}
           user={user}
           partnerId={caller}
           isInitiator={false}

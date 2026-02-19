@@ -12,6 +12,17 @@ const VideoCall = ({ socket, user, partnerId, incomingSignal, isInitiator, onEnd
     const userVideo = useRef();
     const connectionRef = useRef();
 
+    const endCall = React.useCallback(() => {
+        socket.emit("endCall", { to: partnerId });
+        if (connectionRef.current) {
+            connectionRef.current.destroy();
+        }
+        if (stream) {
+            stream.getTracks().forEach((track) => track.stop());
+        }
+        onEnd();
+    }, [socket, partnerId, stream, onEnd]);
+
     useEffect(() => {
         let stream = null;
         let canceled = false; // Flag to prevent stale updates
@@ -85,7 +96,6 @@ const VideoCall = ({ socket, user, partnerId, incomingSignal, isInitiator, onEnd
             .catch((err) => {
                 if (!canceled) {
                     console.error("Failed to get media", err);
-                    // alert("Camera/Microphone permission denied!"); // Optional: overly aggressive alert
                     onEnd();
                 }
             });
@@ -106,32 +116,7 @@ const VideoCall = ({ socket, user, partnerId, incomingSignal, isInitiator, onEnd
                 stream.getTracks().forEach(track => track.stop());
             }
         };
-    }, []);
-
-    const toggleMic = () => {
-        setMicOn((prev) => !prev);
-        if (stream) {
-            stream.getAudioTracks()[0].enabled = !micOn;
-        }
-    };
-
-    const toggleVideo = () => {
-        setVideoOn((prev) => !prev);
-        if (stream) {
-            stream.getVideoTracks()[0].enabled = !videoOn;
-        }
-    };
-
-    const endCall = () => {
-        socket.emit("endCall", { to: partnerId });
-        if (connectionRef.current) {
-            connectionRef.current.destroy();
-        }
-        if (stream) {
-            stream.getTracks().forEach((track) => track.stop());
-        }
-        onEnd();
-    };
+    }, [socket, isInitiator, partnerId, user._id, user.name, incomingSignal, endCall]);
 
     return (
         <div className="fixed inset-0 z-[1400] bg-black/80 flex items-center justify-center p-4">

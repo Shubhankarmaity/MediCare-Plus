@@ -21,6 +21,12 @@ const DoctorDashboard = () => {
   const [activeChat, setActiveChat] = useState(false);
   const [chatPartner, setChatPartner] = useState(null);
 
+  const user = JSON.parse(localStorage.getItem('user'));
+
+  const startVideoCall = (patientId) => {
+    setVideoCall({ open: true, partnerId: patientId });
+  };
+
   const fetchAppointments = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -70,7 +76,7 @@ const DoctorDashboard = () => {
     };
     initializeAppointments();
 
-    const user = JSON.parse(localStorage.getItem('user'));
+    // const user = JSON.parse(localStorage.getItem('user')); // Moved to top scope
     socket.emit("join_room", user._id);
 
     // Real-time Listener

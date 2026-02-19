@@ -41,6 +41,7 @@ const PatientPaymentHistory = () => {
             });
             fetchPayments();
         } catch (err) {
+            console.error(err);
             setLoading(false);
         }
     };
