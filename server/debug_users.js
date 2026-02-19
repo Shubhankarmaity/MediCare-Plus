@@ -1,16 +1,26 @@
 const mongoose = require('mongoose');
 const User = require('./models/User');
+require('dotenv').config();
 
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+const listUsers = async () => {
+    try {
+        await mongoose.connect(process.env.MONGODB_URI);
+        console.log('\n--- USER LISTING START ---');
 
-mongoose.connect(process.env.MONGODB_URI)
-    .then(async () => {
-        console.log("Connected to Mongo");
-        const users = await User.find({}, 'name email role');
-        console.log("--- USERS ---");
-        users.forEach(u => console.log(`${u.role.toUpperCase()}: ${u.name} (${u.email})`));
-        console.log("-------------");
-        mongoose.connection.close();
-    })
-    .catch(err => console.error(err));
+        const users = await User.find({ role: 'patient' }).select('name email _id');
+        console.log(`Found ${users.length} patients.`);
+
+        users.forEach(u => {
+            console.log(`Name: "${u.name}" | Email: ${u.email} | ID: ${u._id}`);
+        });
+
+        console.log('--- USER LISTING END ---\n');
+
+    } catch (err) {
+        console.error(err);
+    } finally {
+        await mongoose.disconnect();
+    }
+};
+
+listUsers();

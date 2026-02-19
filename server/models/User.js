@@ -118,6 +118,7 @@ const UserSchema = new mongoose.Schema({
   address: { type: String, trim: true },
   emergencyContact: { type: String, trim: true },
   medicalHistory: { type: String, trim: true }, // Existing conditions, allergies
+  allergies: { type: String, trim: true },
 
   // --- DOCTOR SPECIFIC FIELDS ---
   specialization: { type: String, trim: true },

@@ -224,7 +224,10 @@ exports.login = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
     try {
-        const { name, specialization, hospitalName, experience, vehicleNumber, licenseNumber } = req.body;
+        const {
+            name, specialization, hospitalName, experience, vehicleNumber, licenseNumber,
+            phone, gender, age, bloodGroup, address, emergencyContact, medicalHistory, allergies
+        } = req.body;
 
         const updateData = { name };
 
@@ -236,6 +239,15 @@ exports.updateProfile = async (req, res) => {
         } else if (req.user.role === 'driver') {
             if (vehicleNumber) updateData.vehicleNumber = vehicleNumber;
             if (licenseNumber) updateData.licenseNumber = licenseNumber;
+        } else if (req.user.role === 'patient') {
+            if (phone) updateData.phone = phone;
+            if (gender) updateData.gender = gender;
+            if (age) updateData.age = age;
+            if (bloodGroup) updateData.bloodGroup = bloodGroup;
+            if (address) updateData.address = address;
+            if (emergencyContact) updateData.emergencyContact = emergencyContact;
+            if (medicalHistory) updateData.medicalHistory = medicalHistory;
+            if (allergies) updateData.allergies = allergies;
         }
 
         const updatedUser = await User.findByIdAndUpdate(

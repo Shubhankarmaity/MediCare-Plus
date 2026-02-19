@@ -96,3 +96,45 @@ exports.getPatientById = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+
+exports.updateProfile = async (req, res) => {
+    try {
+        // Check if user is Doctor
+        if (req.user.role !== 'doctor') {
+            return res.status(403).json({ message: "Access Denied" });
+        }
+
+        const {
+            name, phone, specialization, experience, qualification,
+            consultationFee, availableDays, availableTime, doctorPhone,
+            address, hospitalName
+        } = req.body;
+
+        const updatedDoctor = await User.findByIdAndUpdate(
+            req.user.id,
+            {
+                name,
+                phone,
+                specialization,
+                experience,
+                qualification,
+                consultationFee,
+                availableDays,
+                availableTime,
+                doctorPhone,
+                address,
+                hospitalName
+            },
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        if (!updatedDoctor) {
+            return res.status(404).json({ message: "Doctor not found" });
+        }
+
+        res.json({ message: "Profile updated successfully", doctor: updatedDoctor });
+    } catch (err) {
+        console.error('Error updating profile:', err);
+        res.status(500).json({ message: err.message });
+    }
+};

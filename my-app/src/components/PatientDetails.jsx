@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, Typography, Box, CircularProgress, Chip, Avatar,
-  Grid, Paper
+  Grid, Paper, Tabs, Tab, Divider, List, ListItem, ListItemText, ListItemAvatar
 } from '@mui/material';
-import { User, Clock, Phone, MapPin } from 'lucide-react';
+import { User, Clock, Phone, MapPin, FileText, Calendar, Activity } from 'lucide-react';
 import { API_URL } from '../config';
 
 const PatientDetails = ({ open, onClose, patientId }) => {
@@ -12,6 +12,9 @@ const PatientDetails = ({ open, onClose, patientId }) => {
   const [loading, setLoading] = useState(false);
   const [accessRequestStatus, setAccessRequestStatus] = useState(null);
   const [requestPending, setRequestPending] = useState(false);
+  const [tabValue, setTabValue] = useState(0); // 0: Profile, 1: History
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const fetchPatientDetails = useCallback(async () => {
     setLoading(true);
@@ -88,6 +91,25 @@ const PatientDetails = ({ open, onClose, patientId }) => {
     }
   }, [patientId]);
 
+  const fetchPatientHistory = useCallback(async () => {
+    if (!patientId) return;
+    setLoadingHistory(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${API_URL}/api/doctors/patient-history/${patientId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data);
+      }
+    } catch (err) {
+      console.error("Error fetching patient history", err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [patientId]);
+
   const requestAccessToPatient = async () => {
     const token = localStorage.getItem('token');
     try {
@@ -113,8 +135,21 @@ const PatientDetails = ({ open, onClose, patientId }) => {
   useEffect(() => {
     if (open && patientId) {
       fetchPatientDetails();
+      setTabValue(0); // Reset to profile tab on open
+      setHistory([]); // Clear previous history
     }
   }, [open, patientId, fetchPatientDetails]);
+
+  // Fetch history when switching to tab 1
+  useEffect(() => {
+    if (open && patientId && tabValue === 1 && history.length === 0) {
+      fetchPatientHistory();
+    }
+  }, [open, patientId, tabValue, history.length, fetchPatientHistory]);
+
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -151,75 +186,156 @@ const PatientDetails = ({ open, onClose, patientId }) => {
           </Box>
         ) : patientDetails ? (
           <Box sx={{ pb: 2 }}>
-            {/* Basic Information */}
-            <Paper sx={{ p: 3, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
-              <Typography variant="subtitle1" fontWeight="bold" mb={2.5} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ width: 4, height: 20, bgcolor: '#3b82f6', borderRadius: 1 }} />
-                Patient Medical Information
-              </Typography>
-              <Grid container spacing={2.5}>
-                <Grid size={{ xs: 6 }}>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Full Name</Typography>
-                    <Typography variant="body1" fontWeight="600">{patientDetails.name}</Typography>
-                  </Box>
+            <Tabs
+              value={tabValue}
+              onChange={handleTabChange}
+              aria-label="patient tabs"
+              sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
+            >
+              <Tab label="Profile Info" icon={<User size={18} />} iconPosition="start" />
+              <Tab label="Medical History" icon={<Activity size={18} />} iconPosition="start" />
+            </Tabs>
+
+            {/* TAB 0: PROFILE INFO */}
+            {tabValue === 0 && (
+              <Paper sx={{ p: 3, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+                <Typography variant="subtitle1" fontWeight="bold" mb={2.5} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 4, height: 20, bgcolor: '#3b82f6', borderRadius: 1 }} />
+                  Patient Medical Information
+                </Typography>
+                <Grid container spacing={2.5}>
+                  <Grid size={{ xs: 6 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Full Name</Typography>
+                      <Typography variant="body1" fontWeight="600">{patientDetails.name}</Typography>
+                    </Box>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Email Address</Typography>
+                      <Typography variant="body1" fontWeight="600" sx={{ wordBreak: 'break-all' }}>{patientDetails.email}</Typography>
+                    </Box>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Member Since</Typography>
+                      <Typography variant="body1" fontWeight="600">
+                        {new Date(patientDetails.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  {patientDetails.phone && (
+                    <Grid size={{ xs: 6 }}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Phone</Typography>
+                        <Typography variant="body1" fontWeight="600">{patientDetails.phone}</Typography>
+                      </Box>
+                    </Grid>
+                  )}
+                  {patientDetails.age && (
+                    <Grid size={{ xs: 6 }}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Age</Typography>
+                        <Typography variant="body1" fontWeight="600">{patientDetails.age}</Typography>
+                      </Box>
+                    </Grid>
+                  )}
+                  {patientDetails.gender && (
+                    <Grid size={{ xs: 6 }}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Gender</Typography>
+                        <Typography variant="body1" fontWeight="600">{patientDetails.gender}</Typography>
+                      </Box>
+                    </Grid>
+                  )}
+                  {patientDetails.bloodGroup && (
+                    <Grid size={{ xs: 6 }}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Blood Group</Typography>
+                        <Chip label={patientDetails.bloodGroup} size="small" color="primary" variant="outlined" />
+                      </Box>
+                    </Grid>
+                  )}
+                  {patientDetails.medicalHistory && (
+                    <Grid size={{ xs: 12 }}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Medical History</Typography>
+                        <Typography variant="body1" fontWeight="600">{patientDetails.medicalHistory}</Typography>
+                      </Box>
+                    </Grid>
+                  )}
                 </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Email Address</Typography>
-                    <Typography variant="body1" fontWeight="600" sx={{ wordBreak: 'break-all' }}>{patientDetails.email}</Typography>
+              </Paper>
+            )}
+
+            {/* TAB 1: MEDICAL HISTORY (TIMELINE) */}
+            {tabValue === 1 && (
+              <Box>
+                {loadingHistory ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                    <CircularProgress size={30} />
                   </Box>
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Member Since</Typography>
-                    <Typography variant="body1" fontWeight="600">
-                      {new Date(patientDetails.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                    </Typography>
-                  </Box>
-                </Grid>
-                {patientDetails.phone && (
-                  <Grid size={{ xs: 6 }}>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Phone</Typography>
-                      <Typography variant="body1" fontWeight="600">{patientDetails.phone}</Typography>
-                    </Box>
-                  </Grid>
+                ) : history.length === 0 ? (
+                  <Typography color="text.secondary" textAlign="center" py={4}>
+                    No medical history records found.
+                  </Typography>
+                ) : (
+                  <List sx={{ bgcolor: 'background.paper', borderRadius: 2 }}>
+                    {history.map((record, index) => (
+                      <React.Fragment key={record._id}>
+                        <ListItem alignItems="flex-start" sx={{ px: 0 }}>
+                          <ListItemAvatar>
+                            <Avatar sx={{ bgcolor: '#eff6ff', color: '#3b82f6' }}>
+                              <Calendar size={20} />
+                            </Avatar>
+                          </ListItemAvatar>
+                          <ListItemText
+                            primary={
+                              <Typography variant="subtitle1" fontWeight="600">
+                                {new Date(record.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                              </Typography>
+                            }
+                            secondary={
+                              <Box component="span" sx={{ display: 'block', mt: 1 }}>
+                                <Typography component="span" variant="body2" color="text.primary" fontWeight="500">
+                                  Dr. {record.doctorId?.name || 'Unknown Doctor'}
+                                </Typography>
+                                <Typography component="span" variant="body2" color="text.secondary" sx={{ mx: 1 }}>|</Typography>
+                                <Typography component="span" variant="body2" color="text.secondary">
+                                  {record.doctorId?.specialization || 'General'}
+                                </Typography>
+
+                                {record.doctorReport ? (
+                                  <Box sx={{ mt: 1.5, p: 2, bgcolor: '#f0fdf4', borderRadius: 1, border: '1px solid #dcfce7' }}>
+                                    {record.doctorReport.diagnosis && (
+                                      <Typography variant="body2" sx={{ mb: 0.5 }}>
+                                        <strong>Diagnosis:</strong> {record.doctorReport.diagnosis}
+                                      </Typography>
+                                    )}
+                                    {record.doctorReport.prescription && (
+                                      <Typography variant="body2">
+                                        <strong>Meds:</strong> {record.doctorReport.prescription}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                ) : (
+                                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
+                                    No report filed.
+                                  </Typography>
+                                )}
+                              </Box>
+                            }
+                          />
+                        </ListItem>
+                        {index < history.length - 1 && <Divider component="li" />}
+                      </React.Fragment>
+                    ))}
+                  </List>
                 )}
-                {patientDetails.age && (
-                  <Grid size={{ xs: 6 }}>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Age</Typography>
-                      <Typography variant="body1" fontWeight="600">{patientDetails.age}</Typography>
-                    </Box>
-                  </Grid>
-                )}
-                {patientDetails.gender && (
-                  <Grid size={{ xs: 6 }}>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Gender</Typography>
-                      <Typography variant="body1" fontWeight="600">{patientDetails.gender}</Typography>
-                    </Box>
-                  </Grid>
-                )}
-                {patientDetails.bloodGroup && (
-                  <Grid size={{ xs: 6 }}>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Blood Group</Typography>
-                      <Chip label={patientDetails.bloodGroup} size="small" color="primary" variant="outlined" />
-                    </Box>
-                  </Grid>
-                )}
-                {patientDetails.medicalHistory && (
-                  <Grid size={{ xs: 12 }}>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Medical History</Typography>
-                      <Typography variant="body1" fontWeight="600">{patientDetails.medicalHistory}</Typography>
-                    </Box>
-                  </Grid>
-                )}
-              </Grid>
-            </Paper>          </Box>
+              </Box>
+            )}
+
+          </Box>
         ) : (
           <Typography color="text.secondary" textAlign="center" py={4}>
             No data available

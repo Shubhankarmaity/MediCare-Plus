@@ -217,3 +217,48 @@ exports.submitReport = async (req, res) => {
         res.status(500).json(err);
     }
 };
+
+exports.getPatientHistory = async (req, res) => {
+    try {
+        const { id } = req.params; // Patient ID
+        const doctorId = req.user.id;
+        console.log(`Fetching medical history for patient: ${id} by doctor: ${doctorId}`);
+
+        // 1. Check Access Permissions
+        const patient = await User.findById(id);
+        if (!patient) return res.status(404).json({ message: "Patient not found" });
+
+        // Check if doctor has access
+        const privacySettings = patient.privacySettings || {};
+        const profileAccess = privacySettings.profileAccess || new Map();
+
+        // Handle Map or Object
+        let doctorAccess;
+        if (profileAccess instanceof Map) {
+            doctorAccess = profileAccess.get(doctorId);
+        } else {
+            doctorAccess = profileAccess[doctorId];
+        }
+
+        const hasAccess = (doctorAccess && doctorAccess.approved &&
+            (!doctorAccess.expiresAt || new Date(doctorAccess.expiresAt) > new Date()));
+
+        if (!hasAccess) {
+            console.log(`Access denied for doctor ${doctorId} to patient ${id}`);
+            return res.status(403).json({ message: "Access to this patient's history requires approval." });
+        }
+
+        const history = await Appointment.find({
+            patientId: id,
+            status: { $in: ['approved', 'completed'] } // Only show confirmed past/present interaction
+        })
+            .populate('doctorId', 'name specialization')
+            .sort({ date: -1 }); // Newest first
+
+        console.log(`Found ${history.length} past records for patient ${id}`);
+        res.json(history);
+    } catch (err) {
+        console.error('Error fetching patient history:', err);
+        res.status(500).json({ message: "Error fetching patient history" });
+    }
+};

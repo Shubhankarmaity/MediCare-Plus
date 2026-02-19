@@ -49,6 +49,10 @@ const debugRoutes = require('./routes/debug');
 app.use('/api/debug', debugRoutes);
 const seedRoutes = require('./routes/seed');
 app.use('/api/seed', seedRoutes);
+const vitalsRoutes = require('./routes/vitals');
+app.use('/api/vitals', vitalsRoutes);
+const paymentRoutes = require('./routes/payments');
+app.use('/api/payments', paymentRoutes);
 
 // --- SOCKET.IO REAL-TIME LOGIC ---
 const io = new Server(server, {
@@ -95,6 +99,26 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("User Disconnected", socket.id);
+  });
+
+  // --- VIDEO CALL SIGNALING ---
+  socket.on("callUser", ({ userToCall, signalData, from, name }) => {
+    console.log(`Call initiated by ${from} to ${userToCall}`);
+    io.to(userToCall).emit("callUser", { signal: signalData, from, name });
+  });
+
+  socket.on("answerCall", (data) => {
+    console.log(`Call answered by ${data.from} to ${data.to}`);
+    io.to(data.to).emit("callAccepted", data.signal);
+  });
+
+  socket.on("ice-candidate", ({ target, candidate }) => {
+    io.to(target).emit("ice-candidate", candidate);
+  });
+
+  socket.on("endCall", ({ to }) => {
+    console.log(`Call ended for ${to}`);
+    io.to(to).emit("callEnded");
   });
 });
 

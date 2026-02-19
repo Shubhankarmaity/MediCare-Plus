@@ -146,8 +146,8 @@ router.put('/respond/:requesterUserId', auth, async (req, res) => {
 
     // For approved requests, set expiration (e.g., 5 minutes) and mark as single-use
     if (action === 'approve') {
-      updatedRequest.expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
-      updatedRequest.singleUse = true;
+      updatedRequest.expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+      updatedRequest.singleUse = false;
       updatedRequest.used = false;
     }
 
@@ -163,8 +163,8 @@ router.put('/respond/:requesterUserId', auth, async (req, res) => {
         approved: true,
         approvedAt: new Date(),
         approvedById: req.user.id,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes from now
-        singleUse: true,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+        singleUse: false,
         used: false
       });
 
