@@ -131,7 +131,7 @@ const VideoCall = ({ socket, user, partnerId, incomingSignal, isInitiator, onEnd
                 stream.getTracks().forEach(track => track.stop());
             }
         };
-    }, [socket, isInitiator, partnerId, user._id, user.name, incomingSignal, endCall]);
+    }, [socket, isInitiator, partnerId, user._id, user.name, incomingSignal, endCall, onEnd]);
 
     return (
         <div className="fixed inset-0 z-[1400] bg-black/80 flex items-center justify-center p-4">
