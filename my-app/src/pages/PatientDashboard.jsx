@@ -139,6 +139,7 @@ const PatientDashboard = () => {
   const [activeChat, setActiveChat] = useState(false);
   const [chatPartner, setChatPartner] = useState(null); // Explicit state for who we are chatting with
   const [hospitalAdmin, setHospitalAdmin] = useState(null);
+  const [patientHospital, setPatientHospital] = useState(null);
   const [patientLocation, setPatientLocation] = useState({ lat: 40.7128, lng: -74.0060 }); // Default location
   // const mapContainer = useRef(null);
   // const map = useRef(null);
@@ -199,11 +200,15 @@ const PatientDashboard = () => {
         // Fetch user profile to get hospital admin info
         const profileRes = await fetch(`${API_URL}/profile`, { headers });
         const profileData = await profileRes.json();
-        if (profileData.user && profileData.user.hospitalId && profileData.user.hospitalId.adminId) {
-          setHospitalAdmin({
-            _id: profileData.user.hospitalId.adminId,
-            name: `${profileData.user.hospitalId.name} Admin`
-          });
+        if (profileData.user && profileData.user.hospitalId) {
+          const hosp = profileData.user.hospitalId;
+          setPatientHospital(hosp);
+          if (hosp.adminId) {
+            setHospitalAdmin({
+              _id: hosp.adminId,
+              name: `${hosp.name} Admin`
+            });
+          }
         }
 
       } catch (error) {
@@ -212,6 +217,19 @@ const PatientDashboard = () => {
       }
     };
     fetchData();
+  }, []);
+
+  // Real-time: refresh doctor list when a new doctor is approved
+  useEffect(() => {
+    const socket = io(API_URL);
+    socket.on('doctor_approved', () => {
+      const token = localStorage.getItem('token');
+      fetch(`${API_URL}/api/doctors`, { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(data => setDoctors(data))
+        .catch(err => console.error('Error refreshing doctors:', err));
+    });
+    return () => { socket.off('doctor_approved'); socket.disconnect(); };
   }, []);
 
   // Refetch appointments when My Reports tab is selected
@@ -525,6 +543,16 @@ const PatientDashboard = () => {
                         <Typography variant="body1" className="opacity-90 max-w-2xl">
                           Track your health, manage appointments, and connect with top doctors all in one place.
                         </Typography>
+                        {patientHospital && (
+                          <div className="mt-4 inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2">
+                            <MapPin size={16} className="text-white" />
+                            <span className="text-white text-sm font-semibold">{patientHospital.name}</span>
+                            {patientHospital.city && (
+                              <span className="text-white/70 text-sm">• {patientHospital.city}</span>
+                            )}
+                            <span className="text-white/60 text-xs bg-white/20 rounded-full px-2 py-0.5">Your Hospital</span>
+                          </div>
+                        )}
                       </div>
                       {/* Decorative circles */}
                       <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl"></div>
@@ -578,7 +606,13 @@ const PatientDashboard = () => {
               {/* TAB 1: DOCTORS */}
               {tabValue === 1 && (
                 <Grid container spacing={3}>
-                  {doctors.length === 0 && <Typography p={3}>No doctors available.</Typography>}
+                  {doctors.length === 0 && (
+                    <div className="col-span-3 p-8 text-center text-gray-500">
+                      <Stethoscope size={48} className="mx-auto mb-3 text-gray-300" />
+                      <p className="font-semibold text-gray-600 mb-1">No Doctors Available Yet</p>
+                      <p className="text-sm">There are no approved doctors at your registered hospital at this time. Please check back later or contact your hospital admin.</p>
+                    </div>
+                  )}
                   {doctors.map(doc => (
                     <Grid size={{ xs: 12, sm: 6, md: 4 }} key={doc._id}>
                       <Card elevation={3} sx={{ borderRadius: 3 }}>
@@ -1358,7 +1392,7 @@ const PatientDashboard = () => {
                   <Box
                     sx={{
                       position: 'fixed',
-                      bottom: 30,
+                      bottom: 100,
                       right: 30,
                       zIndex: 1200
                     }}

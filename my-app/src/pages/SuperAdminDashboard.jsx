@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import {
     RefreshCw, Trash2, ArrowLeft, Building2, Stethoscope, Users, User, MapPin,
-    Phone, Mail, Bed, Activity, Siren, Star
+    Phone, Mail, Bed, Activity, Siren, Star, ShieldCheck
 } from 'lucide-react';
 import { API_URL } from '../config';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -62,6 +62,11 @@ const SuperAdminDashboard = () => {
     const [selectedHospital, setSelectedHospital] = useState(null);
     const [hospitalData, setHospitalData] = useState(null); // { doctors: [], patients: [], admin: {} }
     const [hospitalTabValue, setHospitalTabValue] = useState(0); // 0: Doctors, 1: Patients
+    const [hospitalListTab, setHospitalListTab] = useState(0); // 0: Regular, 1: Mediclaim
+
+    // Split hospitals into regular and mediclaim
+    const regularHospitals = hospitals.filter(h => !h.insuranceCompany);
+    const mediclaimHospitals = hospitals.filter(h => !!h.insuranceCompany);
 
     const fetchData = async () => {
         setLoading(true);
@@ -229,84 +234,128 @@ const SuperAdminDashboard = () => {
                             <Typography color="error" mb={4}>Failed to load statistics.</Typography>
                         )}
 
-                        {/* Hospitals Grid */}
-                        <Typography variant="h5" mb={3} fontWeight="bold" className="text-gray-700 border-l-4 border-indigo-500 pl-3">
-                            All Registered Hospitals
-                        </Typography>
-
-                        {hospitals.length > 0 ? (
-                            <Grid container spacing={3}>
-                                {hospitals.map((hospital, index) => (
-                                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={hospital._id}>
-                                        <motion.div variants={itemVariants} layoutId={`hospital-${hospital._id}`} whileHover={{ y: -8 }}>
-                                            <Card sx={{
-                                                borderRadius: 4,
-                                                boxShadow: 4,
-                                                height: '100%',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                overflow: 'visible',
-                                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                '&:hover': { boxShadow: 12 }
-                                            }}>
-                                                <CardActionArea onClick={() => fetchHospitalDetails(hospital._id)} sx={{ flexGrow: 1, borderRadius: 4, overflow: 'hidden' }}>
-                                                    <div className="relative h-56 overflow-hidden">
-                                                        <img
-                                                            src={resolveHospitalImage(hospital, index)}
-                                                            alt={hospital.name}
-                                                            className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
-                                                        />
-                                                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-12">
-                                                            <Typography variant="h6" fontWeight="bold" className="text-white drop-shadow-md" noWrap>{hospital.name}</Typography>
-                                                        </div>
-                                                        <div className="absolute top-3 right-3">
-                                                            <Chip
-                                                                label={hospital.city}
-                                                                color="primary"
-                                                                size="small"
-                                                                sx={{
-                                                                    bgcolor: 'rgba(255, 255, 255, 0.9)',
-                                                                    color: '#1e40af',
-                                                                    fontWeight: 'bold',
-                                                                    backdropFilter: 'blur(4px)'
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <CardContent>
-                                                        <Box display="flex" alignItems="center" gap={1} color="text.secondary" mb={2}>
-                                                            <MapPin size={16} className="text-red-500" />
-                                                            <Typography variant="body2" noWrap>{hospital.address}</Typography>
-                                                        </Box>
-                                                        <Box display="flex" gap={1} flexWrap="wrap">
-                                                            <Chip icon={<Star size={14} />} label={hospital.rating || 4.5} size="small" variant="outlined" sx={{ borderColor: '#f59e0b', color: '#b45309' }} />
-                                                            <Chip
-                                                                icon={<Bed size={14} />}
-                                                                label={`${hospital.availableBeds}/${hospital.totalBeds} Beds`}
-                                                                size="small"
-                                                                variant="soft"
-                                                                color={hospital.availableBeds > 0 ? "success" : "error"}
-                                                                sx={{ bgcolor: hospital.availableBeds > 0 ? '#dcfce7' : '#fee2e2' }}
-                                                            />
-                                                        </Box>
-                                                    </CardContent>
-                                                </CardActionArea>
-                                                <div className="p-2 flex justify-end border-t border-gray-100 bg-gray-50 rounded-b-xl">
-                                                    <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDeleteHospital(hospital._id); }}>
-                                                        <Trash2 size={18} />
-                                                    </IconButton>
-                                                </div>
-                                            </Card>
-                                        </motion.div>
-                                    </Grid>
-                                ))}
-                            </Grid>
-                        ) : (
-                            <Box textAlign="center" py={10}>
-                                <Typography variant="h6" color="text.secondary">No hospitals found.</Typography>
-                                <Button variant="contained" onClick={fetchData} sx={{ mt: 2 }}>Retry</Button>
+                        {/* Hospital Type Tabs */}
+                        <Box sx={{ mb: 3 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                                <Typography variant="h5" fontWeight="bold" className="text-gray-700 border-l-4 border-indigo-500 pl-3">
+                                    Hospital Network
+                                </Typography>
                             </Box>
-                        )}
+                            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                                <Tabs
+                                    value={hospitalListTab}
+                                    onChange={(e, v) => setHospitalListTab(v)}
+                                    textColor="primary"
+                                    indicatorColor="primary"
+                                >
+                                    <Tab
+                                        label={`Regular Hospitals (${regularHospitals.length})`}
+                                        icon={<Building2 size={18} />}
+                                        iconPosition="start"
+                                        sx={{ fontWeight: 600 }}
+                                    />
+                                    <Tab
+                                        label={`Mediclaim Network (${mediclaimHospitals.length})`}
+                                        icon={<ShieldCheck size={18} />}
+                                        iconPosition="start"
+                                        sx={{ fontWeight: 600 }}
+                                    />
+                                </Tabs>
+                            </Box>
+
+                            {/* RENDER HOSPITAL CARDS for active tab */}
+                            {(() => {
+                                const displayHospitals = hospitalListTab === 0 ? regularHospitals : mediclaimHospitals;
+                                if (hospitals.length === 0) return (
+                                    <Box textAlign="center" py={10}>
+                                        <Typography variant="h6" color="text.secondary">No hospitals found.</Typography>
+                                        <Button variant="contained" onClick={fetchData} sx={{ mt: 2 }}>Retry</Button>
+                                    </Box>
+                                );
+                                if (displayHospitals.length === 0) return (
+                                    <Box textAlign="center" py={8} sx={{ bgcolor: '#f8fafc', borderRadius: 3, border: '1px dashed #e2e8f0' }}>
+                                        <Typography variant="h6" color="text.secondary" mb={1}>
+                                            {hospitalListTab === 0 ? 'No regular hospitals registered.' : 'No Mediclaim network hospitals registered.'}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.disabled">
+                                            {hospitalListTab === 1 && 'Mediclaim hospitals are those linked to insurance companies.'}
+                                        </Typography>
+                                    </Box>
+                                );
+                                return (
+                                    <Grid container spacing={3}>
+                                        {displayHospitals.map((hospital, index) => (
+                                            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={hospital._id}>
+                                                <motion.div variants={itemVariants} layoutId={`hospital-${hospital._id}`} whileHover={{ y: -8 }}>
+                                                    <Card sx={{
+                                                        borderRadius: 4,
+                                                        boxShadow: 4,
+                                                        height: '100%',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        overflow: 'visible',
+                                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                        '&:hover': { boxShadow: 12 },
+                                                        border: hospitalListTab === 1 ? '2px solid #a5b4fc' : 'none'
+                                                    }}>
+                                                        <CardActionArea onClick={() => fetchHospitalDetails(hospital._id)} sx={{ flexGrow: 1, borderRadius: 4, overflow: 'hidden' }}>
+                                                            <div className="relative h-56 overflow-hidden">
+                                                                <img
+                                                                    src={resolveHospitalImage(hospital, index)}
+                                                                    alt={hospital.name}
+                                                                    className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
+                                                                />
+                                                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-12">
+                                                                    <Typography variant="h6" fontWeight="bold" className="text-white drop-shadow-md" noWrap>{hospital.name}</Typography>
+                                                                </div>
+                                                                <div className="absolute top-3 right-3 flex flex-col gap-1 items-end">
+                                                                    <Chip
+                                                                        label={hospital.city}
+                                                                        size="small"
+                                                                        sx={{ bgcolor: 'rgba(255,255,255,0.9)', color: '#1e40af', fontWeight: 'bold', backdropFilter: 'blur(4px)' }}
+                                                                    />
+                                                                    {hospital.insuranceCompany && (
+                                                                        <Chip
+                                                                            label={hospital.insuranceCompany}
+                                                                            size="small"
+                                                                            sx={{ bgcolor: 'rgba(99,102,241,0.9)', color: 'white', fontWeight: 'bold', backdropFilter: 'blur(4px)' }}
+                                                                        />
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <CardContent>
+                                                                <Box display="flex" alignItems="center" gap={1} color="text.secondary" mb={2}>
+                                                                    <MapPin size={16} className="text-red-500" />
+                                                                    <Typography variant="body2" noWrap>{hospital.address}</Typography>
+                                                                </Box>
+                                                                <Box display="flex" gap={1} flexWrap="wrap">
+                                                                    <Chip icon={<Star size={14} />} label={hospital.rating || 4.5} size="small" variant="outlined" sx={{ borderColor: '#f59e0b', color: '#b45309' }} />
+                                                                    <Chip
+                                                                        icon={<Bed size={14} />}
+                                                                        label={`${hospital.availableBeds}/${hospital.totalBeds} Beds`}
+                                                                        size="small"
+                                                                        color={hospital.availableBeds > 0 ? "success" : "error"}
+                                                                        sx={{ bgcolor: hospital.availableBeds > 0 ? '#dcfce7' : '#fee2e2' }}
+                                                                    />
+                                                                    {hospital.cashlessAvailable && (
+                                                                        <Chip label="Cashless" size="small" sx={{ bgcolor: '#ede9fe', color: '#6d28d9', fontWeight: 600 }} />
+                                                                    )}
+                                                                </Box>
+                                                            </CardContent>
+                                                        </CardActionArea>
+                                                        <div className="p-2 flex justify-end border-t border-gray-100 bg-gray-50 rounded-b-xl">
+                                                            <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); handleDeleteHospital(hospital._id); }}>
+                                                                <Trash2 size={18} />
+                                                            </IconButton>
+                                                        </div>
+                                                    </Card>
+                                                </motion.div>
+                                            </Grid>
+                                        ))}
+                                    </Grid>
+                                );
+                            })()}
+                        </Box>
                     </motion.div>
                 )}
 

@@ -23,48 +23,44 @@ router.get('/dashboard-data', auth, async (req, res) => {
 
         console.log(`Fetching dashboard data for Admin: ${currentAdmin.email}, Hospital: ${hospital.name}`);
 
-        // 2. Fetch Counts (Scoped to Hospital)
-        // Note: Doctors store 'hospitalName' as a string currently. Ideally we migrate to hospitalId.
-        const doctorCount = await User.countDocuments({ role: 'doctor', hospitalName: hospital.name });
+        // 2. Fetch Counts (Scoped to this Hospital)
+        const doctorCount = await User.countDocuments({
+            role: 'doctor',
+            $or: [{ hospitalId: hospital._id }, { hospitalName: hospital.name }]
+        });
 
-        // Patients are global, but we could count appointments? For now, let's keep patient count global or just simplistic
-        // Let's just return total patients for now as they are not hospital-exclusive
-        const patientCount = await User.countDocuments({ role: 'patient' });
+        // Only count patients registered/admitted to this hospital
+        const patientCount = await User.countDocuments({
+            role: 'patient',
+            hospitalId: hospital._id
+        });
 
         const driverCount = await User.countDocuments({ role: 'driver' });
 
-        // 3. Fetch Data Lists (Scoped)
-        // Only show doctors from this hospital
-        const users = await User.find({
-            $or: [
-                { role: 'doctor', hospitalName: hospital.name },
-                { role: 'patient' } // Show all patients? Or maybe just hide users list for patients if privacy is key.
-                // Request said "different admin id and password for different hospitals". 
-                // Implies total separation. Let's ONLY show doctors of this hospital.
-            ]
+        // 3. Fetch Data Lists (Scoped to this Hospital only)
+        const doctors = await User.find({
+            role: 'doctor',
+            $or: [{ hospitalId: hospital._id }, { hospitalName: hospital.name }]
         }).select('-password').sort({ createdAt: -1 });
 
-        // Filter users list to remove patients if we want strict isolation, but the UI expects a list.
-        // Let's filteredUsers = doctors of THIS hospital AND all patients (since patients can visit any hospital)
-        // But for strict "My Hospital" view, maybe we only want patients who have booked here?
-        // For simplicity and functionality: Show OWN Doctors and ALL Patients (as potential customers).
+        const patients = await User.find({
+            role: 'patient',
+            hospitalId: hospital._id
+        }).select('-password').sort({ createdAt: -1 });
 
-        // Filter Appointments: Only those for this hospital's doctors
-        // We need to find appointments where the doctor belongs to this hospital.
-        // Since Appointment has doctorId, and User (Doctor) has hospitalName.
+        // Combine into users array (doctors of this hospital + patients of this hospital)
+        const users = [...doctors, ...patients];
 
-        // Approach: Find all doctors of this hospital first
-        const hospitalDoctors = await User.find({ role: 'doctor', hospitalName: hospital.name }).select('_id');
-        const doctorIds = hospitalDoctors.map(d => d._id);
-
+        // 4. Appointments scoped to doctors of this hospital
+        const doctorIds = doctors.map(d => d._id);
         const appointments = await Appointment.find({ doctorId: { $in: doctorIds } })
             .populate('patientId', 'name email')
-            .populate('doctorId', 'name specialization') // Verify doctor details
+            .populate('doctorId', 'name specialization')
             .sort({ createdAt: -1 });
 
         res.json({
             stats: { doctorCount, patientCount, driverCount },
-            users: users.filter(u => u.role !== 'doctor' || u.hospitalName === hospital.name), // Ensure double check
+            users,
             appointments
         });
     } catch (err) {

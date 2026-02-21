@@ -120,6 +120,10 @@ const UserSchema = new mongoose.Schema({
   medicalHistory: { type: String, trim: true }, // Existing conditions, allergies
   allergies: { type: String, trim: true },
 
+  // --- MEDICLAIM / INSURANCE ---
+  hasMediclaim: { type: Boolean, default: false },
+  mediclaimProvider: { type: String, trim: true }, // "HDFC ERGO" / "Niva Bupa"
+
   // --- DOCTOR SPECIFIC FIELDS ---
   specialization: { type: String, trim: true },
   hospitalName: { type: String, trim: true },

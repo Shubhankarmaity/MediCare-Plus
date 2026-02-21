@@ -3,7 +3,8 @@ import DashboardLayout from '../components/DashboardLayout';
 import {
   Grid, Paper, Typography, Table, TableBody, TableCell,
   TableHead, TableRow, Chip, Avatar, CircularProgress, IconButton,
-  Dialog, DialogTitle, DialogContent, DialogActions, Button, Divider, Box, Tooltip
+  Dialog, DialogTitle, DialogContent, DialogActions, Button, Divider, Box, Tooltip,
+  Select, MenuItem, FormControl, InputLabel
 } from '@mui/material';
 import { RefreshCw, X, Calendar, CheckCircle, XCircle, Clock, DoorOpen, MessageSquare } from 'lucide-react';
 import io from 'socket.io-client';
@@ -21,8 +22,19 @@ const AdminDashboard = () => {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [openModal, setOpenModal] = useState(false);
   const [pendingDoctors, setPendingDoctors] = useState([]);
-  const [accessRequestStatus, setAccessRequestStatus] = useState(null); // New state for access request status
+  const [accessRequestStatus, setAccessRequestStatus] = useState(null);
   const [activeChat, setActiveChat] = useState(null);
+
+  // Approval Modal State
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [approvingDoctor, setApprovingDoctor] = useState(null);
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+
+  const DEPARTMENTS = [
+    'Cardiology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Oncology',
+    'Radiology', 'Emergency Medicine', 'Internal Medicine', 'Surgery',
+    'Gynecology', 'Dermatology', 'Ophthalmology', 'ENT', 'Psychiatry', 'General'
+  ];
 
   const fetchData = async () => {
     const token = localStorage.getItem('token');
@@ -121,36 +133,27 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleApproveDoctor = async (doctorId) => {
+
+  const handleApproveDoctor = (doctor) => {
+    setApprovingDoctor(doctor);
+    setSelectedDepartment(doctor.department || 'General');
+    setApproveModalOpen(true);
+  };
+
+  const confirmApproveDoctor = async () => {
     const token = localStorage.getItem('token');
-
-    // Prompt admin to select department for the doctor
-    const departments = [
-      'Cardiology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Oncology',
-      'Radiology', 'Emergency Medicine', 'Internal Medicine', 'Surgery',
-      'Gynecology', 'Dermatology', 'Ophthalmology', 'ENT', 'Psychiatry'
-    ];
-
-    const departmentList = departments.join('\n');
-    const departmentInput = prompt(`Assign department for the doctor:
-
-${departmentList}
-
-Enter department name:`);
-
-    if (departmentInput === null) return; // User cancelled
-
     try {
-      const res = await fetch(`${API_URL}/api/admin/approve-doctor/${doctorId}`, {
+      const res = await fetch(`${API_URL}/api/admin/approve-doctor/${approvingDoctor._id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ department: departmentInput || 'General' })
+        body: JSON.stringify({ department: selectedDepartment || 'General' })
       });
       if (res.ok) {
-        alert('Doctor approved and assigned to department successfully!');
+        setApproveModalOpen(false);
+        setApprovingDoctor(null);
         fetchPendingDoctors();
         fetchData();
       } else {
@@ -162,6 +165,7 @@ Enter department name:`);
       alert("Error approving doctor");
     }
   };
+
 
   const handleRejectDoctor = async (doctorId) => {
     const reason = prompt('Enter rejection reason (optional):');
@@ -292,7 +296,7 @@ Enter department name:`);
                     color="success"
                     size="small"
                     startIcon={<CheckCircle size={18} />}
-                    onClick={() => handleApproveDoctor(doctor._id)}
+                    onClick={() => handleApproveDoctor(doctor)}
                   >
                     Approve
                   </Button>
@@ -323,7 +327,7 @@ Enter department name:`);
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <Paper sx={{ p: 3, bgcolor: '#10b981', color: 'white', borderRadius: 3 }}>
-            <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Total Patients</Typography>
+            <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Hospital Patients</Typography>
             <Typography variant="h3" fontWeight="bold">{data?.stats.patientCount || 0}</Typography>
           </Paper>
         </Grid>
@@ -337,7 +341,7 @@ Enter department name:`);
 
       {/* Detailed User Database */}
       <Paper sx={{ p: 3, borderRadius: 3, mb: 4 }}>
-        <Typography variant="h6" fontWeight="bold" mb={2}>Master User Database (Live)</Typography>
+        <Typography variant="h6" fontWeight="bold" mb={2}>My Hospital — Users &amp; Staff</Typography>
         <Box sx={{ overflowX: 'auto' }}>
           <Table sx={{ minWidth: 650 }}>
             <TableHead sx={{ bgcolor: '#f8fafc' }}>
@@ -794,6 +798,49 @@ Enter department name:`);
             </Button>
           )}
 
+        </DialogActions>
+      </Dialog>
+
+      {/* ── APPROVE DOCTOR MODAL ── */}
+      <Dialog open={approveModalOpen} onClose={() => setApproveModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ bgcolor: '#f0fdf4', borderBottom: '1px solid #d1fae5', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CheckCircle size={20} color="#10b981" />
+          <Typography fontWeight="bold">Approve Doctor Registration</Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {approvingDoctor && (
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                <Avatar sx={{ bgcolor: '#14b8a6', width: 52, height: 52, fontSize: '1.4rem', fontWeight: 'bold' }}>
+                  {approvingDoctor.name?.charAt(0)}
+                </Avatar>
+                <Box>
+                  <Typography fontWeight="bold">{approvingDoctor.name}</Typography>
+                  <Typography variant="caption" color="text.secondary">{approvingDoctor.email}</Typography>
+                  <br />
+                  <Typography variant="body2" sx={{ color: '#0f766e', fontWeight: 600 }}>{approvingDoctor.specialization}</Typography>
+                </Box>
+              </Box>
+              {approvingDoctor.department && (
+                <Box sx={{ mb: 2.5, p: 1.5, bgcolor: '#fef3c7', borderRadius: 2, border: '1px solid #fde68a' }}>
+                  <Typography variant="caption" color="#92400e" fontWeight={600}>Doctor requested:</Typography>
+                  <Typography fontWeight={700} color="#b45309">{approvingDoctor.department}</Typography>
+                </Box>
+              )}
+              <FormControl fullWidth size="small">
+                <InputLabel>Assign Final Department</InputLabel>
+                <Select value={selectedDepartment} label="Assign Final Department" onChange={(e) => setSelectedDepartment(e.target.value)}>
+                  {DEPARTMENTS.map(dept => <MenuItem key={dept} value={dept}>{dept}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, bgcolor: '#f9fafb', borderTop: '1px solid #e5e7eb', gap: 1 }}>
+          <Button onClick={() => setApproveModalOpen(false)} variant="outlined" color="inherit" sx={{ borderRadius: 2, textTransform: 'none' }}>Cancel</Button>
+          <Button onClick={confirmApproveDoctor} variant="contained" color="success" startIcon={<CheckCircle size={16} />} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 'bold' }}>
+            Approve &amp; Assign
+          </Button>
         </DialogActions>
       </Dialog>
 

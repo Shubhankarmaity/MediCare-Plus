@@ -6,6 +6,9 @@ const appointmentController = require('../controllers/appointmentController');
 // Get All Doctors (Protected Route)
 router.get('/', auth, doctorController.getAllDoctors);
 
+// GET PUBLIC PREVIEW DOCTORS (No Auth)
+router.get('/public-preview', doctorController.getPublicDoctors);
+
 // GET PATIENT DETAILS BY ID (For Doctors with approved access)
 router.get('/patient/:id', auth, doctorController.getPatientById);
 

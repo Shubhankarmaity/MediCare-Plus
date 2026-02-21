@@ -53,6 +53,8 @@ const vitalsRoutes = require('./routes/vitals');
 app.use('/api/vitals', vitalsRoutes);
 const paymentRoutes = require('./routes/payments');
 app.use('/api/payments', paymentRoutes);
+const chatbotRoutes = require('./routes/chatbot');
+app.use('/api/chatbot', chatbotRoutes);
 
 // --- SOCKET.IO REAL-TIME LOGIC ---
 const io = new Server(server, {

@@ -177,25 +177,27 @@ const DoctorDashboard = () => {
 
       <DashboardLayout title="Doctor's Console" userRole="doctor">
         {/* Tab Navigation */}
-        <div className="flex space-x-4 mb-6 border-b border-gray-200">
-          <button
-            className={`pb-2 px-4 font-medium transition ${activeTab === 'appointments' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-            onClick={() => setActiveTab('appointments')}
-          >
-            Appointments
-          </button>
-          <button
-            className={`pb-2 px-4 font-medium transition ${activeTab === 'analytics' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-            onClick={() => setActiveTab('analytics')}
-          >
-            Analytics
-          </button>
-          <button
-            className={`pb-2 px-4 font-medium transition ${activeTab === 'settings' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-            onClick={() => setActiveTab('settings')}
-          >
-            Settings
-          </button>
+        <div className="overflow-x-auto mb-6">
+          <div className="flex space-x-1 border-b border-gray-200 min-w-max">
+            <button
+              className={`pb-2 px-4 font-medium transition whitespace-nowrap ${activeTab === 'appointments' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab('appointments')}
+            >
+              <span className="flex items-center gap-1.5"><Calendar size={16} />Appointments</span>
+            </button>
+            <button
+              className={`pb-2 px-4 font-medium transition whitespace-nowrap ${activeTab === 'analytics' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab('analytics')}
+            >
+              Analytics
+            </button>
+            <button
+              className={`pb-2 px-4 font-medium transition whitespace-nowrap ${activeTab === 'settings' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab('settings')}
+            >
+              Settings
+            </button>
+          </div>
         </div>
 
         {/* APPOINTMENTS TAB */}

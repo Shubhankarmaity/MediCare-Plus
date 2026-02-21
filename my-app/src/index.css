@@ -24,6 +24,67 @@ body {
     background-color: var(--background);
     color: var(--secondary);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+}
+
+/* ============================================================
+   GLOBAL RESPONSIVE UTILITIES
+   ============================================================ */
+
+/* Responsive tables: wrap tables in this for mobile horizontal scroll */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Horizontal scroll for tab bars / card rows on mobile */
+.scroll-x-snap {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 0.5rem;
+    padding-bottom: 4px;
+}
+
+.scroll-x-snap::-webkit-scrollbar {
+    display: none;
+}
+
+.scroll-x-snap>* {
+    scroll-snap-align: start;
+    flex-shrink: 0;
+}
+
+/* Responsive heading font clamp */
+.responsive-h1 {
+    font-size: clamp(1.5rem, 5vw, 3rem);
+}
+
+.responsive-h2 {
+    font-size: clamp(1.2rem, 3vw, 2rem);
+}
+
+/* Mobile-only helpers */
+@media (max-width: 640px) {
+    .sm-stack {
+        flex-direction: column !important;
+    }
+
+    .sm-full {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .sm-hide {
+        display: none !important;
+    }
+
+    .sm-p-3 {
+        padding: 0.75rem !important;
+    }
 }
 
 @layer utilities {

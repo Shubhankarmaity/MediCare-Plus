@@ -56,10 +56,10 @@ const HospitalSearch = () => {
     return (
         <div className="min-h-screen bg-gray-50 pb-12">
             {/* Header */}
-            <div className="bg-blue-600 text-white py-12 mb-8">
+            <div className="bg-blue-600 text-white py-10 md:py-12 mb-8">
                 <Container maxWidth="lg">
-                    <Typography variant="h3" className="font-bold mb-4">Find a Network Hospital</Typography>
-                    <Typography variant="h6" className="opacity-90 mb-8">
+                    <Typography variant="h4" className="font-bold mb-2 text-2xl md:text-3xl">Find a Network Hospital</Typography>
+                    <Typography variant="body1" className="opacity-90 mb-6 md:mb-8 text-sm md:text-base">
                         Access world-class healthcare facilities near you.
                     </Typography>
 
@@ -82,7 +82,7 @@ const HospitalSearch = () => {
                         />
                         <Button
                             variant="contained"
-                            className="bg-blue-600 hover:bg-blue-700 normal-case px-8 rounded-md"
+                            className="bg-blue-600 hover:bg-blue-700 normal-case px-6 md:px-8 rounded-md whitespace-nowrap"
                             onClick={() => { }} // Real-time filtering used instead
                         >
                             Search
