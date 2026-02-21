@@ -358,7 +358,7 @@ const MediBot = () => {
             const greeting = `👋 Hi **${name}**! I'm **MediBot** 🤖 — your AI health & site guide.${pageCtx}\n\nI can:\n• 💊 Answer **any medical question**\n• 🏡 Get **personalized tips** based on your health profile\n• 🏥 Recommend the best **hospitals** for your condition\n• 🗺 Navigate you to **any page** of this site\n\nWhat can I help you with today?`;
             setMessages([{ role: 'bot', ts: Date.now(), text: greeting }]);
         }
-    }, [open]);
+    }, [open, messages.length, userData?.name, currentPageObj]);
 
     const prevPath = useRef(location.pathname);
     useEffect(() => {
@@ -367,7 +367,7 @@ const MediBot = () => {
             if (pg) addMessage('bot', `📍 Navigated to **${pg.name}**. ${pg.description}\n\nHow can I help you here?`);
             prevPath.current = location.pathname;
         }
-    }, [location.pathname, open]);
+    }, [location.pathname, open, messages.length]);
 
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -502,7 +502,7 @@ const MediBot = () => {
         } finally {
             setLoading(false);
         }
-    }, [input, userProfile, location.pathname, isPatient, currentPageObj]);
+    }, [input, userProfile, isPatient, currentPageObj, patientAppointments]);
 
     const clearChat = () => {
         setMessages([]);

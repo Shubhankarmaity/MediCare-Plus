@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -238,11 +238,7 @@ const Signup = () => {
     }
   }, [selectedRole]);
 
-  const availableDepartments = useMemo(() => {
-    if (!formData.hospitalId) return [];
-    const hospital = [...hospitals, ...insuranceHospitals].find(h => h._id === formData.hospitalId);
-    return hospital?.facilities || [];
-  }, [formData.hospitalId, hospitals, insuranceHospitals]);
+
 
   // Fetch insurance hospitals when provider is selected
   const fetchInsuranceHospitals = useCallback(async (company) => {
@@ -321,7 +317,7 @@ const Signup = () => {
   };
 
   const currentRoleDetails = roleCards.find(r => r.id === selectedRole);
-  const displayedHospitals = hasMediclaim ? insuranceHospitals : hospitals;
+
 
   return (
     <>

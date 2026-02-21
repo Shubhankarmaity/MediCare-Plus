@@ -4,7 +4,7 @@ import {
     X, ChevronRight, ChevronLeft, Loader2, MapPin, DollarSign,
     Building2, Star, CheckCircle, AlertTriangle, HeartPulse,
     Stethoscope, Siren, FlaskConical, Pill, Ambulance,
-    BadgeCheck, Activity, Wallet, Navigation, Search
+    BadgeCheck, Activity, Wallet, Navigation, Search, ShieldCheck, XCircle, ArrowLeft
 } from 'lucide-react';
 import api from '../services/api';
 
@@ -95,7 +95,7 @@ const HospitalRecommendWizard = ({ onSelect, onClose }) => {
             setResults(res.data.hospitals || []);
             setTotal(res.data.total || 0);
             setStep(4);
-        } catch (e) {
+        } catch {
             setError('Could not load recommendations. Please try again.');
         } finally {
             setLoading(false);
@@ -468,8 +468,8 @@ const HospitalRecommendWizard = ({ onSelect, onClose }) => {
                                                 </div>
 
                                                 {/* Premium Score Badge */}
-                                                <div className={`shrink-0 text-center p-3 rounded-2xl border ${colors.border} ${colors.bg} backdrop-blur-sm shadow-sm ring-4 ring-white`}>
-                                                    <div className={`text-2xl font-black ${colors.text}`}>{hosp.matchScore}%</div>
+                                                <div className={`shrink-0 text-center p-3 rounded-2xl border ${scoreColor(hosp.matchScore).border} ${scoreColor(hosp.matchScore).bg} backdrop-blur-sm shadow-sm ring-4 ring-white`}>
+                                                    <div className={`text-2xl font-black ${scoreColor(hosp.matchScore).text}`}>{hosp.matchScore}%</div>
                                                     <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Match</div>
                                                 </div>
                                             </div>
@@ -480,7 +480,7 @@ const HospitalRecommendWizard = ({ onSelect, onClose }) => {
                                                     initial={{ width: 0 }}
                                                     animate={{ width: `${hosp.matchScore}%` }}
                                                     transition={{ delay: idx * 0.1 + 0.3, duration: 0.8, ease: "easeOut" }}
-                                                    className={`absolute inset-y-0 left-0 rounded-full shadow-[0_0_12px_rgba(14,165,233,0.3)] ${colors.bar}`} />
+                                                    className={`absolute inset-y-0 left-0 rounded-full shadow-[0_0_12px_rgba(14,165,233,0.3)] ${scoreColor(hosp.matchScore).bar}`} />
                                             </div>
 
                                             {/* Score Breakdown Pills */}
