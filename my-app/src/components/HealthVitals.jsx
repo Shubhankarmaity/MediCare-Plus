@@ -19,10 +19,6 @@ const HealthVitals = () => {
     const [submitting, setSubmitting] = useState(false);
     const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
 
-    useEffect(() => {
-        fetchVitals();
-    }, [fetchVitals]);
-
     const fetchVitals = React.useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
@@ -40,6 +36,10 @@ const HealthVitals = () => {
             setLoading(false);
         }
     }, []);
+
+    useEffect(() => {
+        fetchVitals();
+    }, [fetchVitals]);
 
     const processDataForChart = (data) => {
         // Sort by date ascending for chart
@@ -88,7 +88,7 @@ const HealthVitals = () => {
     return (
         <Grid container spacing={4}>
             {/* Input Form */}
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
                 <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
                     <Typography variant="h6" fontWeight="bold" mb={3} display="flex" alignItems="center" gap={1}>
                         <Plus className="text-blue-600" /> Log New Reading
@@ -96,37 +96,37 @@ const HealthVitals = () => {
 
                     <form onSubmit={handleSubmit}>
                         <Grid container spacing={2}>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }}>
                                 <TextField fullWidth label="Systolic (BP)" name="systolic" type="number" value={formData.systolic} onChange={handleChange} size="small" />
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }}>
                                 <TextField fullWidth label="Diastolic (BP)" name="diastolic" type="number" value={formData.diastolic} onChange={handleChange} size="small" />
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }}>
                                 <TextField fullWidth label="Heart Rate" name="heartRate" type="number" value={formData.heartRate} onChange={handleChange} size="small"
                                     InputProps={{ endAdornment: <Heart size={14} className="text-red-500" /> }}
                                 />
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }}>
                                 <TextField fullWidth label="Sugar (mg/dL)" name="bloodSugar" type="number" value={formData.bloodSugar} onChange={handleChange} size="small"
                                     InputProps={{ endAdornment: <Activity size={14} className="text-orange-500" /> }}
                                 />
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }}>
                                 <TextField fullWidth label="Weight (kg)" name="weight" type="number" value={formData.weight} onChange={handleChange} size="small"
                                     InputProps={{ endAdornment: <Weight size={14} className="text-blue-500" /> }}
                                 />
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }}>
                                 <TextField fullWidth label="Temp (°C)" name="temperature" type="number" value={formData.temperature} onChange={handleChange} size="small"
                                     InputProps={{ endAdornment: <Thermometer size={14} className="text-red-500" /> }}
                                 />
                             </Grid>
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <TextField fullWidth label="Notes" name="notes" multiline rows={2} value={formData.notes} onChange={handleChange} size="small" />
                             </Grid>
 
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Button fullWidth variant="contained" type="submit" disabled={submitting}>
                                     {submitting ? 'Saving...' : 'Log Vitals'}
                                 </Button>
@@ -143,14 +143,14 @@ const HealthVitals = () => {
             </Grid>
 
             {/* Charts */}
-            <Grid item xs={12} md={8}>
+            <Grid size={{ xs: 12, md: 8 }}>
                 <Grid container spacing={3}>
                     {/* BP & Heart Rate Chart */}
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
                             <Typography variant="h6" fontWeight="bold" mb={2}>Blood Pressure & Heart Rate</Typography>
-                            <div style={{ width: '100%', height: 300 }}>
-                                <ResponsiveContainer>
+                            <div style={{ width: '100%', minWidth: 0 }}>
+                                <ResponsiveContainer width="99%" height={300}>
                                     <LineChart data={vitals}>
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis dataKey="displayDate" />
@@ -167,11 +167,11 @@ const HealthVitals = () => {
                     </Grid>
 
                     {/* Weight & Sugar Chart */}
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
                             <Typography variant="h6" fontWeight="bold" mb={2}>Weight & Blood Sugar</Typography>
-                            <div style={{ width: '100%', height: 300 }}>
-                                <ResponsiveContainer>
+                            <div style={{ width: '100%', minWidth: 0 }}>
+                                <ResponsiveContainer width="99%" height={300}>
                                     <LineChart data={vitals}>
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis dataKey="displayDate" />

@@ -64,7 +64,7 @@ const PatientSettings = () => {
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/auth/update-profile`, {
+            const res = await fetch(`${API_URL}/profile`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ const PatientSettings = () => {
             <form onSubmit={handleSubmit}>
                 <Grid container spacing={4}>
                     {/* Personal Information */}
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <Paper elevation={0} sx={{ p: 3, border: '1px solid #e5e7eb', borderRadius: 3, height: '100%' }}>
                             <Typography variant="h6" fontWeight="bold" mb={3} className="flex items-center gap-2">
                                 <User size={20} className="text-gray-500" /> Personal Details
@@ -159,7 +159,7 @@ const PatientSettings = () => {
                     </Grid>
 
                     {/* Medical Information */}
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <Paper elevation={0} sx={{ p: 3, border: '1px solid #e5e7eb', borderRadius: 3, height: '100%' }}>
                             <Typography variant="h6" fontWeight="bold" mb={3} className="flex items-center gap-2">
                                 <Heart size={20} className="text-red-500" /> Medical Profile
@@ -197,7 +197,7 @@ const PatientSettings = () => {
                         </Paper>
                     </Grid>
 
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Button
                             variant="contained" size="large" type="submit"
                             disabled={submitting}

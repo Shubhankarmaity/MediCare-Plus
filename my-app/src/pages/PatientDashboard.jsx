@@ -478,7 +478,7 @@ const PatientDashboard = () => {
 
       <Grid container spacing={3} sx={{ flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
         {/* DESKTOP SIDEBAR NAVIGATION - FIXED WIDTH */}
-        <Grid item sx={{ width: { md: '280px' }, flexShrink: 0, display: { xs: 'none', md: 'block' } }}>
+        <Grid sx={{ width: { md: '280px' }, flexShrink: 0, display: { xs: 'none', md: 'block' } }}>
           <Paper elevation={0} sx={{ p: 2, borderRadius: 3, height: '100%', border: '1px solid #e2e8f0', minHeight: '80vh' }}>
             <Typography variant="overline" color="text.secondary" fontWeight="bold" sx={{ px: 2, mb: 2, display: 'block' }}>Menu</Typography>
             <div className="space-y-1">
@@ -502,7 +502,7 @@ const PatientDashboard = () => {
         </Grid>
 
         {/* MAIN CONTENT AREA - FLEX GROW */}
-        <Grid item sx={{ flexGrow: 1, width: { xs: '100%', md: 'calc(100% - 280px)' }, minWidth: 0 }}>
+        <Grid sx={{ flexGrow: 1, width: { xs: '100%', md: 'calc(100% - 280px)' }, minWidth: 0 }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={tabValue}
@@ -516,7 +516,7 @@ const PatientDashboard = () => {
               {tabValue === 0 && (
                 <Grid container spacing={3} mb={4}>
                   {/* Welcome Banner */}
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-8 text-white relative overflow-hidden shadow-lg">
                       <div className="relative z-10">
                         <Typography variant="h4" fontWeight="bold" gutterBottom>
@@ -533,7 +533,7 @@ const PatientDashboard = () => {
                   </Grid>
 
                   {/* Quick Stats */}
-                  <Grid item xs={12} md={4}>
+                  <Grid size={{ xs: 12, md: 4 }}>
                     <Card elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid #e2e8f0', height: '100%' }}>
                       <div className="flex items-center gap-4">
                         <div className="bg-blue-100 p-3 rounded-full text-blue-600"><Calendar size={24} /></div>
@@ -546,7 +546,7 @@ const PatientDashboard = () => {
                       </div>
                     </Card>
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid size={{ xs: 12, md: 4 }}>
                     <Card elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid #e2e8f0', height: '100%' }}>
                       <div className="flex items-center gap-4">
                         <div className="bg-green-100 p-3 rounded-full text-green-600"><Pill size={24} /></div>
@@ -559,7 +559,7 @@ const PatientDashboard = () => {
                       </div>
                     </Card>
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid size={{ xs: 12, md: 4 }}>
                     <Card elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid #e2e8f0', height: '100%' }}>
                       <div className="flex items-center gap-4">
                         <div className="bg-purple-100 p-3 rounded-full text-purple-600"><MessageCircle size={24} /></div>

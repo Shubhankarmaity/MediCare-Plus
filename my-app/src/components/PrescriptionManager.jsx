@@ -88,7 +88,7 @@ const PrescriptionManager = ({ appointments }) => {
             ) : (
                 <Grid container spacing={3}>
                     {prescriptions.map((apt) => (
-                        <Grid item xs={12} md={6} lg={4} key={apt._id}>
+                        <Grid size={{ xs: 12, md: 6, lg: 4 }} key={apt._id}>
                             <Card elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: 3, '&:hover': { boxShadow: 4, borderColor: '#3b82f6' }, transition: 'all 0.2s' }}>
                                 <CardContent className="space-y-4">
 
