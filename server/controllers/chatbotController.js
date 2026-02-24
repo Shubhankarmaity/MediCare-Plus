@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Hospital = require('../models/Hospital');
 const { MEDICAL_KB } = require('../medicalKnowledge');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const axios = require('axios');
 
@@ -97,24 +98,12 @@ exports.ask = async (req, res) => {
             recsResponse = await recommendHospitals(query, patientInfo, insuranceCompany);
         }
 
-        // 2. Check Medical KB matches (for text answers)
-        const kbMatch = MEDICAL_KB.find(entry =>
-            entry.keywords.some(k => queryLower.includes(k.toLowerCase()))
-        );
-
         if (recsResponse) {
             if (recsResponse.hospitals && recsResponse.hospitals.length > 0) {
-                // We have hospital recs! Let's combine it with the KB match if one exists.
-                if (kbMatch) {
-                    recsResponse.answer = kbMatch.answer; // Optionally attach the text answer to the hospitals dict
-                }
                 return res.json(recsResponse);
             } else {
                 // It was a recommendation intent, but ML returned nothing (or ML service failed)
                 let noResultMsg = "🤖 *I tried to run your symptoms through our ML engine to find matching hospitals, but I couldn't find any exact matches or the ML service might be waking up (Render cold start). Please try again in 30 seconds.*";
-                if (kbMatch) {
-                    noResultMsg = kbMatch.answer + "\n\n" + noResultMsg;
-                }
                 return res.json({
                     type: 'hospital_recommendation',
                     answer: noResultMsg, // Fallback message explicitly acknowledging the hospital search
@@ -123,33 +112,48 @@ exports.ask = async (req, res) => {
             }
         }
 
-        if (kbMatch) {
+        // 2. If it's not a recommendation intent, bypass static KB and use Google Gemini!
+        if (!process.env.GEMINI_API_KEY) {
             return res.json({
                 type: 'medical_info',
-                answer: kbMatch.answer,
-                category: kbMatch.category,
-                severity: kbMatch.severity
+                answer: "I am MediBot. (Gemini API Key missing). To book an appointment, go to your Patient Dashboard.",
+                category: 'General Info',
+                severity: 'info'
             });
         }
 
-        // 3. Rule-based local fallback instead of AI
-        let fallbackAnswer = "I'm sorry, I couldn't find a specific answer in my medical knowledge base for that query.";
-        let category = 'General Info';
+        try {
+            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        if (queryLower.includes('doctor') || queryLower.includes('appointment')) {
-            fallbackAnswer = "To book an appointment, go to your Patient Dashboard and select the 'Find Doctors' tab. You can browse specialists and book instantly.";
-        } else if (queryLower.includes('insurance') || queryLower.includes('mediclaim')) {
-            fallbackAnswer = "We partner with HDFC ERGO and Niva Bupa to provide cashless treatments. You can see the network status on hospital search results.";
-        } else if (queryLower.includes('ambulance') || queryLower.includes('emergency')) {
-            fallbackAnswer = "For emergencies, use the 'Book Ambulance' feature in your dashboard or call 112 immediately. Our network provides 24/7 trauma support.";
+            const prompt = `You are MediBot, an expert AI Healthcare Assistant for the 'MediCare Plus' hospital booking platform.
+User query: "${query}"
+
+Guidelines:
+1. Provide a concise, empathetic, and medically accurate response (keep it under 3 short paragraphs).
+2. Use Markdown formatting (bolding, bullet points) and emojis to make it readable.
+3. If they ask about platform features (like "how many hospitals", "how to book"), instruct them to use the "Hospital Search" or "Find Doctors" tabs in their dashboard.
+4. If providing health advice, subtly include a disclaimer that you are an AI and they should consult a doctor on our platform for serious issues.`;
+
+            const result = await model.generateContent(prompt);
+            const responseText = result.response.text();
+
+            return res.json({
+                type: 'medical_info',
+                answer: responseText,
+                category: 'AI Assistant',
+                severity: 'info'
+            });
+
+        } catch (geminiError) {
+            console.error('Gemini API Error:', geminiError);
+            return res.json({
+                type: 'medical_info',
+                answer: "I'm sorry, my AI processing engine is currently experiencing high load. Please try asking your question again in a moment.",
+                category: 'System Error',
+                severity: 'caution'
+            });
         }
-
-        res.json({
-            type: 'medical_info',
-            answer: fallbackAnswer,
-            category: category,
-            severity: 'info'
-        });
 
     } catch (err) {
         console.error('Chatbot Controller Error:', err);
