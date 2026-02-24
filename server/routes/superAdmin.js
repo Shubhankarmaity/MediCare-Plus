@@ -131,7 +131,8 @@ router.post('/hospital', auth, isSuperAdmin, upload.single('image'), async (req,
 
             // Send to Python Flask microservice
             // We use a short timeout so if the ML service is down, it doesn't hang the API response
-            await axios.post('http://localhost:5001/retrain', { hospitals: activeHospitals }, { timeout: 3000 });
+            const mlUrl = process.env.ML_SERVICE_URL || 'http://localhost:5001';
+            await axios.post(`${mlUrl}/retrain`, { hospitals: activeHospitals }, { timeout: 3000 });
             console.log(`[ML Retrain] Successfully triggered retraining for ${activeHospitals.length} hospitals after adding ${hospital.name}`);
         } catch (mlError) {
             console.error('[ML Retrain] Failed to trigger retraining. The hospital was still saved.', mlError.message);

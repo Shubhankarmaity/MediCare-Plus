@@ -20,7 +20,8 @@ async function recommendHospitals(query, patientInfo, insuranceCompany) {
 
         // Call the Python ML Microservice
         console.log(`Sending data to ML Model: "${mlPayload.symptoms}"`);
-        const response = await axios.post('http://localhost:5001/predict', mlPayload);
+        const mlUrl = process.env.ML_SERVICE_URL || 'http://localhost:5001';
+        const response = await axios.post(`${mlUrl}/predict`, mlPayload);
         let results = response.data.hospitals;
 
         // Fetch the genuine database IDs for these hospitals from our MongoDB
