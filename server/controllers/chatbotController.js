@@ -77,7 +77,13 @@ exports.ask = async (req, res) => {
     try {
         const queryLower = query.toLowerCase();
 
-        // 1. Check for Hospital Recommendation Intent or Symptom matching
+        // 1. Check for Information Intents first (Questions meant for Gemini)
+        const infoKeywords = [
+            'what is', 'what are', 'how to', 'how do', 'explain', 'tell me about', 'symptoms of', 'cause of', 'definition'
+        ];
+        const isInfoQuery = infoKeywords.some(k => queryLower.includes(k));
+
+        // 2. Check for Hospital Recommendation Intent or Symptom matching
         const recKeywords = [
             'recommend', 'recomend', 'best hospital', 'find hospital', 'hospital for',
             'hospital of', 'where should i go', 'need a hospital', 'suggest', 'looking for hospital',
@@ -90,8 +96,9 @@ exports.ask = async (req, res) => {
             'ear', 'nose', 'throat', 'lung', 'asthma', 'breathing', 'fever', 'infection'
         ];
 
+        // It is a recommendation IF it contains recKeywords OR (it contains medicalKeywords AND it is NOT a direct information question)
         const isRecommendation = recKeywords.some(k => queryLower.includes(k)) ||
-            medicalKeywords.some(k => queryLower.includes(k));
+            (medicalKeywords.some(k => queryLower.includes(k)) && !isInfoQuery);
 
         let recsResponse = null;
         if (isRecommendation) {
