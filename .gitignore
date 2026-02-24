@@ -1,2 +1,9 @@
 node_modules/
 .env
+.venv/
+venv/
+env/
+__pycache__/
+*.pkl
+*.env
+.DS_Store

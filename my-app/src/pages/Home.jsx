@@ -122,10 +122,17 @@ const Home = () => {
                 const hospData = await hospRes.json();
                 const featured = hospData.slice(0, 4).map(hospital => {
                     const name = hospital.name.toLowerCase();
-                    let img = "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
-                    if (name.includes('city general')) img = cityGeneralImg;
-                    else if (name.includes('metropolitan')) img = metropolitanImg;
-                    else if (name.includes('green valley')) img = greenValleyImg;
+                    // First, use the image from DB if it exists and isn't the default unsplash URL
+                    let img = hospital.image;
+
+                    // If no valid image exists, use our static fallbacks based on name
+                    if (!img || img.includes('images.unsplash.com')) {
+                        img = "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
+                        if (name.includes('city general')) img = cityGeneralImg;
+                        else if (name.includes('metropolitan')) img = metropolitanImg;
+                        else if (name.includes('green valley')) img = greenValleyImg;
+                    }
+
                     return { ...hospital, image: img };
                 });
                 setHospitals(featured);

@@ -3,11 +3,12 @@ import DashboardLayout from '../components/DashboardLayout';
 import {
     Grid, Paper, Typography, Table, TableBody, TableCell,
     TableHead, TableRow, Chip, Avatar, CircularProgress, IconButton, Button, Box, Tabs, Tab,
-    Card, CardContent, CardActionArea, Rating
+    Card, CardContent, CardActionArea, Rating, Dialog, DialogContent, DialogActions,
+    TextField, FormControl, InputLabel, Select, MenuItem, FormControlLabel, Checkbox
 } from '@mui/material';
 import {
     RefreshCw, Trash2, ArrowLeft, Building2, Stethoscope, Users, User, MapPin,
-    Phone, Mail, Bed, Activity, Siren, Star, ShieldCheck
+    Phone, Mail, Bed, Activity, Siren, Star, ShieldCheck, Plus
 } from 'lucide-react';
 import { API_URL } from '../config';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -63,6 +64,20 @@ const SuperAdminDashboard = () => {
     const [hospitalData, setHospitalData] = useState(null); // { doctors: [], patients: [], admin: {} }
     const [hospitalTabValue, setHospitalTabValue] = useState(0); // 0: Doctors, 1: Patients
     const [hospitalListTab, setHospitalListTab] = useState(0); // 0: Regular, 1: Mediclaim
+
+    // Add Hospital Modal State
+    const [openAddHospital, setOpenAddHospital] = useState(false);
+    const [isSubmittingHospital, setIsSubmittingHospital] = useState(false);
+    const [newHospital, setNewHospital] = useState({
+        name: '', address: '', city: '', phone: '', email: '',
+        totalBeds: '', availableBeds: '', rating: 4.5, description: '',
+        facilities: {
+            icuAvailable: false, emergencyServices: true,
+            hasOT: false, pharmacyAvailable: false, ambulanceAvailable: false, diagnosticLab: false
+        },
+        specialties: '', hospitalType: 'Multi Specialty',
+        insuranceCompany: '', cashlessAvailable: false, coveragePct: ''
+    });
 
     // Split hospitals into regular and mediclaim
     const regularHospitals = hospitals.filter(h => !h.insuranceCompany);
@@ -153,7 +168,69 @@ const SuperAdminDashboard = () => {
         }
     };
 
+    const [imageFile, setImageFile] = useState(null);
 
+    const handleAddHospital = async (e) => {
+        e.preventDefault();
+        setIsSubmittingHospital(true);
+        const token = localStorage.getItem('token');
+
+        // Flatten the facilities into the root level as that's what the schema expects
+        const payload = {
+            ...newHospital,
+            ...newHospital.facilities
+        };
+        delete payload.facilities;
+
+        // Use FormData to handle the image upload
+        const formData = new FormData();
+        Object.keys(payload).forEach(key => {
+            formData.append(key, payload[key]);
+        });
+
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
+
+        try {
+            const res = await fetch(`${API_URL}/api/super-admin/hospital`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                    // Do NOT set Content-Type to application/json. 
+                    // Let the browser set the multipart/form-data boundary automatically.
+                },
+                body: formData
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                alert(`Hospital added successfully!\nGenerated Admin Account: ${data.adminEmail}\nPassword: admin123\n\nAI Model Retraining Triggered.`);
+                setOpenAddHospital(false);
+                // Reset form
+                setImageFile(null);
+                setNewHospital({
+                    name: '', address: '', city: '', phone: '', email: '',
+                    totalBeds: '', availableBeds: '', rating: 4.5, description: '',
+                    facilities: {
+                        icuAvailable: false, emergencyServices: true,
+                        hasOT: false, pharmacyAvailable: false, ambulanceAvailable: false, diagnosticLab: false
+                    },
+                    specialties: '', hospitalType: 'Multi Specialty',
+                    insuranceCompany: '', cashlessAvailable: false, coveragePct: ''
+                });
+                fetchData();
+            } else {
+                const data = await res.json();
+                alert(`Failed to add hospital: ${data.message}`);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("An error occurred while adding the hospital.");
+        } finally {
+            setIsSubmittingHospital(false);
+        }
+    };
 
     console.log("Rendering SuperAdminDashboard. View:", view);
 
@@ -186,6 +263,20 @@ const SuperAdminDashboard = () => {
                 >
                     <RefreshCw />
                 </IconButton>
+            </div>
+
+            <div className="flex justify-end mb-4">
+                {view === 'hospitals' && (
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<Plus size={20} />}
+                        onClick={() => setOpenAddHospital(true)}
+                        sx={{ borderRadius: 2, boxShadow: 3, px: 3, fontWeight: 'bold' }}
+                    >
+                        Add New Hospital
+                    </Button>
+                )}
             </div>
 
             <AnimatePresence mode="wait">
@@ -597,6 +688,172 @@ const SuperAdminDashboard = () => {
                 )}
 
             </AnimatePresence>
+
+            {/* ADD HOSPITAL MODAL */}
+            <Dialog
+                open={openAddHospital}
+                onClose={() => !isSubmittingHospital && setOpenAddHospital(false)}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                    sx: { borderRadius: 3, overflow: 'hidden' }
+                }}
+            >
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 text-white flex justify-between items-center">
+                    <div>
+                        <Typography variant="h5" fontWeight="bold">Add New Hospital</Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.8 }}>Register a new hospital in the network</Typography>
+                    </div>
+                    {/* Header close option handled by clicking outside, or can add a close icon here */}
+                </div>
+
+                <DialogContent sx={{ p: 4 }}>
+                    <form id="add-hospital-form" onSubmit={handleAddHospital}>
+                        <Typography variant="subtitle1" fontWeight="bold" color="primary" mb={2} sx={{ borderBottom: '2px solid #e2e8f0', pb: 1 }}>
+                            General Information
+                        </Typography>
+                        <Grid container spacing={3} mb={3}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <TextField fullWidth label="Hospital Name" required value={newHospital.name} onChange={(e) => setNewHospital({ ...newHospital, name: e.target.value })} variant="outlined" />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <TextField fullWidth label="City" required value={newHospital.city} onChange={(e) => setNewHospital({ ...newHospital, city: e.target.value })} variant="outlined" />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <TextField fullWidth label="Phone" required value={newHospital.phone} onChange={(e) => setNewHospital({ ...newHospital, phone: e.target.value })} variant="outlined" />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <TextField fullWidth label="Email" type="email" value={newHospital.email} onChange={(e) => setNewHospital({ ...newHospital, email: e.target.value })} variant="outlined" />
+                            </Grid>
+                            <Grid size={{ xs: 12 }}>
+                                <TextField fullWidth label="Address" required value={newHospital.address} onChange={(e) => setNewHospital({ ...newHospital, address: e.target.value })} variant="outlined" multiline rows={2} />
+                            </Grid>
+                            <Grid size={{ xs: 12 }}>
+                                <TextField fullWidth label="Description" value={newHospital.description} onChange={(e) => setNewHospital({ ...newHospital, description: e.target.value })} variant="outlined" multiline rows={3} placeholder="Brief summary of the hospital's capabilities..." />
+                            </Grid>
+                            <Grid size={{ xs: 12 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>Hospital Image</Typography>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => setImageFile(e.target.files[0])}
+                                    className="block w-full text-sm text-slate-500
+                                        file:mr-4 file:py-2 file:px-4
+                                        file:rounded-full file:border-0
+                                        file:text-sm file:font-semibold
+                                        file:bg-sky-50 file:text-sky-700
+                                        hover:file:bg-sky-100"
+                                />
+                                {imageFile && <Typography variant="caption" color="success.main">Selected: {imageFile.name}</Typography>}
+                            </Grid>
+                        </Grid>
+
+                        <Typography variant="subtitle1" fontWeight="bold" color="primary" mb={2} sx={{ borderBottom: '2px solid #e2e8f0', pb: 1 }}>
+                            Capacity & Specialization
+                        </Typography>
+                        <Grid container spacing={3} mb={3}>
+                            <Grid size={{ xs: 12, sm: 4 }}>
+                                <TextField fullWidth label="Total Beds" required type="number" value={newHospital.totalBeds} onChange={(e) => setNewHospital({ ...newHospital, totalBeds: e.target.value })} variant="outlined" />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 4 }}>
+                                <TextField fullWidth label="Available Beds" required type="number" value={newHospital.availableBeds} onChange={(e) => setNewHospital({ ...newHospital, availableBeds: e.target.value })} variant="outlined" />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 4 }}>
+                                <TextField fullWidth label="Rating (0.0 - 5.0)" type="number" inputProps={{ step: "0.1", min: "0", max: "5" }} value={newHospital.rating} onChange={(e) => setNewHospital({ ...newHospital, rating: e.target.value })} variant="outlined" />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Hospital Type</InputLabel>
+                                    <Select
+                                        value={newHospital.hospitalType}
+                                        label="Hospital Type"
+                                        onChange={(e) => setNewHospital({ ...newHospital, hospitalType: e.target.value })}
+                                    >
+                                        <MenuItem value="Multi Specialty">Multi Specialty</MenuItem>
+                                        <MenuItem value="Super Specialty">Super Specialty</MenuItem>
+                                        <MenuItem value="General">General</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <TextField fullWidth label="Specialties (comma-separated)" value={newHospital.specialties} onChange={(e) => setNewHospital({ ...newHospital, specialties: e.target.value })} variant="outlined" placeholder="e.g., Cardiology, Orthopedics, Neurology" />
+                            </Grid>
+                        </Grid>
+
+                        <Typography variant="subtitle1" fontWeight="bold" color="primary" mb={2} sx={{ borderBottom: '2px solid #e2e8f0', pb: 1 }}>
+                            Facilities Included
+                        </Typography>
+                        <Grid container spacing={2} mb={3}>
+                            {[
+                                { key: 'emergencyServices', label: '24/7 Emergency' },
+                                { key: 'icuAvailable', label: 'ICU Available' },
+                                { key: 'hasOT', label: 'Operation Theater' },
+                                { key: 'ambulanceAvailable', label: 'Ambulance' },
+                                { key: 'pharmacyAvailable', label: 'Pharmacy' },
+                                { key: 'diagnosticLab', label: 'Diagnostic Lab' }
+                            ].map((fac) => (
+                                <Grid size={{ xs: 6, sm: 4 }} key={fac.key}>
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                checked={newHospital.facilities[fac.key]}
+                                                onChange={(e) => setNewHospital({
+                                                    ...newHospital,
+                                                    facilities: { ...newHospital.facilities, [fac.key]: e.target.checked }
+                                                })}
+                                                color="primary"
+                                            />
+                                        }
+                                        label={fac.label}
+                                    />
+                                </Grid>
+                            ))}
+                        </Grid>
+
+                        <Typography variant="subtitle1" fontWeight="bold" color="primary" mb={2} sx={{ borderBottom: '2px solid #e2e8f0', pb: 1 }}>
+                            Insurance & Network Profile
+                        </Typography>
+                        <Grid container spacing={3}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <TextField fullWidth label="Insurance Company (Partner)" value={newHospital.insuranceCompany} onChange={(e) => setNewHospital({ ...newHospital, insuranceCompany: e.target.value })} variant="outlined" placeholder="e.g., HDFC ERGO, Niva Bupa" />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <TextField fullWidth label="Coverage %" type="number" value={newHospital.coveragePct} onChange={(e) => setNewHospital({ ...newHospital, coveragePct: e.target.value })} variant="outlined" placeholder="e.g., 80" />
+                            </Grid>
+                            <Grid size={{ xs: 12 }}>
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={newHospital.cashlessAvailable}
+                                            onChange={(e) => setNewHospital({ ...newHospital, cashlessAvailable: e.target.checked })}
+                                            color="secondary"
+                                        />
+                                    }
+                                    label="Cashless Treatment Available"
+                                />
+                            </Grid>
+                        </Grid>
+
+                    </form>
+                </DialogContent>
+                <DialogActions sx={{ p: 3, pt: 0, borderTop: '1px solid #e2e8f0' }}>
+                    <Button onClick={() => setOpenAddHospital(false)} disabled={isSubmittingHospital} color="inherit" sx={{ fontWeight: 'bold' }}>
+                        Cancel
+                    </Button>
+                    <Button
+                        type="submit"
+                        form="add-hospital-form"
+                        variant="contained"
+                        color="success"
+                        disabled={isSubmittingHospital}
+                        startIcon={isSubmittingHospital ? <CircularProgress size={20} color="inherit" /> : <Plus size={20} />}
+                        sx={{ px: 4, py: 1, borderRadius: 2, fontWeight: 'bold' }}
+                    >
+                        {isSubmittingHospital ? 'Adding...' : 'Save Hospital'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
         </DashboardLayout>
     );
 };

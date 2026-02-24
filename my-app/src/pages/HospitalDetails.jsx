@@ -21,6 +21,14 @@ const HospitalDetails = () => {
 
                 // Map API data to local images for consistency
                 let hospitalData = data;
+
+                // If the hospital has an uploaded image from our backend, use it directly
+                if (data.image && !data.image.includes('images.unsplash.com')) {
+                    setHospital(hospitalData);
+                    return;
+                }
+
+                // Otherwise, use static fallback based on name
                 const name = data.name.toLowerCase();
 
                 if (name.includes('city general')) {

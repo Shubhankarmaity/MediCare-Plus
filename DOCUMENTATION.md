@@ -18,25 +18,28 @@
    - [Super Admin Dashboard](#55-super-admin-dashboard)
    - [Driver Dashboard](#56-driver-dashboard)
    - [Real-Time Features](#57-real-time-features)
+   - [AI Chatbot & Medical Advisor](#58-ai-chatbot--medical-advisor-medibot)
 6. [Database Models](#6-database-models)
 7. [Backend API Routes](#7-backend-api-routes)
 8. [Frontend Pages & Components](#8-frontend-pages--components)
 9. [Data Flow & How It Works](#9-data-flow--how-it-works)
-10. [Deployment](#10-deployment)
+10. [Deployment & Local Setup](#10-deployment--local-setup)
 
 ---
 
 ## 1. Project Overview
 
-**MediCare Plus** is a full-stack, multi-role **Hospital Management System**. It connects patients, doctors, hospital admins, ambulance drivers, and a super administrator into one unified platform. The system supports appointment booking, real-time video consultations, ambulance SOS, medical report management, patient privacy controls, health vitals tracking, and cross-hospital administration.
+**MediCare Plus** is a full-stack, multi-role **Hospital Management System**. It connects patients, doctors, hospital admins, ambulance drivers, and a super administrator into one unified platform. The system supports appointment booking, real-time video consultations, ambulance SOS, medical report management, patient privacy controls, health vitals tracking, dynamic ML-powered hospital recommendations, and cross-hospital administration.
 
 ### Key Highlights
-- **5 distinct user roles** each with their own dashboard and permissions
-- **Real-time communication** via Socket.io (chat, video calls, ambulance tracking)
-- **OTP-based email verification** using Brevo API
-- **Doctor approval workflow** — doctors must be approved by a hospital admin before they can log in
-- **Patient privacy controls** — patients explicitly approve/deny doctor access to their records
-- **Multi-hospital architecture** — each hospital has its own isolated admin
+- **5 distinct user roles** each with their own dashboard and permissions.
+- **Real-time communication** via Socket.io (chat, video calls, ambulance tracking).
+- **Dual-AI Chatbot (MediBot)** powered by NLP and an ML recommendation engine.
+- **Dynamic ML Retraining** to automatically incorporate newly added hospitals without downtime.
+- **Hospital Image Uploads** handled via robust `multer` integrations.
+- **Doctor approval workflow** — doctors must be approved by a hospital admin before they can log in.
+- **Patient privacy controls** — patients explicitly approve/deny doctor access to their records.
+- **Multi-hospital architecture** — each hospital has its own isolated admin.
 
 ---
 
@@ -54,9 +57,12 @@
 | **Database** | MongoDB (Atlas) | Mongoose 8 |
 | **Real-Time** | Socket.io | 4 |
 | **Authentication** | JWT + bcryptjs | JWT 9 |
+| **File Uploads** | Multer | Latest |
 | **Email Service** | Brevo API (via nodemailer) | — |
-| **PDF Generation** | jsPDF | Latest |
+| **PDF Generation** | jsPDF + html2canvas | Latest |
 | **Video Calls** | WebRTC + simple-peer | — |
+| **ML Microservice** | Python + Flask | 3.10+ |
+| **ML Libraries** | scikit-learn, pandas, numpy, joblib | Latest |
 | **Frontend Hosting** | Vercel | — |
 | **Backend Hosting** | Render | — |
 
@@ -72,7 +78,7 @@
 │  Pages: Home, Login, Signup, Dashboards...   │
 │  State: localStorage (JWT token + user obj)  │
 └──────────────┬───────────────────────────────┘
-               │ REST API (HTTP)
+               │ REST API (HTTP + FormData)
                │ Socket.io (WebSocket)
                ▼
 ┌──────────────────────────────────────────────┐
@@ -81,21 +87,26 @@
 │                                              │
 │  ┌─────────────────────────────────────────┐ │
 │  │  index.js (Entry Point)                 │ │
-│  │  ├── Express REST API (14 route groups) │ │
-│  │  └── Socket.io Server                  │ │
+│  │  ├── Express REST API (15 route groups) │ │
+│  │  ├── Static File Serving (/uploads)     │ │
+│  │  └── Socket.io Server                   │ │
 │  └─────────────────────────────────────────┘ │
 │                                              │
-│  Middleware: JWT Auth, CORS                  │
-│  Controllers: auth, appointment, doctor      │
-└──────────────┬───────────────────────────────┘
-               │ Mongoose ODM
-               ▼
-┌──────────────────────────────────────────────┐
-│         DATABASE (MongoDB Atlas)             │
-│  Collections: Users, Appointments,           │
-│  Hospitals, Messages, Notifications,         │
-│  AmbulanceRequests, Payments, Vitals         │
-└──────────────────────────────────────────────┘
+│  Middleware: JWT Auth, CORS, Multer          │
+│  Controllers: auth, appointment, superadmin  │
+└──────────────┬──────────────────────┬────────┘
+               │ Mongoose ODM         │ HTTP POST (Axios)
+               ▼                      ▼
+┌─────────────────────────┐  ┌─────────────────────────┐
+│        DATABASE         │  │    ML MICROSERVICE      │
+│     (MongoDB Atlas)     │  │    (Python / Flask)     │
+│                         │  │                         │
+│  Collections: Users,    │  │  Port: 5001             │
+│  Appointments,          │  │  Model: NearestNeighbors│
+│  Hospitals, Messages,   │  │  NLP: TF-IDF Vectorizer │
+│  Vitals, Payments...    │  │  Routes: /predict,      │
+│                         │  │          /retrain       │
+└─────────────────────────┘  └─────────────────────────┘
 ```
 
 ---
@@ -121,112 +132,41 @@ The entire system is built around **5 roles**, all stored in a single `User` col
 **Files**: `server/routes/auth.js`, `server/controllers/authController.js`, `my-app/src/pages/Login.jsx`, `Signup.jsx`, `ForgotPassword.jsx`
 
 #### Registration Flow
-1. User fills signup form (name, email, password, role, hospital)
-2. Backend checks for duplicate email
-3. For `admin` role: verifies the hospital exists and doesn't already have an admin
-4. For `doctor` role: Hospital name is fetched from `hospitalId` and stored for backward compatibility
-5. Password is hashed using **bcryptjs** (salt rounds: 10)
-6. For `patient`, `doctor`, `driver`: A 6-digit **OTP** is generated, expires in 10 minutes, and emailed via **Brevo API**
-7. `admin` and `super-admin` skip OTP — they're marked `isVerified: true` immediately
-8. On success: a Socket.io `new_user` event is emitted to notify the admin dashboard in real-time
+1. User fills signup form (name, email, password, role, hospital).
+2. Backend checks for duplicate email.
+3. For `admin` role: verifies the hospital exists and doesn't already have an admin.
+4. For `doctor` role: Hospital name is fetched from `hospitalId` and stored.
+5. Password is hashed using **bcryptjs** (salt rounds: 10).
+6. For `patient`, `doctor`, `driver`: A 6-digit **OTP** is generated, expires in 10 minutes, and emailed via **Brevo API**.
+7. `admin` and `super-admin` skip OTP — they're marked `isVerified: true` immediately.
+8. On success: a Socket.io `new_user` event is emitted.
 
 #### Email Verification (OTP)
-- OTP is a random 6-digit number stored **hashed** in the DB
-- User enters OTP on the `/verify-email` step
-- OTP expires after 10 minutes; user can request a new one via "Resend OTP"
+- OTP is a random 6-digit number stored **hashed** in the DB.
+- User enters OTP on the `/verify-email` step.
+- OTP expires after 10 minutes; user can request a new one via "Resend OTP".
 
 #### Login Flow
-1. Email lookup (case-insensitive)
-2. Password comparison with bcrypt
-3. If `isVerified === false` → new OTP is auto-generated and sent; login blocked
-4. If `role === doctor && !isApproved` → login blocked with approval status message
-5. On success: JWT token signed with `{ id, role }`, expires in **7 days**
-6. Token and user object stored in `localStorage` on the frontend
-
-#### Forgot Password
-1. User enters email → OTP sent
-2. User enters OTP + new password
-3. Password reset, OTP cleared, account automatically verified
-
-#### JWT Authentication Middleware
-- Every protected route uses `auth` middleware (`server/middleware/auth.js`)
-- Extracts Bearer token from `Authorization` header
-- Decodes and attaches `req.user = { id, role }` to every request
+1. Email lookup (case-insensitive).
+2. Password comparison with bcrypt.
+3. If `isVerified === false` → new OTP is auto-generated and sent; login blocked.
+4. If `role === doctor && !isApproved` → login blocked with approval status message.
+5. On success: JWT token signed with `{ id, role }`, expires in **7 days**.
+6. Token and user object stored in `localStorage` on the frontend.
 
 ---
 
 ### 5.2 Patient Dashboard
 
-**File**: `my-app/src/pages/PatientDashboard.jsx` (72KB, the largest file)
+**File**: `my-app/src/pages/PatientDashboard.jsx` (Primary Hub)
 **Tabs**: Overview, Find Doctors, My Appointments, Health Vitals, Prescriptions, Book Ambulance, My Reports, Access Requests, Messages, Payments, Settings
 
-#### Tab 0 — Overview
-- Welcome banner with patient's first name
-- Quick stats: upcoming appointments count, prescription records count, active chat count
-
-#### Tab 1 — Find Doctors
-- Lists all approved doctors from the MongoDB `User` collection with role `doctor`
-- Shows: name, specialization, hospital, experience, consultation fee, available days/time
-- **Book Appointment** button — sends `POST /api/appointments/book`
-- Buttons disabled with "Pending Approval" text if a pending appointment already exists with that doctor
-- Confirmation dialog before booking
-
-#### Tab 2 — My Appointments
-- **Upcoming**: appointments with status `pending` or `approved`
-  - "Join Call" button (for `approved` status) — shows a notice to wait for doctor's call
-  - "Chat" button — opens `ChatWindow` with that doctor
-  - "Cancel" button — cancels pending appointments
-- **History**: appointments with status `completed`, `cancelled`, or `rejected`
-
-#### Tab 3 — Health Vitals
-- **Component**: `HealthVitals.jsx`
-- Log form: systolic/diastolic BP, heart rate, blood sugar, weight, temperature, notes
-- Two Recharts `LineChart` visualizations:
-  - Blood Pressure & Heart Rate over time
-  - Weight & Blood Sugar over time
-- Data stored via `POST /api/vitals`, fetched via `GET /api/vitals`
-
-#### Tab 4 — Prescriptions
-- **Component**: `PrescriptionManager.jsx`
-- Lists all appointments that have a `doctorReport.prescription`
-- **Download PDF** button generates a professional prescription PDF using **jsPDF** with:
-  - MediCare Plus header, doctor details, patient name, date
-  - Prescription medicines in a styled box
-  - Recommendations section (if present)
-  - Digital prescription footer
-
-#### Tab 5 — Book Ambulance
-- Lists all available ambulance drivers (`isAvailable: true`)
-- Shows driver name, vehicle number, live location indicator
-- **Call Now (SOS)** button sends `POST /api/ambulance/book`
-- Patient's GPS coordinates (from browser's `navigator.geolocation`) are sent to the driver
-- Location map placeholder displayed with live lat/lng coordinates
-
-#### Tab 6 — My Reports
-- Lists all appointments with a completed `doctorReport`
-- Shows detailed report card: diagnosis, symptoms, prescription, dosage, duration, recommendations, tests recommended, follow-up date, severity badge
-- **Download PDF** button captures the report card via `html2canvas` and `jsPDF`
-- Reports sorted by `reportDate` descending (newest first)
-
-#### Tab 7 — Access Requests
-- **Component**: `PatientSettings.jsx` access requests section
-- Lists all pending/approved/rejected doctor access requests
-- Patient can **Approve** or **Reject** each request
-- Approved access lets the requesting doctor view that patient's full medical history
-
-#### Tab 8 — Messages
-- Lists all active conversations
-- Click a conversation → opens `ChatWindow` component
-- Can also initiate chat with a doctor from Tab 2
-
-#### Tab 9 — Payments
-- **Component**: `PatientPaymentHistory.jsx`
-- Displays payment history from `GET /api/payments`
-
-#### Tab 10 — Settings
-- **Component**: `PatientSettings.jsx`
-- Update: name, phone, age, gender, blood group, address, emergency contact, medical history, allergies
-- Calls `PUT /profile` on save
+#### Top Features
+- **Booking Hub**: Browse doctors across all hospitals and book appointments. Real-time visual lockouts for duplicate bookings pending approval.
+- **Dynamic Data Visualization**: Recharts provides live line graphs of tracked health vitals (BP, Sugar, Weight, Heart Rate).
+- **Report & Prescription Downloads**: Integration with `html2canvas` and `jsPDF` allows patients to download perfectly formatted PDF records of their interactions and prescriptions.
+- **SOS Ambulance Dispatch**: 1-click dispatch sends live GPS coordinates directly to on-duty ambulance drivers via WebSocket.
+- **Privacy Access Center**: A dedicated tab to approve or reject requests from doctors who wish to view the patient's full medical history.
 
 ---
 
@@ -234,69 +174,40 @@ The entire system is built around **5 roles**, all stored in a single `User` col
 
 **File**: `my-app/src/pages/DoctorDashboard.jsx`
 
-#### Features
-- **Appointment Queue**: view all pending/approved appointments for this doctor
-  - **Approve** / **Reject** each appointment (calls `PUT /api/appointments/status/:id`)
-  - **Write Report** button → opens `DoctorReports` component
-  - **Video Call** button → initiates WebRTC call to patient via `VideoCall` component
-  - **Chat** button → opens `ChatWindow` with patient
-
-- **Doctor Reports** (`DoctorReports.jsx`): Rich form to submit a medical report for an appointment:
-  - Diagnosis, symptoms, prescription (medicines), dosage, duration, recommendations
-  - Tests recommended, follow-up date, severity (Low/Medium/High/Critical), next visit instructions
-  - Calls `POST /api/appointments/:id/report`
-
-- **Patient Details** (`PatientDetails.jsx`): Full patient history (if access approved):
-  - All past appointments with that patient
-  - Calls `GET /api/appointments/patient/:id`
-
-- **Analytics** (`DoctorAnalytics.jsx`): Charts showing appointment statistics
-
-- **Settings** (`DoctorSettings.jsx`): Update specialization, experience, consultation fee, available days/time, phone
-
-- **Video Calls**: Doctor can initiate a WebRTC call to a patient using Socket.io signaling:
-  - `callUser` event sent to patient's socket room
-  - Patient sees incoming call modal → accepts → WebRTC peer connection established
+#### Top Features
+- **Appointment Queue**: Real-time incoming appointment requests. Doctors can approve, reject, chat, video call, or submit a final report.
+- **WebRTC Video Consultations**:
+  - Push-button WebRTC peer-to-peer setup over Socket.io signaling.
+  - Opens direct camera-to-camera feed directly within the browser (no external app required).
+- **Patient Medical History Viewer**: Provided the patient has granted access, the doctor can pull up holistic chronological data on a patient's past ailments and treatments.
+- **Rich Medical Reports**: Post-consultation, doctors can submit structured diagnosis, medication regimens, and severity tags.
 
 ---
 
 ### 5.4 Admin Dashboard
 
 **File**: `my-app/src/pages/AdminDashboard.jsx`
-**Scope**: Each admin only manages **their own hospital**
+**Scope**: Each admin only manages **their own hospital**.
 
-#### Features
-- **Dashboard Stats**: doctor count, patient count, driver count (scoped to hospital)
-- **Pending Doctor Approvals**: 
-  - List of doctors who registered for this hospital with `approvalStatus: 'pending'`
-  - **Approve** (with optional department) or **Reject** (with reason)
-  - Socket.io `doctor_approved` / `doctor_rejected` events emitted
-- **User Management**: 
-  - View list of doctors and patients
-  - Click a user → view detailed profile + appointments
-  - Patient profiles require patient's prior approval to view (privacy system)
-- **Access Requests**: 
-  - Admins can request access to patient records
-  - Sends `POST /api/access-requests/request`
-- **Appointment Overview**: all appointments for this hospital's doctors
-- **Patient Discharge**: 
-  - Remove a patient's `hospitalId` association 
-  - `PUT /api/admin/discharge-patient/:id`
-- **Real-time Notifications**: 
-  - New patient registrations and appointment bookings trigger `NotificationBell` updates
+#### Top Features
+- **Doctor Approval Gateway**: Doctors trying to associate themselves with a hospital must pass an Admin vetting screen.
+- **Staff Auditing**: Instantly trace all doctors, their specializations, appointment counts, and direct patient interaction lists.
+- **Record Request Automation**: Admins can request medical records en masse on behalf of attending doctors or surgical prep teams.
 
 ---
 
 ### 5.5 Super Admin Dashboard
 
 **File**: `my-app/src/pages/SuperAdminDashboard.jsx`
-**Scope**: Global visibility across **all hospitals**
+**Scope**: Global visibility across **all hospitals**.
 
-#### Features
-- View, add, edit, delete hospitals (`/api/super-admin/hospitals`)
-- View all users across the entire system
-- Platform-wide statistics (total hospitals, doctors, patients, appointments)
-- Manage any hospital's admin assignment
+#### Top Features
+- **Hospital Image Uploads**: 
+  - Using `FormData` on the frontend and `multer` on the backend, Super Admins can attach custom high-resolution images to hospital listings. 
+  - The backend securely handles `multipart/form-data`, saves to `/uploads`, constructs a static serving route URL, and injects it directly into the `image` schema field.
+- **Admin Auto-Creation Workflow**:
+  - When spinning up a new hospital, the Super Admin can optionally auto-generate an Admin account attached exclusively to that facility in one sweeping API call.
+- **Global Fleet & System Management**: God-eye view over total network metrics, doctor volumes, bed capacities across multiple cities, and live driver networks.
 
 ---
 
@@ -304,333 +215,275 @@ The entire system is built around **5 roles**, all stored in a single `User` col
 
 **File**: `my-app/src/pages/DriverDashboard.jsx`
 
-#### Features
-- **Toggle Availability**: switch between available/unavailable for rides
-- **Incoming Requests**: real-time SOS alerts via Socket.io `dispatch_ambulance` event
-- **Active Ride**: view patient name, location, and manage ride status
-- **Location Broadcasting**: driver sends GPS coordinates via `send_location` socket event → broadcast to all patients tracking the ambulance
-- **Ride History**: list of past ambulance bookings
+#### Top Features
+- **Shift Toggling**: Drivers can go `Available` or `Busy`.
+- **Live SOS Dispatching**: Connected to Socket.io to receive emergency coordinates.
+- **Live GPS Tracking**: Real-time push of the ambulance location to the patient currently requesting them.
 
 ---
 
-### 5.7 Real-Time Features
+### 5.7 Real-Time Features (Socket.io)
 
-**All powered by Socket.io 4**
+**All powered by Socket.io 4**. Each connected user is automatically added to a Socket `room` equal to their MongoDB `_id`, allowing precise notifications via `io.to(userId).emit(...)`.
 
 | Feature | Socket Event | Direction |
 |---|---|---|
-| New appointment notification | `new_appointment` | Server → Doctor + Admin |
-| Admin notification | `notification_{adminId}` | Server → Admin |
+| New appointment request | `new_appointment` | Server → Doctor + Admin |
 | New user registered | `new_user` | Server → Admin dashboard |
-| Driver location update | `send_location` / `receive_location` | Driver → All |
+| Driver GPS update | `send_location` / `receive_location` | Driver → All |
 | Ambulance SOS | `sos_alert` / `dispatch_ambulance` | Patient → All Drivers |
-| Chat message | `receive_message` | Server → Receiver |
-| Video call initiation | `callUser` | Doctor → Patient |
-| Video call answer | `answerCall` / `callAccepted` | Patient → Doctor |
+| Direct Chatting | `receive_message` | Server → Receiver |
+| WebRTC call initiation | `callUser` | Doctor → Patient |
+| WebRTC call answer | `answerCall` / `callAccepted` | Patient → Doctor |
 | ICE candidate exchange | `ice-candidate` | Peer → Peer |
-| Call end | `endCall` / `callEnded` | Either → Other |
-| Doctor approved | `doctor_approved` | Admin → All |
-| Push notification | `new_notification` | Server → User's room |
+| Doctor Approved status | `doctor_approved` | Admin → Doctor |
 
-**User Rooms**: Each connected user joins a socket room equal to their MongoDB `_id`. This enables targeted notifications via `io.to(userId).emit(...)`.
+---
+
+### 5.8 AI Chatbot & Medical Advisor (MediBot)
+
+**Files**: `my-app/src/components/MediBot.jsx`, `server/controllers/chatbotController.js`, `train_model.py`, `app.py`
+
+#### Capabilities
+- **Floating Chat UI**: Accessible globally across the patient experience.
+- **Medical Knowledge Base**: Using intelligent keyword parsing and LLM integration, MediBot answers general health queries directly (e.g., "What are symptoms of diabetes?").
+- **Dynamic Hospital ML Recommendation Flow**:
+  1. **Patient Query**: Patient describes symptoms ("I have chest pain and need a robust hospital").
+  2. **Intent Parsing**: The controller detects keywords indicating a hospital request.
+  3. **Node-to-Flask Inference**: Node.js sends symptoms + patient medical history via Axios to the Python Flask microservice `http://localhost:5001/predict`.
+  4. **NLP Vectorization & KNN Similarity**: Symptoms convert to a TF-IDF vector matrix in Python. The trained `NearestNeighbors` model runs a cosine similarity mathematical check against a pre-trained dataset of hospital profiles.
+  5. **Fuzzy Document Mapping**: Python returns top 3 hospital strings. Node.js maps these strings using RegExp fuzzy matching to exact `ObjectId` references in the MongoDB database, circumventing rigid ID drift.
+  6. **UI Rendering**: Returns fully interactive hospital cards inside the chat.
+
+#### Dynamic ML Retraining
+- **Problem**: When a Super Admin adds a *new* hospital, the trained `hospital_model.pkl` doesn't know about it.
+- **Solution**: Zero-downtime dynamic retraining.
+  - The Node.js server intercepts `POST /api/super-admin/hospital` or `PUT`.
+  - Upon success, Node.js triggers an async background Axios call to `POST http://localhost:5001/retrain`.
+  - The Python server fetches the latest hospital snapshot dynamically from MongoDB via `pymongo`.
+  - It retrains the KNN model and TF-IDF vectorizer vectors in memory.
+  - It saves new `.pkl` files and hot-reloads the global pipeline without requiring a server reboot.
+  - The frontend dynamically displays "Brain updating..." feedback while this occurs.
 
 ---
 
 ## 6. Database Models
 
-### `User` (Unified schema for all roles)
-| Field | Type | Description |
-|---|---|---|
-| `name` | String | Full name |
-| `email` | String | Unique, indexed, lowercase |
-| `password` | String | bcrypt hash, excluded from queries by default |
-| `role` | Enum | `patient / doctor / admin / driver / super-admin` |
-| `hospitalId` | ObjectId → Hospital | Links user to a hospital |
-| `isVerified` | Boolean | Email OTP verified? |
-| `otp` | String | 6-digit OTP (hidden from queries) |
-| `otpExpires` | Date | OTP expiry timestamp |
-| `isApproved` | Boolean | Doctor approval status |
-| `approvalStatus` | Enum | `pending / approved / rejected` |
-| `privacySettings.profileAccess` | Map | Doctor ID → access permission object |
-| `accessRequests` | Map | Doctor/Admin ID → request status |
-| `phone`, `age`, `gender`, `bloodGroup`, `address`, `emergencyContact`, `medicalHistory`, `allergies` | Various | Patient-specific fields |
-| `specialization`, `experience`, `qualification`, `consultationFee`, `availableDays`, `availableTime`, `doctorPhone`, `licenseNumber` | Various | Doctor-specific fields |
-| `driverLicenseNumber`, `vehicleNumber`, `vehicleType`, `driverPhone`, `isAvailable`, `location` | Various | Driver-specific fields |
+The schema uses MongoDB (mongoose ODM). Below is a high-level summary.
 
-### `Appointment`
-| Field | Type | Description |
-|---|---|---|
-| `patientId` | ObjectId → User | The patient |
-| `doctorId` | ObjectId → User | The doctor |
-| `patientName` | String | Stored at booking time (in case of data changes) |
-| `date` | Date | Appointment date/time |
-| `status` | Enum | `pending / approved / rejected` |
-| `notes` | String | Patient notes |
-| `doctorReport` | Object | Nested: diagnosis, symptoms, prescription, dosage, duration, recommendations, testsRecommended, followUpDate, severity, nextVisitInstructions |
+### `User` (Unified schema for all roles)
+- `name`, `email`, `password`, `role` (`patient / doctor / admin / driver / super-admin`)
+- `hospitalId`, `isVerified`, `otp`, `approvalStatus`
+- **Patient specifics**: `bloodGroup`, `medicalHistory`, `privacySettings`
+- **Doctor specifics**: `specialization`, `experience`, `consultationFee`
+- **Driver specifics**: `vehicleNumber`, `isAvailable`, `location`
 
 ### `Hospital`
-| Field | Type | Description |
-|---|---|---|
-| `name`, `address`, `city`, `phone`, `email` | String | Basic info |
-| `image` | String | URL to hospital image |
-| `facilities` | [String] | List of available facilities |
-| `totalBeds`, `availableBeds` | Number | Bed capacity |
-| `icuAvailable`, `emergencyServices` | Boolean | Service availability |
-| `rating` | Number | Default 4.5 |
-| `adminId` | ObjectId → User | The hospital's admin |
+- `name`, `address`, `city`, `phone`, `email`
+- `image` (URL to Multer `/uploads/x.jpg` or static fallback)
+- `facilities`, `totalBeds`, `availableBeds`, `icuAvailable`, `rating`
+- `adminId` (The auto-created Admin account reference)
 
-### `Message`
-| Field | Type | Description |
-|---|---|---|
-| `senderId`, `receiverId` | ObjectId → User | Participants |
-| `content` | String | Message text |
-| `read` | Boolean | Read status |
-| `createdAt` | Date | Timestamp |
+### `Appointment`
+- `patientId`, `doctorId`, `date`, `status`, `notes`
+- `doctorReport` (Rich object: diagnosis, prescription, duration, severity)
 
-### `Notification`
-| Field | Type | Description |
-|---|---|---|
-| `userId` | ObjectId → User | Recipient |
-| `type` | String | e.g. `REGISTRATION`, `APPOINTMENT` |
-| `message` | String | Notification text |
-| `read` | Boolean | Read status |
-
-### `AmbulanceRequest`
-| Field | Type | Description |
-|---|---|---|
-| `patientId`, `driverId` | ObjectId → User | Participants |
-| `patientName` | String | Snapshot of patient name |
-| `location` | Object | `{ lat, lng }` |
-| `status` | Enum | Request status |
-
-### `Vitals`
-| Field | Type | Description |
-|---|---|---|
-| `userId` | ObjectId → User | Patient |
-| `systolic`, `diastolic` | Number | Blood pressure |
-| `heartRate`, `bloodSugar`, `weight`, `temperature` | Number | Readings |
-| `notes` | String | Optional notes |
-| `date` | Date | When recorded |
-
-### `Payment`
-| Field | Type | Description |
-|---|---|---|
-| `patientId` | ObjectId → User | Payer |
-| `amount` | Number | Payment amount |
-| `status`, `method` | String | Payment details |
+### Additional Models
+- **`Message`**: Real-time conversations (`senderId`, `receiverId`, `content`)
+- **`Notification`**: System alerts (`userId`, `type`, `message`)
+- **`AmbulanceRequest`**: SOS rides (`patientId`, `driverId`, `status`)
+- **`Vitals`**: Medical logs (`systolic`, `diastolic`, `bloodSugar`)
 
 ---
 
 ## 7. Backend API Routes
 
+*Note: Middleware (`auth`, `isSuperAdmin`, `isAdmin`) guards these routes strictly.*
+
 ### Auth Routes (`/`)
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| POST | `/register` | ❌ | Register new user |
-| POST | `/login` | ❌ | Login + get JWT |
-| POST | `/verify-email` | ❌ | Submit OTP for email verification |
-| POST | `/resend-otp` | ❌ | Resend verification OTP |
-| POST | `/forgot-password` | ❌ | Send password reset OTP |
-| POST | `/reset-password` | ❌ | Reset password with OTP |
-| GET | `/profile` | ✅ | Get logged-in user profile |
-| PUT | `/profile` | ✅ | Update profile |
-| POST | `/profile/grant-access/:id` | ✅ | Patient grants profile access |
-| DELETE | `/profile/revoke-access/:id` | ✅ | Patient revokes profile access |
-| GET | `/profile/access-list` | ✅ | Get list of users with access |
+- `POST /register`, `POST /login`, `POST /verify-email`, `POST /forgot-password`
+- `GET /profile`, `PUT /profile`, `POST /profile/grant-access/:id`
 
-### Appointments (`/api/appointments`)
-| Method | Path | Description |
-|---|---|---|
-| POST | `/book` | Book appointment (patient) |
-| GET | `/my-appointments` | Get own appointments (doctor or patient) |
-| PUT | `/status/:id` | Approve/reject/cancel appointment (doctor/patient) |
-| POST | `/:id/report` | Submit medical report (doctor) |
-| GET | `/patient/:id` | Get patient history (doctor, requires access) |
+### Hospital & Admin Logic
+- `POST /api/super-admin/hospital`: Handled via **`multer.single('image')`** for `multipart/form-data`. Auto-creates Admin account.
+- `POST /api/super-admin/trigger-retrain`: Manual manual invocation for ML sync.
+- `GET /api/admin/dashboard-data`: Pulls isolated stats for the scoped hospital.
+- `PUT /api/admin/approve-doctor/:id`
 
-### Admin (`/api/admin`)
-| Method | Path | Description |
-|---|---|---|
-| GET | `/dashboard-data` | Stats + users + appointments for this hospital |
-| GET | `/user/:id` | Get detailed user info (with access check for patients) |
-| GET | `/pending-doctors` | Doctors awaiting approval |
-| PUT | `/approve-doctor/:id` | Approve a doctor |
-| PUT | `/reject-doctor/:id` | Reject a doctor with reason |
-| PUT | `/discharge-patient/:id` | Discharge patient from hospital |
+### Doctor & Patient Operations
+- `POST /api/appointments/book`, `GET /api/appointments/my-appointments`
+- `POST /api/appointments/:id/report`, `GET /api/appointments/patient/:id`
+- `GET /api/vitals`, `POST /api/vitals`
+- `POST /api/chatbot`: Main MediBot text ingestion.
 
-### Other API Groups
-| Base Path | Description |
-|---|---|
-| `/api/doctors` | List/update doctor profiles |
-| `/api/ambulance` | Book ambulance, list drivers, manage requests |
-| `/api/access-requests` | Privacy access request system |
-| `/api/messages` | Chat: list conversations, send/get messages |
-| `/api/notifications` | Get and mark notifications |
-| `/api/hospitals` | Hospital CRUD |
-| `/api/super-admin` | Cross-hospital management |
-| `/api/vitals` | Health vitals CRUD |
-| `/api/payments` | Payment records |
+### Static File Serving
+- `/uploads`: Mounted via Express to serve hospital images directly to the client (`app.use('/uploads', express.static...)`).
 
 ---
 
 ## 8. Frontend Pages & Components
 
-### Pages (`/my-app/src/pages`)
-| Page | Route | Description |
-|---|---|---|
-| `Home.jsx` | `/` | Landing page — animated hero, services, about, team |
-| `Login.jsx` | `/login` | Login form with role detection |
-| `Signup.jsx` | `/signup` | Full registration form (all roles) |
-| `ForgotPassword.jsx` | `/forgot-password` | OTP-based password reset |
-| `PatientDashboard.jsx` | `/patient-dashboard` | Main patient hub (11 tabs) |
-| `DoctorDashboard.jsx` | `/doctor-dashboard` | Doctor workspace |
-| `AdminDashboard.jsx` | `/admin-dashboard` | Hospital admin panel |
-| `SuperAdminDashboard.jsx` | `/super-admin-dashboard` | Global admin panel |
-| `DriverDashboard.jsx` | `/driver-dashboard` | Ambulance driver interface |
-| `Profile.jsx` | `/profile` | User profile (shared page) |
-| `HospitalSearch.jsx` | `/hospitals` | Browse all hospitals |
-| `HospitalDetails.jsx` | `/hospitals/:id` | Individual hospital details |
-| `DoctorDetails.jsx` | `/doctors/:id` | Individual doctor details |
-| `AmbulanceServices.jsx` | `/ambulance` | Public ambulance info page |
-| `LabTests.jsx` | `/lab-tests` | Lab test info page |
-| `ProjectTeam.jsx` | `/team` | Meet the team page |
+### Pages (`my-app/src/pages/`)
+- `Home.jsx`, `PatientDashboard.jsx`, `SuperAdminDashboard.jsx`, `HospitalSearch.jsx`, `HospitalDetails.jsx`
 
-### Key Components (`/my-app/src/components`)
-| Component | Description |
-|---|---|
-| `AnimatedRoutes.jsx` | React Router + Framer Motion page transitions |
-| `ChatWindow.jsx` | Real-time chat UI, loads messages, sends via API + Socket.io |
-| `VideoCall.jsx` | WebRTC peer-to-peer video call with simple-peer, controlled by Socket.io signaling |
-| `DoctorReports.jsx` | Multi-field medical report form |
-| `PatientDetails.jsx` | Detailed patient history viewer (for doctors) |
-| `HealthVitals.jsx` | Vitals input form + Recharts line charts |
-| `PrescriptionManager.jsx` | Prescription viewer + PDF download |
-| `PatientSettings.jsx` | Patient profile editor |
-| `DoctorSettings.jsx` | Doctor profile/schedule editor |
-| `PatientPaymentHistory.jsx` | Payment records table |
-| `DoctorAnalytics.jsx` | Appointment analytics charts |
-| `NotificationBell.jsx` | Real-time notification dropdown in navbar |
-| `DashboardLayout.jsx` | Shared sidebar + content wrapper for all dashboards |
-| `Navbar.jsx` | Top navigation with role-aware links |
-| `PageTransition.jsx` | Framer Motion fade transition wrapper |
-| `ScrollProgress.jsx` | Scroll progress bar at top of page |
-| `BackToTop.jsx` | Floating back-to-top button |
+### Key Components (`my-app/src/components/`)
+- **`MediBot.jsx`**: Floating UI wrapper handling Chatbot APIs.
+- **`VideoCall.jsx`**: Handles `navigator.mediaDevices.getUserMedia()` and creates `SimplePeer` instances.
+- **`PrescriptionManager.jsx`**: Generates medical PDFs from the `Appointment.doctorReport` subdocument.
+- **`HealthVitals.jsx`**: Plugs into Recharts for live graph drawing.
+- **`NotificationBell.jsx`**: Navbar badge hooked into Socket.io.
 
 ---
 
 ## 9. Data Flow & How It Works
 
 ### Appointment Booking Flow (End-to-End)
-
-```
-1. Patient clicks "Book Appointment" 
-   └── Opens confirmation dialog
-
-2. Patient confirms
-   └── POST /api/appointments/book { doctorId, date }
-
-3. Backend (appointmentController.bookAppointment):
-   a. Verifies patient exists
-   b. Fetches doctor + their hospital
-   c. Hospital Exclusivity Check:
-      - If patient already has hospitalId → must match doctor's hospital
-      - If patient has no hospitalId → auto-assign doctor's hospital
-   d. Creates new Appointment (status: 'pending')
-   e. Populates appointment with patient + doctor details
-   f. Socket.io → emits 'new_appointment' to all (doctor sees it in real-time)
-   g. Socket.io → emits notification to hospital admin
-
-4. Doctor sees new appointment in their dashboard (real-time)
-   └── Approves or Rejects
-       └── PUT /api/appointments/status/:id { status: 'approved'/'rejected' }
-
-5. If Approved:
-   └── Doctor can start video call → patient receives incoming call
-   └── Doctor can write medical report
-   └── Patient can see report in "My Reports" tab
-   └── Patient can download report as PDF
-```
-
-### Patient Privacy / Access Request Flow
-
-```
-Doctor wants to view patient's full history
-↓
-Doctor sends access request (POST /api/access-requests/request)
-↓
-Patient sees request in "Access Requests" tab
-↓
-Patient approves (PUT /api/access-requests/respond/:id { action: 'approve' })
-↓
-Access stored in patient's User document:
-  privacySettings.profileAccess[doctorId] = { approved: true, expiresAt, singleUse }
-↓
-Doctor can now call GET /api/appointments/patient/:id (checked in getPatientHistory)
-```
-
-### Video Call Flow
-
-```
-Doctor clicks "Video Call" button in appointment card
-↓
-VideoCall component created with doctor as initiator
-  → WebRTC getUserMedia() to access camera/mic
-  → simple-peer creates offer
-  → Socket.io emits 'callUser' to patient's socket room
-
-Patient receives 'callUser' event
-  → Incoming call modal appears in PatientDashboard
-  → Patient clicks "Answer"
-  → answerCall() creates WebRTC answer
-  → Socket.io emits 'answerCall'
-
-Doctor receives 'callAccepted' event
-  → WebRTC connection established
-  → Both see live video feed
-```
+1. Patient clicks "Book Appointment".
+2. `POST /api/appointments/book` with `{ doctorId, date }`.
+3. Backend controller checks exclusivity constraint: if Patient has `hospitalId`, the Doctor must belong to the same hospital.
+4. Appointment created with status `'pending'`.
+5. Socket.io emits `new_appointment` to Doctor.
+6. Doctor approves via dashboard → `PUT .../status/approve`.
+7. Once approved, Doctor can launch a WebRTC via `callUser` Socket event or write a `report` payload.
 
 ---
 
-## 10. Deployment
+## 10. Code Structure & Key Libraries
 
-| Layer | Platform | URL |
+To fully understand and present the project, knowing what each piece of technology is responsible for is crucial.
+
+### Frontend (`/my-app`)
+- **React (`react`, `react-router-dom`)**: Core UI library and SPA (Single Page Application) routing system.
+- **Material UI (`@mui/material`, `@emotion/react`)**: UI component framework heavily utilized for building cards, navigation sidebars, standardized grids, and dialog modals.
+- **TailwindCSS**: Utility-first CSS framework for rapid, custom layout styling overriding standard MUI defaults where needed.
+- **Framer Motion (`framer-motion`)**: Powers the highly smooth page transitions (`PageTransition.jsx`) and animated interactive elements like hovering cards.
+- **Lucide React (`lucide-react`)**: Beautiful, modern SVG icon pack used throughout the application dashboards.
+- **Recharts (`recharts`)**: Renders the dynamic, responsive line graphs for the Patient's Health Vitals tracking in the Patient Dashboard.
+- **Socket.io Client (`socket.io-client`)**: Connects to the Node.js backend for real-time bi-directional messaging (chat messages, incoming video calls, and SOS ambulance coordinates).
+- **Simple-Peer (`simple-peer`)**: An abstraction over WebRTC. Manages the complex peer-to-peer camera and microphone connection for live video consultations.
+- **jsPDF & html2canvas**: Captures snapshot images of the DOM elements (prescriptions and medical reports) and successfully converts them into professional, downloadable PDF files.
+- **Axios / Fetch**: Handles all HTTP REST API calls to the Express and Python backends.
+
+### Backend (`/server`)
+- **Express (`express`)**: The core HTTP server framework mapping URL endpoints (like `/api/appointments`) to specific controller logic.
+- **Mongoose (`mongoose`)**: The MongoDB ODM (Object Data Modeling) library. It maps regular JavaScript objects to database documents and enforces the rigorous Schema structures (like `Hospital.js`).
+- **Socket.io (`socket.io`)**: The WebSocket server running perfectly alongside Express. Handles all real-time event streaming (`new_appointment`, `sos_alert`).
+- **Multer (`multer`)**: Middleware that intercepts `multipart/form-data` requests. It securely accepts, names, and saves uploaded hospital images directly to the `/uploads` disk folder.
+- **Nodemailer (`nodemailer`)**: Powers the email verification logic. It hooks securely into the **Brevo SMTP API** to email OTP verification codes.
+- **Bcrypt.js (`bcryptjs`)**: Cryptographically hashes and salts user passwords before permanently saving them into the MongoDB database.
+- **JSON Web Token (`jsonwebtoken`)**: Generates the stateless, encrypted authentication tokens stored on the client side, confirming identities on every subsequent request without hitting the database for session checking.
+- **Google Generative AI (`@google/generative-ai`)**: Hooks into Google's Gemini LLM to power the conversational general health knowledge responses deeply integrated into the MediBot.
+
+### ML Microservice (`/`)
+- **Flask (`Flask`)**: A lightweight Python web server acting strictly as a micro-API exposing the `/predict` and `/retrain` endpoints to the Node.js server.
+- **Scikit-Learn (`scikit-learn`)**: The backbone of the ML recommendation engine. Uses the `TfidfVectorizer` for Natural Language Processing on patient query strings, and the `NearestNeighbors` algorithm to mathematically flag the closest matching hospital profile.
+- **Pandas & NumPy (`pandas`, `numpy`)**: Data manipulation libraries that format, clean, and structure the raw database JSON into ML-ready algebraic matrices.
+- **Joblib (`joblib`)**: Serializes (saves/loads) the trained models (`hospital_model.pkl` and `vectorizer.pkl`) so that patient queries can be serviced instantly entirely from server memory without needing to be recomputed for every request.
+- **PyMongo (`pymongo`)**: Dynamically connects to the live `hospitals` collection directly from MongoDB during the `/retrain` function so the ML model can immediately pull down new facilities and incorporate their records into the new `.pkl` output.
+
+---
+
+## 11. Technical Deep-Dives (Interview Prep)
+
+*If an interviewer or HR asks you "How did you build X?" or "Why did you choose Y?", use these robust technical explanations.*
+
+### 1. How does the Video Calling actually work? (WebRTC & Signaling)
+**The Concept**: Real-time video doesn't traverse the backend server (which would be incredibly slow and expensive). It goes directly from the Doctor's browser to the Patient's browser. This is called Peer-to-Peer (P2P).
+**The Execution**:
+- We use **WebRTC** under the hood, simplified by the `simple-peer` library.
+- Before two browsers can connect P2P, they need to know how to find each other on the internet. This is called **Signaling**.
+- We use **Socket.io** strictly as the Signaling Server. 
+- **The Flow**:
+  1. The Doctor clicks "Call". Their browser creates an "Offer" (an SDP object containing media capabilities and IP details).
+  2. The Doctor sends this Offer to our Node.js server via `socket.emit('callUser')`.
+  3. Node.js instantly relays this Offer to the specific Patient via `io.to(patientId).emit('callUser')`.
+  4. The Patient clicks "Answer", generating an "Answer" SDP object.
+  5. The Answer travels back through Socket.io to the Doctor.
+  6. Once both browsers have exchanged these SDPs (and ICE Candidates to bypass firewalls), the WebRTC connection opens and the live video/audio stream begins. The backend server is no longer involved in the video feed!
+
+### 2. How does the Machine Learning Hospital Recommendation work?
+**The Concept**: The chatbot needs to understand human symptoms and match them to the best hospital mathematically, without relying on strict keyword `IF/THEN` statements.
+**The Execution**:
+- **TF-IDF Vectorization** (Term Frequency - Inverse Document Frequency): The Python `scikit-learn` library takes the patient's text (e.g., "sharp chest pain") and turns it into an algebraic matrix (a vector of numbers). It gives higher mathematical weight to rare, important words ("chest", "pain") and ignores filler words.
+- **KNN** (K-Nearest Neighbors): We trained a KNN algorithm on a dataset of hospital profiles. Once the patient's symptoms are vectorized, the KNN algorithm plots that vector in a multi-dimensional space and finds the *"K"* (in our case, 3) hospital vectors that are physically closest to it.
+- **The Microservice Integration**: The Node.js server cannot run Python ML models natively. So, Node.js fires an Axios HTTP `POST` request to `http://localhost:5001/predict` (our Flask API). Flask runs the algebraic math in milliseconds and returns the strings back to Node.js, which then pairs them with actual MongoDB data.
+
+### 3. Why use Socket "Rooms" instead of standard Broadcasting?
+**The Concept**: Notifications and chat messages must only go to the specific intended user, not every connected user.
+**The Execution**:
+- In Socket.io, when a user logs in, we execute `socket.emit("join_room", user._id)`. 
+- The Node.js server listens for this and runs `socket.join(userId)`. 
+- Now, that specific WebSocket connection is subscribed to a private "Room" named after their MongoDB ID.
+- **The Benefit**: When a Doctor approves an appointment, Node.js doesn't have to loop through thousands of connected sockets to find the right patient. It simply executes `io.to(patientId).emit('new_appointment', data)`. This is highly optimized, O(1) time complexity message routing.
+
+### 4. Why put 5 different User Roles into a single MongoDB Collection?
+**The Concept**: Instead of having a `Patients` collection, a `Doctors` collection, and an `Admins` collection, everything is in one `Users` collection. This is called Single Table Inheritance.
+**The Execution**:
+- We use a shared Mongoose Schema with a `role` Enum (`patient`, `doctor`, `admin`, `driver`, `super-admin`).
+- **The Benefit (Authentication)**: When a user logs in, we only have to query `User.findOne({ email })`. If they were in separate tables, we would have to query 5 different tables just to find out who is trying to log in!
+- **The Benefit (Relational Ease)**: The `Appointment` schema simply references `patientId: ObjectId(User)` and `doctorId: ObjectId(User)`. If they were separate collections, Mongoose `populate()` logic would become incredibly complex and slow.
+- **Handling Differences**: Fields unique to a role (like a doctor's `specialization` or a driver's `vehicleNumber`) simply remain `undefined` for roles that don't need them. In a NoSQL document database like MongoDB, this is perfectly acceptable and highly performant.
+
+### 5. How is Patient Data Privacy enforced?
+**The Concept**: Doctors should not be able to freely browse any patient's entire medical history unless the patient is actively consulting them and explicitly grants access.
+**The Execution**:
+- The `User` schema has a `privacySettings.profileAccess` Map object.
+- When a doctor requests access, it sends an API call creating an entry in the patient's `accessRequests` array.
+- The patient clicks "Approve". This executes a `PUT` request that inserts the Doctor's `ObjectId` into the `privacySettings.profileAccess` Map with `approved: true`.
+- **The Security Check**: When the Doctor attempts to fetch the history via `GET /api/appointments/patient/:id`, the Backend Controller *first* queries the Patient's document and firmly rejects the API call with a `403 Forbidden` if `profileAccess[doctorId]?.approved !== true`. The frontend cannot bypass this.
+
+---
+
+## 12. Deployment & Local Setup
+
+### Live Platform Infrastructure
+| Layer | Platform | URI Protocol |
 |---|---|---|
-| Frontend | **Vercel** | https://medi-care-plus-gules.vercel.app |
-| Backend | **Render** | Backend API server (free tier) |
-| Database | **MongoDB Atlas** | Cloud cluster |
-| Email | **Brevo API** | Transactional email delivery |
+| Frontend | **Vercel** | https:// |
+| Backend API | **Render** | https:// (Containerized Express) |
+| Database | **MongoDB Atlas** | mongodb+srv:// |
+| Email Service | **Brevo API** | SMTP / API Key |
 
-### Environment Variables (Backend `.env`)
-```
-PORT=5000
-MONGODB_URI=mongodb+srv://...
-JWT_SECRET=...
-CLIENT_URL=https://medi-care-plus-gules.vercel.app
-BREVO_API_KEY=...
-```
-
-### Frontend Config (`my-app/src/config.js`)
-```js
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-```
+*Note on Production Image Uploads: The current app uses local disk storage (`/uploads`). Upon transitioning to a multi-node load balanced setup in Render, this will need to be swapped for `multer-s3` (AWS S3) or Cloudinary to avoid ephemeral filesystem purge.*
 
 ### Running Locally
 
-**Backend:**
+**Database & Configuration:**
+Configure `.env` in the `server` directory:
+```
+PORT=5000
+MONGODB_URI=mongodb+srv://...
+JWT_SECRET=supersecret
+CLIENT_URL=http://localhost:5173
+BREVO_API_KEY=xkeysib-xxxx
+```
+
+**1. Machine Learning Microservice:**
+```bash
+cd server
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+python train_model.py  # Export base .pkl
+python app.py          # Starts on http://localhost:5001
+```
+
+**2. Backend Server:**
 ```bash
 cd server
 npm install
 node index.js
-# Runs on http://localhost:5000
+# Runs logic & Socket.io on http://localhost:5000
 ```
 
-**Frontend:**
+**3. Frontend (React/Vite):**
 ```bash
 cd my-app
 npm install
 npm run dev
-# Runs on http://localhost:5173 (or 5179/5180)
+# Starts client on http://localhost:5173
 ```
 
 ---
 
-*Documentation last updated: February 2026*
+*Documentation compiled: February 2026*

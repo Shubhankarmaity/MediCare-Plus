@@ -525,7 +525,7 @@ const MediBot = () => {
             {/* FAB Trigger */}
             <motion.button onClick={() => setOpen(o => !o)}
                 whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
-                className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-xl shadow-sky-500/40 flex items-center justify-center"
+                className="fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-xl shadow-sky-500/40 flex items-center justify-center"
                 aria-label="Open MediBot">
                 <AnimatePresence mode="wait">
                     {open
@@ -544,7 +544,7 @@ const MediBot = () => {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.85, y: 20 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-                        className="fixed bottom-24 right-6 z-50 w-[375px] max-w-[calc(100vw-2rem)] flex flex-col rounded-3xl shadow-2xl border border-slate-200 bg-white overflow-hidden"
+                        className="fixed bottom-24 right-6 z-[9999] w-[375px] max-w-[calc(100vw-2rem)] flex flex-col rounded-3xl shadow-2xl border border-slate-200 bg-white overflow-hidden"
                         style={{ maxHeight: 'min(640px, calc(100vh - 120px))' }}>
 
                         {/* Header */}

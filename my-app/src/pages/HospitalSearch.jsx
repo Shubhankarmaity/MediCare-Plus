@@ -25,7 +25,12 @@ const HospitalSearch = () => {
 
             // Map API data to local images for consistency
             const mappedData = data.map(hospital => {
-                // Normalize name for matching
+                // If the hospital has an uploaded image from our backend, use it directly
+                if (hospital.image && !hospital.image.includes('images.unsplash.com')) {
+                    return hospital;
+                }
+
+                // Otherwise, normalize name for static matching
                 const name = hospital.name.toLowerCase();
 
                 if (name.includes('city general')) {

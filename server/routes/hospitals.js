@@ -449,7 +449,35 @@ router.post('/', async (req, res) => {
     try {
         const newHospital = new Hospital(req.body);
         const savedHospital = await newHospital.save();
-        res.status(201).json(savedHospital);
+
+        // Trigger Dynamic ML Retraining
+        let mlRetrainStatus = 'Bypassed';
+        try {
+            const axios = require('axios');
+            // Fetch all active hospitals to retrain the model
+            const allHospitals = await Hospital.find({ networkStatus: 'Active' })
+                .select('name city rating specialties insuranceCompany cashlessAvailable hasICU hasEmergency hasOT');
+
+            if (allHospitals.length > 0) {
+                const mlPayload = {
+                    hospitals: allHospitals
+                };
+                console.log(`Sending ${allHospitals.length} hospitals to ML service for retraining...`);
+                // Use a short timeout so we don't block the request if ML server is down
+                const mlRes = await axios.post('http://localhost:5001/retrain', mlPayload, { timeout: 10000 });
+                console.log('ML Retrain Success:', mlRes.data);
+                mlRetrainStatus = 'Success';
+            }
+        } catch (mlErr) {
+            console.error('Failed to trigger ML retrain:', mlErr.message);
+            // We don't want to fail the hospital creation just because ML is down
+            mlRetrainStatus = 'Failed: ' + mlErr.message;
+        }
+
+        res.status(201).json({
+            hospital: savedHospital,
+            mlRetrainStatus
+        });
     } catch (err) {
         res.status(400).json({ message: err.message });
     }

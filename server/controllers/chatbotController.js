@@ -2,93 +2,75 @@ const User = require('../models/User');
 const Hospital = require('../models/Hospital');
 const { MEDICAL_KB } = require('../medicalKnowledge');
 
+const axios = require('axios');
+
 /**
  * Logic to recommend hospitals based on query and patient info
+ * NOW POWERED BY ML (Python Microservice)
  */
 async function recommendHospitals(query, patientInfo, insuranceCompany) {
     try {
-        const hospitals = await Hospital.find({ networkStatus: 'Active' });
         const queryLower = query.toLowerCase();
+        const history = patientInfo?.medicalHistory ? patientInfo.medicalHistory.toLowerCase() : "";
 
-        // Basic condition detection from query
-        const conditions = [
-            'cardiology', 'orthopedics', 'oncology', 'neurology', 'emergency',
-            'kidney', 'maternity', 'surgery', 'pediatrics', 'dermatology'
-        ];
-        const detectedConditions = conditions.filter(c => queryLower.includes(c));
+        // Form the data to send to the ML model
+        const mlPayload = {
+            symptoms: `${queryLower} ${history}`.trim()
+        };
 
-        if (patientInfo && patientInfo.medicalHistory) {
-            conditions.forEach(c => {
-                if (patientInfo.medicalHistory.toLowerCase().includes(c) && !detectedConditions.includes(c)) {
-                    detectedConditions.push(c);
-                }
+        // Call the Python ML Microservice
+        console.log(`Sending data to ML Model: "${mlPayload.symptoms}"`);
+        const response = await axios.post('http://localhost:5001/predict', mlPayload);
+        let results = response.data.hospitals;
+
+        // Fetch the genuine database IDs for these hospitals from our MongoDB
+        // Since the dataset might have slightly different names than our db, 
+        // we map them by matching the name or falling back to a subset match
+        if (results && results.length > 0) {
+            const hospitalNames = results.map(h => h.hospitalName);
+            const dbHospitals = await Hospital.find({
+                name: { $in: hospitalNames },
+                networkStatus: 'Active'
             });
+
+            // Re-map the IDs
+            results = results.map(rec => {
+                const searchName = rec.hospitalName.toLowerCase().trim();
+
+                // 1. Exact case-insensitive match
+                let matchedDbHospital = dbHospitals.find(db =>
+                    db.name.toLowerCase().trim() === searchName
+                );
+
+                // 2. Partial match (if dataset has "LifeLine Hospital" and DB has "Lifeline Hospital Barrackpore")
+                if (!matchedDbHospital) {
+                    matchedDbHospital = dbHospitals.find(db => {
+                        const dbName = db.name.toLowerCase().trim();
+                        return dbName.includes(searchName) || searchName.includes(dbName);
+                    });
+                }
+
+                // 3. Very loose match (split first two words)
+                if (!matchedDbHospital && searchName.split(' ').length > 1) {
+                    const looseSearch = searchName.split(' ').slice(0, 2).join(' ');
+                    matchedDbHospital = dbHospitals.find(db =>
+                        db.name.toLowerCase().includes(looseSearch)
+                    );
+                }
+
+                if (matchedDbHospital) {
+                    rec.hospitalId = matchedDbHospital._id;
+                }
+                return rec;
+            });
+
+            // Remove any hospitals we couldn't link to the live DB
+            results = results.filter(rec => rec.hospitalId != null);
         }
 
-        const scoredHospitals = hospitals.map(h => {
-            let score = 0;
-            let reasons = [];
-
-            // 1. Specialty Match (35 pts)
-            if (detectedConditions.some(c => h.specialties.toLowerCase().includes(c))) {
-                score += 35;
-                reasons.push(`Specializes in ${detectedConditions.join(', ')}`);
-            }
-
-            // 2. ICU (20 pts)
-            if (h.hasICU) {
-                score += 20;
-                reasons.push('ICU facility available');
-            }
-
-            // 3. Emergency (15 pts)
-            if (h.hasEmergency) {
-                score += 15;
-                reasons.push('24/7 Emergency support');
-            }
-
-            // 4. Rating (15 pts) - scale 0-5 to 0-15
-            const ratingScore = (h.rating / 5) * 15;
-            score += ratingScore;
-            if (h.rating >= 4) reasons.push(`Highly rated (${h.rating}⭐)`);
-
-            // 5. NABH (10 pts)
-            if (h.naabhAccredited) {
-                score += 10;
-                reasons.push('NABH Accredited');
-            }
-
-            // 6. Cashless (5 pts)
-            if (h.cashlessAvailable) {
-                score += 5;
-                reasons.push('Cashless facility');
-            }
-
-            // 7. Facilities (5 pts)
-            const facilityCount = [h.diagnosticLab, h.pharmacyAvailable, h.ambulanceAvailable, h.hasOT].filter(Boolean).length;
-            score += (facilityCount / 4) * 5;
-            if (facilityCount >= 3) reasons.push('Comprehensive facilities');
-
-            return {
-                hospitalId: h._id,
-                hospitalName: h.name,
-                city: h.city,
-                rating: h.rating,
-                matchScore: Math.round(score),
-                reason: reasons.slice(0, 2).join(' · '),
-                specialties: h.specialties,
-                cashlessAvailable: h.cashlessAvailable,
-                coveragePct: h.coveragePct,
-                insuranceCompany: h.insuranceCompany
-            };
-        });
-
-        // Sort by match score
-        let results = scoredHospitals.sort((a, b) => b.matchScore - a.matchScore).slice(0, 3);
-
-        // Filter for insurance if requested
+        // Filter for insurance if requested by the user
         let insuranceFiltered = false;
-        if (insuranceCompany) {
+        if (insuranceCompany && results.length > 0) {
             const filtered = results.filter(h => h.insuranceCompany === insuranceCompany);
             if (filtered.length > 0) {
                 results = filtered;
@@ -102,9 +84,11 @@ async function recommendHospitals(query, patientInfo, insuranceCompany) {
             insuranceFiltered,
             insuranceCompany
         };
+
     } catch (error) {
-        console.error('Recommendation Error:', error);
-        return { type: 'error', message: 'Failed to generate recommendations' };
+        console.error('ML Recommendation Error:', error.message);
+        // Fallback to empty list if ML server is down
+        return { type: 'hospital_recommendation', hospitals: [] };
     }
 }
 
@@ -118,17 +102,39 @@ exports.ask = async (req, res) => {
     try {
         const queryLower = query.toLowerCase();
 
-        // 1. Check for Hospital Recommendation Intent
-        const recKeywords = ['recommend', 'best hospital', 'find hospital', 'hospital for', 'where should i go'];
-        if (recKeywords.some(k => queryLower.includes(k))) {
-            const recs = await recommendHospitals(query, patientInfo, insuranceCompany);
-            return res.json(recs);
+        // 1. Check for Hospital Recommendation Intent or Symptom matching
+        const recKeywords = [
+            'recommend', 'recomend', 'best hospital', 'find hospital', 'hospital for',
+            'hospital of', 'where should i go', 'need a hospital', 'suggest', 'looking for hospital'
+        ];
+        const medicalKeywords = [
+            'chest pain', 'heart', 'kidney', 'cancer', 'ortho', 'surgery', 'diabetes', 'sugar',
+            'neuro', 'neurology', 'brain', 'eye', 'dental', 'teeth', 'skin', 'derma', 'stomach',
+            'gastro', 'pediatric', 'child', 'baby', 'maternity', 'gynecology', 'women', 'ent',
+            'ear', 'nose', 'throat', 'lung', 'asthma', 'breathing', 'fever', 'infection'
+        ];
+
+        const isRecommendation = recKeywords.some(k => queryLower.includes(k)) ||
+            medicalKeywords.some(k => queryLower.includes(k));
+
+        let recsResponse = null;
+        if (isRecommendation) {
+            recsResponse = await recommendHospitals(query, patientInfo, insuranceCompany);
         }
 
-        // 2. Check Medical KB matches
+        // 2. Check Medical KB matches (for text answers)
         const kbMatch = MEDICAL_KB.find(entry =>
             entry.keywords.some(k => queryLower.includes(k.toLowerCase()))
         );
+
+        if (recsResponse && recsResponse.hospitals && recsResponse.hospitals.length > 0) {
+            // We have hospital recs! Let's combine it with the KB match if one exists.
+            if (kbMatch) {
+                recsResponse.answer = kbMatch.answer; // Optionally attach the text answer to the hospitals dict
+                // We still return "hospital_recommendation" type so frontend renders cards
+            }
+            return res.json(recsResponse);
+        }
 
         if (kbMatch) {
             return res.json({
