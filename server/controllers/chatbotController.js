@@ -106,7 +106,8 @@ exports.ask = async (req, res) => {
         // 1. Check for Hospital Recommendation Intent or Symptom matching
         const recKeywords = [
             'recommend', 'recomend', 'best hospital', 'find hospital', 'hospital for',
-            'hospital of', 'where should i go', 'need a hospital', 'suggest', 'looking for hospital'
+            'hospital of', 'where should i go', 'need a hospital', 'suggest', 'looking for hospital',
+            'prefer', 'find me', 'show me', 'hospital', 'hospitals', 'clinic', 'clinics'
         ];
         const medicalKeywords = [
             'chest pain', 'heart', 'kidney', 'cancer', 'ortho', 'surgery', 'diabetes', 'sugar',
@@ -128,13 +129,25 @@ exports.ask = async (req, res) => {
             entry.keywords.some(k => queryLower.includes(k.toLowerCase()))
         );
 
-        if (recsResponse && recsResponse.hospitals && recsResponse.hospitals.length > 0) {
-            // We have hospital recs! Let's combine it with the KB match if one exists.
-            if (kbMatch) {
-                recsResponse.answer = kbMatch.answer; // Optionally attach the text answer to the hospitals dict
-                // We still return "hospital_recommendation" type so frontend renders cards
+        if (recsResponse) {
+            if (recsResponse.hospitals && recsResponse.hospitals.length > 0) {
+                // We have hospital recs! Let's combine it with the KB match if one exists.
+                if (kbMatch) {
+                    recsResponse.answer = kbMatch.answer; // Optionally attach the text answer to the hospitals dict
+                }
+                return res.json(recsResponse);
+            } else {
+                // It was a recommendation intent, but ML returned nothing (or ML service failed)
+                let noResultMsg = "🤖 *I tried to run your symptoms through our ML engine to find matching hospitals, but I couldn't find any exact matches or the ML service might be waking up (Render cold start). Please try again in 30 seconds.*";
+                if (kbMatch) {
+                    noResultMsg = kbMatch.answer + "\n\n" + noResultMsg;
+                }
+                return res.json({
+                    type: 'hospital_recommendation',
+                    answer: noResultMsg, // Fallback message explicitly acknowledging the hospital search
+                    hospitals: []
+                });
             }
-            return res.json(recsResponse);
         }
 
         if (kbMatch) {
