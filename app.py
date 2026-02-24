@@ -131,7 +131,7 @@ def predict():
             score = max(50, min(99, int(base_score)))
             
             recommended = {
-                "hospitalId": None,
+                "hospitalId": hospital_data.get("hospital_id", None),
                 "hospitalName": hospital_data["hospital_name"],
                 "city": hospital_data["city"],
                 "rating": hospital_data["rating"],

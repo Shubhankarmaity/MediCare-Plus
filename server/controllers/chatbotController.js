@@ -24,49 +24,22 @@ async function recommendHospitals(query, patientInfo, insuranceCompany) {
         const response = await axios.post(`${mlUrl}/predict`, mlPayload);
         let results = response.data.hospitals;
 
-        // Fetch the genuine database IDs for these hospitals from our MongoDB
-        // Since the dataset might have slightly different names than our db, 
-        // we map them by matching the name or falling back to a subset match
+        // Validate the genuine database IDs for these hospitals from our MongoDB
         if (results && results.length > 0) {
-            const hospitalNames = results.map(h => h.hospitalName);
-            const dbHospitals = await Hospital.find({
-                name: { $in: hospitalNames },
-                networkStatus: 'Active'
-            });
+            // Get valid IDs (ignoring any legacy Kaggle CSV ones without an ID)
+            const validIds = results.map(h => h.hospitalId).filter(id => id);
 
-            // Re-map the IDs
-            results = results.map(rec => {
-                const searchName = rec.hospitalName.toLowerCase().trim();
+            if (validIds.length > 0) {
+                const dbHospitals = await Hospital.find({
+                    _id: { $in: validIds },
+                    networkStatus: 'Active'
+                });
 
-                // 1. Exact case-insensitive match
-                let matchedDbHospital = dbHospitals.find(db =>
-                    db.name.toLowerCase().trim() === searchName
+                // Filter out any ML results that point to a soft-deleted or inactive hospital
+                results = results.filter(rec =>
+                    dbHospitals.some(db => db._id.toString() === rec.hospitalId)
                 );
-
-                // 2. Partial match (if dataset has "LifeLine Hospital" and DB has "Lifeline Hospital Barrackpore")
-                if (!matchedDbHospital) {
-                    matchedDbHospital = dbHospitals.find(db => {
-                        const dbName = db.name.toLowerCase().trim();
-                        return dbName.includes(searchName) || searchName.includes(dbName);
-                    });
-                }
-
-                // 3. Very loose match (split first two words)
-                if (!matchedDbHospital && searchName.split(' ').length > 1) {
-                    const looseSearch = searchName.split(' ').slice(0, 2).join(' ');
-                    matchedDbHospital = dbHospitals.find(db =>
-                        db.name.toLowerCase().includes(looseSearch)
-                    );
-                }
-
-                if (matchedDbHospital) {
-                    rec.hospitalId = matchedDbHospital._id;
-                }
-                return rec;
-            });
-
-            // Remove any hospitals we couldn't link to the live DB
-            results = results.filter(rec => rec.hospitalId != null);
+            }
         }
 
         // Filter for insurance if requested by the user
