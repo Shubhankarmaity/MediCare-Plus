@@ -15,10 +15,10 @@ import hospitalImg from '../assets/images/hospital4.avif';
 import HospitalRecommendWizard from '../components/HospitalRecommendWizard';
 
 const roleCards = [
-  { id: 'patient', label: 'Patient', icon: User, description: 'Find doctors & book appointments.', color: 'bg-blue-50 text-blue-600 border-blue-200' },
-  { id: 'doctor', label: 'Doctor', icon: Stethoscope, description: 'Register your clinic availability.', color: 'bg-teal-50 text-teal-600 border-teal-200' },
-  { id: 'driver', label: 'Driver', icon: Ambulance, description: 'Join emergency response network.', color: 'bg-rose-50 text-rose-600 border-rose-200' },
-  { id: 'admin', label: 'Admin', icon: Shield, description: 'Manage hospital resources.', color: 'bg-violet-50 text-violet-600 border-violet-200' }
+  { id: 'patient', label: 'Patient', icon: User, description: 'Find doctors & book appointments.', color: 'text-primary-navy hover:border-primary-blue border-divider-gray' },
+  { id: 'doctor', label: 'Doctor', icon: Stethoscope, description: 'Register your clinic availability.', color: 'text-primary-blue hover:border-primary-blue border-divider-gray' },
+  { id: 'driver', label: 'Driver', icon: Ambulance, description: 'Join emergency response network.', color: 'text-primary-navy hover:border-primary-blue border-divider-gray' },
+  { id: 'admin', label: 'Admin', icon: Shield, description: 'Manage hospital resources.', color: 'text-primary-navy hover:border-primary-blue border-divider-gray' }
 ];
 
 const INSURANCE_COMPANIES = [
@@ -39,18 +39,18 @@ const INSURANCE_COMPANIES = [
 ];
 
 const InputField = ({ label, type = "text", value, onChange, required = true, icon: Icon, placeholder }) => (
-  <div className="space-y-1">
-    <label className="text-sm font-semibold text-slate-700 ml-1">{label}</label>
+  <div className="form-group">
+    <label className="form-label">{label}</label>
     <div className="relative group">
       {Icon && (
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Icon className="h-5 w-5 text-slate-400 group-focus-within:text-sky-600 transition-colors" />
+          <Icon className="h-5 w-5 text-slate-400 group-focus-within:text-primary-blue transition-colors" />
         </div>
       )}
       <input
         type={type}
         required={required}
-        className={`block w-full ${Icon ? 'pl-10' : 'pl-4'} pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm`}
+        className={`block w-full ${Icon ? 'pl-10' : 'pl-4'} pr-3 py-3 border border-divider-gray rounded-md leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-primary-blue focus:border-primary-blue transition-all duration-200 sm:text-sm`}
         placeholder={placeholder}
         value={value}
         onChange={onChange}
@@ -60,13 +60,13 @@ const InputField = ({ label, type = "text", value, onChange, required = true, ic
 );
 
 const SelectField = ({ label, value, onChange, options, required = true, disabled = false, placeholder = "Select..." }) => (
-  <div className="space-y-1">
-    <label className="text-sm font-semibold text-slate-700 ml-1">{label}</label>
+  <div className="form-group">
+    {label && <label className="form-label">{label}</label>}
     <div className="relative">
       <select
         required={required}
         disabled={disabled}
-        className="block w-full pl-4 pr-10 py-3 border border-slate-200 rounded-xl leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm appearance-none disabled:bg-slate-100 disabled:text-slate-400"
+        className="block w-full pl-4 pr-10 py-3 border border-divider-gray rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-primary-blue focus:border-primary-blue transition-all duration-200 sm:text-sm appearance-none disabled:bg-slate-50 disabled:text-slate-400 cursor-pointer"
         value={value}
         onChange={onChange}
       >
@@ -335,11 +335,11 @@ const Signup = () => {
             </div>
             <span className="text-sm font-medium">Back to Home</span>
           </Link>
-          <div className="absolute inset-0 bg-gradient-to-br from-sky-600/90 to-indigo-900/90 z-10" />
-          <img src={hospitalImg} alt="Hospital" className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-overlay" />
+          <div className="absolute inset-0 bg-primary-navy/95 z-10" />
+          <img src={hospitalImg} alt="Hospital" className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay" />
           <div className="relative z-20 flex flex-col justify-between h-full p-12 text-white">
             <div className="flex items-center gap-2 mt-12">
-              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+              <div className="bg-white/10 border border-white/20 p-2 rounded-md backdrop-blur-sm">
                 <Stethoscope className="w-8 h-8 text-white" />
               </div>
               <span className="text-2xl font-bold tracking-tight">MediCare Plus</span>
@@ -347,7 +347,7 @@ const Signup = () => {
             <div className="space-y-6 max-w-lg">
               <h1 className="text-5xl font-bold leading-tight">
                 Join Our <br />
-                <span className="text-sky-300">Healthcare Network.</span>
+                <span className="text-muted-teal">Healthcare Network.</span>
               </h1>
               <p className="text-lg text-slate-200 leading-relaxed">
                 Whether you are a patient, doctor, or administrator, we provide the tools you need for better health management.
@@ -379,11 +379,11 @@ const Signup = () => {
                 <motion.div key="role-selection" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.4 }} className="space-y-8">
                   <div className="text-center lg:text-left space-y-2">
                     <div className="inline-flex lg:hidden items-center gap-2 mb-6">
-                      <div className="bg-sky-600 p-2 rounded-lg"><Stethoscope className="w-6 h-6 text-white" /></div>
-                      <span className="text-xl font-bold text-slate-900">MediCare Plus</span>
+                      <div className="bg-primary-blue p-2 rounded-md"><Stethoscope className="w-6 h-6 text-white" /></div>
+                      <span className="text-xl font-bold text-primary-navy">MediCare Plus</span>
                     </div>
-                    <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Create your account</h2>
-                    <p className="text-slate-600">Select your profile type to get started.</p>
+                    <h2 className="heading-h2 tracking-tight">Create your account</h2>
+                    <p className="text-body-gray">Select your profile type to get started.</p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {roleCards.map((role) => (
@@ -403,9 +403,9 @@ const Signup = () => {
                     ))}
                   </div>
                   <div className="text-center pt-4">
-                    <p className="text-slate-600 text-sm">
+                    <p className="text-body-gray text-sm">
                       Already have an account?{' '}
-                      <Link to="/login" className="font-bold text-sky-600 hover:text-sky-500 transition-colors">Sign in</Link>
+                      <Link to="/login" className="font-bold text-primary-blue hover:text-primary-navy transition-colors">Sign in</Link>
                     </p>
                   </div>
                 </motion.div>
@@ -416,8 +416,8 @@ const Signup = () => {
                   <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-sky-100 text-sky-600 mb-4">
                     <Mail className="w-8 h-8" />
                   </div>
-                  <h2 className="text-2xl font-bold text-slate-900">Verify Email</h2>
-                  <p className="text-slate-600">
+                  <h2 className="heading-h3">Verify Email</h2>
+                  <p className="text-body-gray">
                     We sent a 6-digit OTP to <strong>{registeredEmail}</strong>.<br />Please enter it below.
                   </p>
                   {error && (
@@ -428,14 +428,14 @@ const Signup = () => {
                   <form onSubmit={handleVerifyOtp} className="space-y-6 max-w-sm mx-auto">
                     <input
                       type="text" required
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all outline-none text-center tracking-widest text-2xl font-bold"
+                      className="w-full px-4 py-3 border border-divider-gray rounded-md focus:ring-1 focus:ring-primary-blue focus:border-primary-blue transition-all outline-none text-center tracking-widest text-2xl font-bold"
                       placeholder="• • • • • •"
                       value={otp}
                       onChange={(e) => setOtp(e.target.value)}
                       maxLength={6}
                     />
-                    <button type="submit" disabled={loading} className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2">
-                      {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Verify Account'}
+                    <button type="submit" disabled={loading} className="btn-primary w-full py-3">
+                      {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Verify Account'}
                     </button>
                   </form>
                 </motion.div>
@@ -448,8 +448,8 @@ const Signup = () => {
                       <ArrowLeft className="w-6 h-6" />
                     </button>
                     <div>
-                      <h2 className="text-2xl font-bold text-slate-900">Sign up as {currentRoleDetails?.label}</h2>
-                      <p className="text-sm text-slate-500">Please fill in your details</p>
+                      <h2 className="heading-h3 mb-1">Sign up as {currentRoleDetails?.label}</h2>
+                      <p className="text-sm text-body-gray">Please fill in your details</p>
                     </div>
                   </div>
 
@@ -588,10 +588,10 @@ const Signup = () => {
                                           onClick={() => setShowWizard(true)}
                                           whileHover={{ scale: 1.01 }}
                                           whileTap={{ scale: 0.98 }}
-                                          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gradient-to-r from-indigo-600 to-sky-600 text-white text-sm font-semibold rounded-xl shadow hover:shadow-md transition-all"
+                                          className="btn-primary w-full py-2.5 px-4 flex justify-center items-center gap-2 text-sm"
                                         >
                                           <HeartPulse className="w-4 h-4" />
-                                          🤖 Use AI to Find Best Network Hospital
+                                          Use AI to Find Best Network Hospital
                                         </motion.button>
                                       )}
 
@@ -642,10 +642,10 @@ const Signup = () => {
                                     whileHover={{ scale: 1.01 }}
                                     whileTap={{ scale: 0.98 }}
                                     onClick={() => setShowWizard(true)}
-                                    className="w-full flex items-center justify-center gap-3 py-4 px-4 bg-gradient-to-r from-sky-600 to-indigo-600 text-white text-sm font-bold rounded-2xl shadow-lg shadow-sky-200 hover:shadow-xl transition-all"
+                                    className="btn-primary w-full py-4 px-4 flex justify-center items-center gap-3 text-sm"
                                   >
                                     <HeartPulse className="w-5 h-5" />
-                                    🤖 Find Best Hospital with AI
+                                    Find Best Hospital with AI
                                     <ChevronRight className="w-4 h-4" />
                                   </motion.button>
 
@@ -759,9 +759,9 @@ const Signup = () => {
                     <button
                       type="submit"
                       disabled={loading || (selectedRole === 'patient' && hasMediclaim === true && !formData.hospitalId)}
-                      className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-[0.98]"
+                      className="btn-primary w-full py-4 mt-6 disabled:opacity-50"
                     >
-                      {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Account'}
+                      {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Create Account'}
                     </button>
                   </form>
                 </motion.div>

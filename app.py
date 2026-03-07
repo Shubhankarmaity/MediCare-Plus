@@ -53,17 +53,52 @@ def init_models():
         
         def create_hospital_profile(row):
             features = []
-            features.append(str(row.get('specialties', '')))
-            if row.get('hasICU'): features.append('ICU')
-            if row.get('hasEmergency'): features.append('Emergency')
-            if row.get('hasOT'): features.append('Operation Theatre')
-            if row.get('cashlessAvailable'): features.append('Cashless')
+            
+            # Extract specialties – repeat them 3 times so they heavily outweigh generic words
+            specialty_str = str(row.get('specialties', ''))
+            features.append(specialty_str)
+            features.append(specialty_str)
+            features.append(specialty_str)
+
+            # Weigh critical infrastructure heavily
+            if row.get('hasICU'): 
+                features.append('ICU ICU intensive care intensive care')
+            if row.get('hasEmergency'): 
+                features.append('Emergency Emergency trauma trauma')
+            if row.get('hasOT'): 
+                features.append('Operation Theatre surgery surgery OT')
+            if row.get('cashlessAvailable'): 
+                features.append('Cashless Cashless insurance claim')
+                
             features.append(str(row.get('insuranceCompany', '')))
+            
+            # Map standard colloquial symptoms to medical specialities to bridge queries
+            specialty_lower = specialty_str.lower()
+            if 'cardiology' in specialty_lower:
+                features.append('heart chest pain cardiac attack bp hypertension hypertension cardiovascular')
+            if 'orthopedics' in specialty_lower:
+                features.append('bone joint pain fracture arthritis knee spine back pain injury')
+            if 'pediatric' in specialty_lower or 'child' in specialty_lower:
+                features.append('child baby infant kid pediatric vaccination')
+            if 'neurology' in specialty_lower:
+                features.append('brain nerve head stroke migraine paralysis seizure')
+            if 'gynecology' in specialty_lower or 'maternity' in specialty_lower:
+                features.append('pregnancy woman baby birth period menstrual maternity female')
+            if 'endocrinology' in specialty_lower:
+                features.append('diabetes sugar thyroid hormone insulin')
+            if 'nephrology' in specialty_lower:
+                features.append('kidney dialysis stone renal')
+            if 'oncology' in specialty_lower:
+                features.append('cancer tumor chemo radiation malignant')
+            if 'pulmonology' in specialty_lower or 'respiratory' in specialty_lower:
+                features.append('lung asthma breath coughing covid chest')
+
             return ' '.join(features)
             
         df['hospital_profile'] = df.apply(create_hospital_profile, axis=1)
         
-        vec_new = TfidfVectorizer(stop_words='english')
+        # Use ngram_range to capture combinations like 'chest pain' or 'heart attack'
+        vec_new = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
         X_profiles = vec_new.fit_transform(df['hospital_profile'])
         
         n_neighbors = min(5, len(df)) if len(df) > 0 else 1

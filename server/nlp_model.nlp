@@ -1,0 +1,394 @@
+{
+  "settings": {
+    "languages": [
+      "en"
+    ],
+    "forceNER": true,
+    "tag": "nlp",
+    "threshold": 0.5,
+    "autoLoad": true,
+    "autoSave": true,
+    "modelFileName": "model.nlp",
+    "executeActionsBeforeAnswers": false,
+    "calculateSentiment": true
+  },
+  "nluManager": {
+    "settings": {
+      "tag": "nlu-manager"
+    },
+    "locales": [
+      "en"
+    ],
+    "languageNames": {},
+    "domainManagers": {
+      "en": {
+        "settings": {
+          "locale": "en",
+          "trainByDomain": false,
+          "tag": "domain-manager-en",
+          "nluByDomain": {
+            "default": {
+              "className": "NeuralNlu",
+              "settings": {}
+            }
+          },
+          "useStemDict": true
+        },
+        "stemDict": {
+          "a,hospit,me,recommend": {
+            "intent": "hospital.recommendation",
+            "domain": "default"
+          },
+          "best,diabet,for,hospit": {
+            "intent": "hospital.recommendation",
+            "domain": "default"
+          },
+          "for,go,i,should,surgeri,where": {
+            "intent": "hospital.recommendation",
+            "domain": "default"
+          },
+          "diabet,is,what": {
+            "intent": "medical.info",
+            "domain": "default"
+          },
+          "a,attack,heart,of,symptom": {
+            "intent": "medical.info",
+            "domain": "default"
+          },
+          "explain,form,how,kidney,stone": {
+            "intent": "medical.info",
+            "domain": "default"
+          }
+        },
+        "intentDict": {
+          "hospital.recommendation": "default",
+          "medical.info": "default"
+        },
+        "sentences": [
+          {
+            "domain": "default",
+            "utterance": "recommend me a hospital",
+            "intent": "hospital.recommendation"
+          },
+          {
+            "domain": "default",
+            "utterance": "best hospital for diabetes",
+            "intent": "hospital.recommendation"
+          },
+          {
+            "domain": "default",
+            "utterance": "where should I go for surgery",
+            "intent": "hospital.recommendation"
+          },
+          {
+            "domain": "default",
+            "utterance": "what is diabetes",
+            "intent": "medical.info"
+          },
+          {
+            "domain": "default",
+            "utterance": "symptoms of a heart attack",
+            "intent": "medical.info"
+          },
+          {
+            "domain": "default",
+            "utterance": "explain how kidney stones form",
+            "intent": "medical.info"
+          }
+        ],
+        "domains": {
+          "master_domain": {
+            "settings": {
+              "locale": "en",
+              "tag": "nlu-en",
+              "keepStopwords": true,
+              "nonefeatureValue": 1,
+              "nonedeltaMultiplier": 1.2,
+              "spellCheck": false,
+              "spellCheckDistance": 1,
+              "filterZeros": true,
+              "log": true
+            },
+            "features": {
+              "recommend": 1,
+              "me": 1,
+              "a": 1,
+              "hospit": 1,
+              "best": 1,
+              "for": 1,
+              "diabet": 1,
+              "where": 1,
+              "should": 1,
+              "i": 1,
+              "go": 1,
+              "surgeri": 1,
+              "what": 1,
+              "is": 1,
+              "symptom": 1,
+              "of": 1,
+              "heart": 1,
+              "attack": 1,
+              "explain": 1,
+              "how": 1,
+              "kidney": 1,
+              "stone": 1,
+              "form": 1
+            },
+            "intents": {
+              "hospital.recommendation": 1,
+              "medical.info": 1
+            },
+            "intentFeatures": {
+              "hospital.recommendation": {
+                "recommend": 1,
+                "me": 1,
+                "a": 1,
+                "hospit": 1,
+                "best": 1,
+                "for": 1,
+                "diabet": 1,
+                "where": 1,
+                "should": 1,
+                "i": 1,
+                "go": 1,
+                "surgeri": 1
+              },
+              "medical.info": {
+                "what": 1,
+                "is": 1,
+                "diabet": 1,
+                "symptom": 1,
+                "of": 1,
+                "a": 1,
+                "heart": 1,
+                "attack": 1,
+                "explain": 1,
+                "how": 1,
+                "kidney": 1,
+                "stone": 1,
+                "form": 1
+              }
+            },
+            "featuresToIntent": {
+              "recommend": [
+                "hospital.recommendation"
+              ],
+              "me": [
+                "hospital.recommendation"
+              ],
+              "a": [
+                "hospital.recommendation",
+                "medical.info"
+              ],
+              "hospit": [
+                "hospital.recommendation"
+              ],
+              "best": [
+                "hospital.recommendation"
+              ],
+              "for": [
+                "hospital.recommendation"
+              ],
+              "diabet": [
+                "hospital.recommendation",
+                "medical.info"
+              ],
+              "where": [
+                "hospital.recommendation"
+              ],
+              "should": [
+                "hospital.recommendation"
+              ],
+              "i": [
+                "hospital.recommendation"
+              ],
+              "go": [
+                "hospital.recommendation"
+              ],
+              "surgeri": [
+                "hospital.recommendation"
+              ],
+              "what": [
+                "medical.info"
+              ],
+              "is": [
+                "medical.info"
+              ],
+              "symptom": [
+                "medical.info"
+              ],
+              "of": [
+                "medical.info"
+              ],
+              "heart": [
+                "medical.info"
+              ],
+              "attack": [
+                "medical.info"
+              ],
+              "explain": [
+                "medical.info"
+              ],
+              "how": [
+                "medical.info"
+              ],
+              "kidney": [
+                "medical.info"
+              ],
+              "stone": [
+                "medical.info"
+              ],
+              "form": [
+                "medical.info"
+              ]
+            },
+            "neuralNetwork": {
+              "settings": {
+                "locale": "en",
+                "tag": "nlu-en",
+                "keepStopwords": true,
+                "nonefeatureValue": 1,
+                "nonedeltaMultiplier": 1.2,
+                "spellCheck": false,
+                "spellCheckDistance": 1,
+                "filterZeros": true,
+                "log": true
+              },
+              "features": [
+                "recommend",
+                "me",
+                "a",
+                "hospit",
+                "best",
+                "for",
+                "diabet",
+                "where",
+                "should",
+                "i",
+                "go",
+                "surgeri",
+                "what",
+                "is",
+                "symptom",
+                "of",
+                "heart",
+                "attack",
+                "explain",
+                "how",
+                "kidney",
+                "stone",
+                "form"
+              ],
+              "intents": [
+                "hospital.recommendation",
+                "medical.info"
+              ],
+              "perceptrons": [
+                [
+                  2.7717463970184326,
+                  2.7717463970184326,
+                  1.78769052028656,
+                  5.093165874481201,
+                  2.3204104900360107,
+                  3.9924416542053223,
+                  0.9042729735374451,
+                  1.6664676666259766,
+                  1.6664676666259766,
+                  1.6664676666259766,
+                  1.6664676666259766,
+                  1.6664676666259766,
+                  -1.4187968969345093,
+                  -1.4187968969345093,
+                  -0.9420993328094482,
+                  -0.9420993328094482,
+                  -0.9420993328094482,
+                  -0.9420993328094482,
+                  -0.4101768136024475,
+                  -0.4101768136024475,
+                  -0.4101768136024475,
+                  -0.4101768136024475,
+                  -0.4101768136024475,
+                  1.9409500517624458
+                ],
+                [
+                  -1.1539537906646729,
+                  -1.1539537906646729,
+                  1.2729132175445557,
+                  -2.577425718307495,
+                  -1.344722032546997,
+                  -1.774845838546753,
+                  2.8374269008636475,
+                  -0.37958824634552,
+                  -0.37958824634552,
+                  -0.37958824634552,
+                  -0.37958824634552,
+                  -0.37958824634552,
+                  4.182489395141602,
+                  4.182489395141602,
+                  2.5044941902160645,
+                  2.5044941902160645,
+                  2.5044941902160645,
+                  2.5044941902160645,
+                  2.2497782707214355,
+                  2.2497782707214355,
+                  2.2497782707214355,
+                  2.2497782707214355,
+                  2.2497782707214355,
+                  2.968557493695477
+                ]
+              ]
+            }
+          }
+        }
+      }
+    },
+    "intentDomains": {},
+    "extraSentences": [
+      [
+        "en",
+        "recommend me a hospital"
+      ],
+      [
+        "en",
+        "best hospital for diabetes"
+      ],
+      [
+        "en",
+        "where should I go for surgery"
+      ],
+      [
+        "en",
+        "what is diabetes"
+      ],
+      [
+        "en",
+        "symptoms of a heart attack"
+      ],
+      [
+        "en",
+        "explain how kidney stones form"
+      ]
+    ]
+  },
+  "ner": {
+    "settings": {
+      "tag": "ner",
+      "entityPreffix": "%",
+      "entitySuffix": "%"
+    },
+    "rules": {}
+  },
+  "nlgManager": {
+    "settings": {
+      "tag": "nlg-manager"
+    },
+    "responses": {}
+  },
+  "actionManager": {
+    "settings": {
+      "tag": "action-manager"
+    },
+    "actions": {}
+  },
+  "slotManager": {}
+}

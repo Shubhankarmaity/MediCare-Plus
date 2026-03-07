@@ -1,9 +1,18 @@
 const User = require('../models/User');
 const Hospital = require('../models/Hospital');
 const { MEDICAL_KB } = require('../medicalKnowledge');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { NlpManager } = require('node-nlp');
 
 const axios = require('axios');
+
+// Initialize NLP Manager
+const nlpManager = new NlpManager({ languages: ['en'], forceNER: true });
+// Try to load the trained model; if it fails, it will just use fallback logic
+try {
+    nlpManager.load('nlp_model.nlp');
+} catch (e) {
+    console.error("NLP Model not found. Did you run the training script?");
+}
 
 /**
  * Logic to recommend hospitals based on query and patient info
@@ -40,6 +49,29 @@ async function recommendHospitals(query, patientInfo, insuranceCompany) {
                 results = results.filter(rec =>
                     dbHospitals.some(db => db._id.toString() === rec.hospitalId)
                 );
+
+                // --- NEW: City / Location Filtering ---
+                // Extract unique cities from our active hospitals
+                const availableCities = [...new Set(dbHospitals.map(h => h.city))];
+
+                // Check if the user query mentioned any of these cities
+                const mentionedCity = availableCities.find(city =>
+                    queryLower.includes(city.toLowerCase())
+                );
+
+                if (mentionedCity) {
+                    // Filter the results to only include hospitals in the mentioned city
+                    const cityFilteredResults = results.filter(rec => {
+                        const dbMatch = dbHospitals.find(db => db._id.toString() === rec.hospitalId);
+                        return dbMatch && dbMatch.city.toLowerCase() === mentionedCity.toLowerCase();
+                    });
+
+                    // Only apply the filter if we actually have hospitals in that city for this condition
+                    // Otherwise, we gracefully fall back to showing the best matches anywhere
+                    if (cityFilteredResults.length > 0) {
+                        results = cityFilteredResults;
+                    }
+                }
             }
         }
 
@@ -77,28 +109,41 @@ exports.ask = async (req, res) => {
     try {
         const queryLower = query.toLowerCase();
 
-        // 1. Check for Information Intents first (Questions meant for Gemini)
-        const infoKeywords = [
-            'what is', 'what are', 'how to', 'how do', 'explain', 'tell me about', 'symptoms of', 'cause of', 'definition'
-        ];
-        const isInfoQuery = infoKeywords.some(k => queryLower.includes(k));
+        // Use NLP to detect intent
+        const nlpResponse = await nlpManager.process('en', queryLower);
+        const intent = nlpResponse.intent;
+        const nlpScore = nlpResponse.score;
 
-        // 2. Check for Hospital Recommendation Intent or Symptom matching
-        const recKeywords = [
-            'recommend', 'recomend', 'best hospital', 'find hospital', 'hospital for',
-            'hospital of', 'where should i go', 'need a hospital', 'suggest', 'looking for hospital',
-            'prefer', 'find me', 'show me', 'hospital', 'hospitals', 'clinic', 'clinics'
-        ];
-        const medicalKeywords = [
-            'chest pain', 'heart', 'kidney', 'cancer', 'ortho', 'surgery', 'diabetes', 'sugar',
-            'neuro', 'neurology', 'brain', 'eye', 'dental', 'teeth', 'skin', 'derma', 'stomach',
-            'gastro', 'pediatric', 'child', 'baby', 'maternity', 'gynecology', 'women', 'ent',
-            'ear', 'nose', 'throat', 'lung', 'asthma', 'breathing', 'fever', 'infection'
-        ];
+        // 1. Check for Information Intents
+        let isInfoQuery = false;
+        if (intent === 'medical.info' && nlpScore > 0.5) {
+            isInfoQuery = true;
+        } else {
+            const infoKeywords = [
+                'what is', 'what are', 'how to', 'how do', 'explain', 'tell me about', 'symptoms of', 'cause of', 'definition'
+            ];
+            isInfoQuery = infoKeywords.some(k => queryLower.includes(k));
+        }
 
-        // It is a recommendation IF it contains recKeywords OR (it contains medicalKeywords AND it is NOT a direct information question)
-        const isRecommendation = recKeywords.some(k => queryLower.includes(k)) ||
-            (medicalKeywords.some(k => queryLower.includes(k)) && !isInfoQuery);
+        // 2. Check for Hospital Recommendation Intent
+        let isRecommendation = false;
+        if (intent === 'hospital.recommendation' && nlpScore > 0.5) {
+            isRecommendation = true;
+        } else {
+            const recKeywords = [
+                'recommend', 'recomend', 'best hospital', 'find hospital', 'hospital for',
+                'hospital of', 'where should i go', 'need a hospital', 'suggest', 'looking for hospital',
+                'prefer', 'find me', 'show me', 'hospital', 'hospitals', 'clinic', 'clinics'
+            ];
+            const medicalKeywords = [
+                'chest pain', 'heart', 'kidney', 'cancer', 'ortho', 'surgery', 'diabetes', 'sugar',
+                'neuro', 'neurology', 'brain', 'eye', 'dental', 'teeth', 'skin', 'derma', 'stomach',
+                'gastro', 'pediatric', 'child', 'baby', 'maternity', 'gynecology', 'women', 'ent',
+                'ear', 'nose', 'throat', 'lung', 'asthma', 'breathing', 'fever', 'infection'
+            ];
+            isRecommendation = recKeywords.some(k => queryLower.includes(k)) ||
+                (medicalKeywords.some(k => queryLower.includes(k)) && !isInfoQuery);
+        }
 
         let recsResponse = null;
         if (isRecommendation) {
@@ -119,48 +164,34 @@ exports.ask = async (req, res) => {
             }
         }
 
-        // 2. If it's not a recommendation intent, bypass static KB and use Google Gemini!
-        if (!process.env.GEMINI_API_KEY) {
+        // 2. If it's not a recommendation intent, check the static Medical KB using Fuse.js
+        const Fuse = require('fuse.js');
+        const fuse = new Fuse(MEDICAL_KB, {
+            keys: ['keywords'],
+            includeScore: true,
+            threshold: 0.4, // Lower threshold = more strict. 0.4 allows for typos like "daibetes"
+            ignoreLocation: true // Match keyword anywhere in the query
+        });
+
+        const searchResults = fuse.search(queryLower);
+        let bestMatch = searchResults.length > 0 ? searchResults[0].item : null;
+
+        if (bestMatch) {
             return res.json({
                 type: 'medical_info',
-                answer: "I am MediBot. (Gemini API Key missing). To book an appointment, go to your Patient Dashboard.",
-                category: 'General Info',
-                severity: 'info'
+                answer: bestMatch.answer,
+                category: bestMatch.category,
+                severity: bestMatch.severity
             });
         }
 
-        try {
-            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-            const prompt = `You are MediBot, an expert AI Healthcare Assistant for the 'MediCare Plus' hospital booking platform.
-User query: "${query}"
-
-Guidelines:
-1. Provide a concise, empathetic, and medically accurate response (keep it under 3 short paragraphs).
-2. Use Markdown formatting (bolding, bullet points) and emojis to make it readable.
-3. If they ask about platform features (like "how many hospitals", "how to book"), instruct them to use the "Hospital Search" or "Find Doctors" tabs in their dashboard.
-4. If providing health advice, subtly include a disclaimer that you are an AI and they should consult a doctor on our platform for serious issues.`;
-
-            const result = await model.generateContent(prompt);
-            const responseText = result.response.text();
-
-            return res.json({
-                type: 'medical_info',
-                answer: responseText,
-                category: 'AI Assistant',
-                severity: 'info'
-            });
-
-        } catch (geminiError) {
-            console.error('Gemini API Error:', geminiError);
-            return res.json({
-                type: 'medical_info',
-                answer: "I'm sorry, my AI processing engine is currently experiencing high load. Please try asking your question again in a moment.",
-                category: 'System Error',
-                severity: 'caution'
-            });
-        }
+        // 3. Fallback if no match found
+        return res.json({
+            type: 'medical_info',
+            answer: "🤖 I'm sorry, I don't have information on that specific medical topic in my database. Please consult a doctor for accurate medical advice.",
+            category: 'General Info',
+            severity: 'info'
+        });
 
     } catch (err) {
         console.error('Chatbot Controller Error:', err);

@@ -16,6 +16,7 @@ import AdminDashboard from '../pages/AdminDashboard';
 import DriverDashboard from '../pages/DriverDashboard';
 import HospitalSearch from '../pages/HospitalSearch';
 import HospitalDetails from '../pages/HospitalDetails';
+import Doctors from '../pages/Doctors';
 import DoctorDetails from '../pages/DoctorDetails';
 import AmbulanceServices from '../pages/AmbulanceServices';
 import LabTests from '../pages/LabTests';
@@ -32,6 +33,7 @@ const AnimatedRoutes = () => {
                 <Route path="/" element={<PageTransition><Navbar /><Home /></PageTransition>} />
                 <Route path="/hospitals" element={<PageTransition><Navbar /><HospitalSearch /></PageTransition>} />
                 <Route path="/hospitals/:id" element={<PageTransition><Navbar /><HospitalDetails /></PageTransition>} />
+                <Route path="/doctors" element={<PageTransition><Navbar /><Doctors /></PageTransition>} />
                 <Route path="/doctors/:id" element={<PageTransition><Navbar /><DoctorDetails /></PageTransition>} />
                 <Route path="/ambulance" element={<PageTransition><Navbar /><AmbulanceServices /></PageTransition>} />
                 <Route path="/lab-tests" element={<PageTransition><Navbar /><LabTests /></PageTransition>} />

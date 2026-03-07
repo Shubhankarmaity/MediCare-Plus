@@ -251,7 +251,7 @@ const SuperAdminDashboard = () => {
                             <ArrowLeft />
                         </IconButton>
                     )}
-                    <Typography variant="h4" fontWeight="bold" className="text-gray-800 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                    <Typography variant="h4" fontWeight="bold" className="text-primary-navy">
                         {view === 'hospital_detail' ? selectedHospital?.name : 'Global Overview'}
                     </Typography>
                 </div>
@@ -699,7 +699,7 @@ const SuperAdminDashboard = () => {
                     sx: { borderRadius: 3, overflow: 'hidden' }
                 }}
             >
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 text-white flex justify-between items-center">
+                <div className="bg-primary-navy p-5 text-white flex justify-between items-center">
                     <div>
                         <Typography variant="h5" fontWeight="bold">Add New Hospital</Typography>
                         <Typography variant="body2" sx={{ opacity: 0.8 }}>Register a new hospital in the network</Typography>

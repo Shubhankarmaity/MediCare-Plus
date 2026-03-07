@@ -113,17 +113,17 @@ const Login = () => {
           <span className="text-sm font-medium">Back to Home</span>
         </Link>
 
-        <div className="absolute inset-0 bg-gradient-to-br from-sky-600/90 to-indigo-900/90 z-10" />
+        <div className="absolute inset-0 bg-primary-navy/95 z-10" />
         <img
           src={hospitalImg}
           alt="Hospital Building"
-          className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-overlay"
+          className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay"
           onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1538108149393-fbbd81895907?auto=format&fit=crop&q=80&w=2000" }} // Fallback image
         />
 
         <div className="relative z-20 flex flex-col justify-between h-full p-12 text-white">
           <div className="flex items-center gap-2 mt-12">
-            <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+            <div className="bg-white/10 p-2 rounded-md backdrop-blur-sm border border-white/20">
               <HeartPulse className="w-8 h-8 text-white" />
             </div>
             <span className="text-2xl font-bold tracking-tight">MediCare Plus</span>
@@ -132,7 +132,7 @@ const Login = () => {
           <div className="space-y-6 max-w-lg">
             <h1 className="text-5xl font-bold leading-tight">
               Advanced Healthcare, <br />
-              <span className="text-sky-300">Simplified.</span>
+              <span className="text-muted-teal">Simplified.</span>
             </h1>
             <p className="text-lg text-slate-200 leading-relaxed">
               Experience the future of medical management. Secure, efficient, and designed for healthcare professionals and patients alike.
@@ -167,15 +167,15 @@ const Login = () => {
 
           <div className="text-center lg:text-left">
             <div className="inline-flex lg:hidden items-center gap-2 mb-8 justify-center">
-              <div className="bg-sky-600 p-2 rounded-lg">
+              <div className="bg-primary-blue p-2 rounded-md">
                 <HeartPulse className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold text-slate-900">MediCare Plus</span>
+              <span className="text-xl font-bold text-primary-navy">MediCare Plus</span>
             </div>
-            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+            <h2 className="heading-h2 tracking-tight">
               {step === 1 ? "Welcome back" : "Verify Email"}
             </h2>
-            <p className="mt-2 text-slate-600">
+            <p className="mt-2 text-body-gray">
               {step === 1 ? "Please enter your details to sign in." : `Enter the OTP sent to ${emailToVerify}`}
             </p>
           </div>
@@ -194,16 +194,16 @@ const Login = () => {
           {step === 1 ? (
             // LOGIN FORM
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-1">
-                <label className="text-sm font-semibold text-slate-700 ml-1">Email Address</label>
+              <div className="form-group">
+                <label className="form-label">Email Address</label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-slate-400 group-focus-within:text-sky-600 transition-colors" />
+                    <Mail className="h-5 w-5 text-slate-400 group-focus-within:text-primary-blue transition-colors" />
                   </div>
                   <input
                     type="email"
                     required
-                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm"
+                    className="block w-full pl-10 pr-3 py-3 border border-divider-gray rounded-md leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-primary-blue focus:border-primary-blue transition-all duration-200 sm:text-sm"
                     placeholder="Enter your email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -211,16 +211,16 @@ const Login = () => {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-semibold text-slate-700 ml-1">Password</label>
+              <div className="form-group">
+                <label className="form-label">Password</label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-sky-600 transition-colors" />
+                    <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-primary-blue transition-colors" />
                   </div>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    className="block w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all duration-200 sm:text-sm"
+                    className="block w-full pl-10 pr-10 py-3 border border-divider-gray rounded-md leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-primary-blue focus:border-primary-blue transition-all duration-200 sm:text-sm"
                     placeholder="Enter your password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -239,21 +239,21 @@ const Login = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mt-6">
                 <div className="flex items-center">
                   <input
                     id="remember-me"
                     name="remember-me"
                     type="checkbox"
-                    className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-gray-300 rounded cursor-pointer"
+                    className="h-4 w-4 text-primary-blue focus:ring-primary-blue border-divider-gray rounded cursor-pointer"
                   />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-600 cursor-pointer select-none">
+                  <label htmlFor="remember-me" className="ml-2 block text-sm text-body-gray cursor-pointer select-none">
                     Remember me
                   </label>
                 </div>
 
                 <div className="text-sm">
-                  <Link to="/forgot-password" className="font-medium text-sky-600 hover:text-sky-500 transition-colors">
+                  <Link to="/forgot-password" className="font-semibold text-primary-blue hover:text-primary-navy transition-colors">
                     Forgot password?
                   </Link>
                 </div>
@@ -262,10 +262,10 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-[0.98] cursor-pointer"
+                className="btn-primary w-full py-3 mt-4"
               >
                 {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
                 ) : (
                   'Sign in'
                 )}
@@ -287,10 +287,10 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                className="btn-primary w-full py-3"
               >
                 {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
                 ) : (
                   'Verify Account'
                 )}
@@ -298,7 +298,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="w-full text-slate-500 hover:text-slate-700 text-sm font-medium"
+                className="w-full text-body-gray hover:text-primary-navy text-sm font-medium"
               >
                 Back to Login
               </button>
@@ -308,19 +308,19 @@ const Login = () => {
           {step === 1 && (
             <div className="relative my-8">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200"></div>
+                <div className="w-full border-t border-divider-gray"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-slate-500">Or continue with</span>
+                <span className="px-2 bg-slate-50 text-body-gray">Or continue with</span>
               </div>
             </div>
           )}
 
           {step === 1 && (
             <div className="mt-8 text-center">
-              <p className="text-slate-600 text-sm">
+              <p className="text-body-gray text-sm">
                 Don't have an account?{' '}
-                <Link to="/signup" className="font-bold text-sky-600 hover:text-sky-500 transition-colors inline-flex items-center gap-1 group">
+                <Link to="/signup" className="font-bold text-primary-blue hover:text-primary-navy transition-colors inline-flex items-center gap-1 group">
                   Create Account
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>

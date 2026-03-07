@@ -10,15 +10,16 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
     "axios": "^1.13.5",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^5.1.0",
+    "fuse.js": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.20.0",
     "multer": "^2.0.2",
+    "node-nlp": "^5.0.0-alpha.5",
     "nodemailer": "^6.9.0",
     "socket.io": "^4.8.1"
   }

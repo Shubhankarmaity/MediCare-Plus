@@ -125,7 +125,7 @@ const HospitalRecommendWizard = ({ onSelect, onClose }) => {
                 className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
             >
                 {/* ── Header ── */}
-                <div className="bg-gradient-to-br from-indigo-700 via-sky-700 to-indigo-900 px-8 py-7 flex items-center justify-between shrink-0 relative overflow-hidden">
+                <div className="bg-primary-navy px-8 py-7 flex items-center justify-between shrink-0 relative overflow-hidden">
                     <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]" />
                     <div className="relative z-10 flex items-center gap-4">
                         <div className="bg-white/10 p-2.5 rounded-2xl backdrop-blur-md border border-white/20 shadow-xl">
@@ -429,13 +429,13 @@ const HospitalRecommendWizard = ({ onSelect, onClose }) => {
                                     </div>
                                 ) : results.map((hosp, idx) => {
                                     const isSelected = selected === hosp.hospitalId;
-                                    const rankGradient = [
-                                        'from-amber-400 to-orange-500 text-white',
-                                        'from-slate-300 to-slate-400 text-white',
-                                        'from-orange-400 to-amber-700 text-white',
-                                        'from-slate-100 to-slate-200 text-slate-400',
-                                        'from-slate-100 to-slate-200 text-slate-400'
-                                    ][idx] || 'from-slate-50 to-slate-100 text-slate-400';
+                                    const rankColor = [
+                                        'bg-amber-500 text-white',
+                                        'bg-slate-400 text-white',
+                                        'bg-orange-600 text-white',
+                                        'bg-slate-200 text-slate-500',
+                                        'bg-slate-200 text-slate-500'
+                                    ][idx] || 'bg-slate-100 text-slate-400';
 
                                     return (
                                         <motion.div key={hosp.hospitalId}
@@ -450,7 +450,7 @@ const HospitalRecommendWizard = ({ onSelect, onClose }) => {
                                             <div className="flex items-start justify-between gap-4 mb-6">
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2 mb-2">
-                                                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold bg-gradient-to-br ${rankGradient}`}>
+                                                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold ${rankColor}`}>
                                                             {idx + 1}
                                                         </div>
                                                         <h4 className="font-extrabold text-slate-900 text-lg leading-tight group-hover:text-sky-600 transition-colors">
@@ -592,7 +592,7 @@ const HospitalRecommendWizard = ({ onSelect, onClose }) => {
                                 </button>
                             ) : (
                                 <button onClick={handleSubmit} disabled={loading || !canNext()}
-                                    className="flex items-center gap-2 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 disabled:opacity-40 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-sky-200">
+                                    className="btn-primary flex items-center gap-2 text-sm border-none px-6 py-2.5">
                                     {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Analysing…</> : <><HeartPulse className="w-4 h-4" /> Find Best Hospitals</>}
                                 </button>
                             )}

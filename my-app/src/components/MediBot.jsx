@@ -273,11 +273,11 @@ const ChatMessage = ({ msg, navigate, closeChat }) => {
     return (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
             className={`flex gap-2 ${isBot ? 'items-start' : 'items-end flex-row-reverse'}`}>
-            <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-white ${isBot ? 'bg-gradient-to-br from-sky-500 to-indigo-600' : 'bg-gradient-to-br from-emerald-500 to-teal-600'}`}>
+            <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-white ${isBot ? 'bg-primary-blue' : 'bg-primary-navy'}`}>
                 {isBot ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
             </div>
             <div className={`max-w-[86%] ${isBot ? '' : 'items-end flex flex-col'}`}>
-                <div className={`rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-line ${isBot ? 'bg-white border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm' : 'bg-gradient-to-br from-sky-500 to-indigo-600 text-white rounded-tr-sm'}`}>
+                <div className={`rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-line ${isBot ? 'bg-white border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm' : 'bg-primary-blue text-white rounded-tr-sm'}`}>
                     {isBot && msg.severity && <SeverityBadge severity={msg.severity} />}
                     {isBot && msg.category && <div className="text-xs text-sky-600 font-semibold mb-1 flex items-center gap-1"><Stethoscope className="w-3 h-3" /> {msg.category}</div>}
                     {renderText(msg.text)}
@@ -525,7 +525,7 @@ const MediBot = () => {
             {/* FAB Trigger */}
             <motion.button onClick={() => setOpen(o => !o)}
                 whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
-                className="fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-xl shadow-sky-500/40 flex items-center justify-center"
+                className="fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full bg-primary-blue text-white shadow-xl flex items-center justify-center"
                 aria-label="Open MediBot">
                 <AnimatePresence mode="wait">
                     {open
@@ -548,7 +548,7 @@ const MediBot = () => {
                         style={{ maxHeight: 'min(640px, calc(100vh - 120px))' }}>
 
                         {/* Header */}
-                        <div className="bg-gradient-to-r from-sky-500 to-indigo-600 px-4 py-3 flex items-center justify-between">
+                        <div className="bg-primary-navy px-4 py-3 flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                                 <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center"><Bot className="w-5 h-5 text-white" /></div>
                                 <div>
@@ -582,7 +582,7 @@ const MediBot = () => {
 
                         {/* Personalized Health Summary Banner */}
                         {isPatient && healthSummary && healthSummary.hasSummary && (
-                            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-emerald-100 px-4 py-2">
+                            <div className="bg-slate-50 border-b border-slate-200 px-4 py-2">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <HeartPulse className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                     <span className="text-xs text-emerald-700 font-semibold">
@@ -609,7 +609,7 @@ const MediBot = () => {
                             ))}
                             {loading && (
                                 <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white shrink-0"><Bot className="w-4 h-4" /></div>
+                                    <div className="w-7 h-7 rounded-full bg-primary-blue flex items-center justify-center text-white shrink-0"><Bot className="w-4 h-4" /></div>
                                     <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
                                         <div className="flex items-center gap-1.5">
                                             {[0, 150, 300].map(d => <span key={d} className="w-2 h-2 bg-sky-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
@@ -642,7 +642,7 @@ const MediBot = () => {
                                 style={{ minHeight: '24px' }}
                             />
                             <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleSend()} disabled={!input.trim() || loading}
-                                className="shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-white flex items-center justify-center disabled:opacity-40">
+                                className="shrink-0 w-9 h-9 rounded-full bg-primary-blue text-white flex items-center justify-center disabled:opacity-40">
                                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                             </motion.button>
                         </div>

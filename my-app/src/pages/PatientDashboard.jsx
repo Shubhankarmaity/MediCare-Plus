@@ -12,17 +12,31 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ChatWindow from '../components/ChatWindow';
 import VideoCall from '../components/VideoCall';
+import AIDecisionSupport from '../components/AIDecisionSupport';
 import HealthVitals from '../components/HealthVitals';
 import PrescriptionManager from '../components/PrescriptionManager';
 import PatientSettings from '../components/PatientSettings';
 import PatientPaymentHistory from '../components/PatientPaymentHistory';
 import { API_URL } from '../config';
-import { Settings, CreditCard } from 'lucide-react';
+import { Settings, CreditCard, Brain } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import io from 'socket.io-client';
 
 const PatientDashboard = () => {
   // ... existing state
+
+  // Custom Appointment Booking State
+  const [bookingStep, setBookingStep] = useState(1);
+  const [intakeForm, setIntakeForm] = useState({
+    patientName: '',
+    email: '',
+    phone: '',
+    date: '',
+    timeSlot: '',
+    symptoms: '',
+    isEmergency: false
+  });
+  const [intakeErrors, setIntakeErrors] = useState({});
 
   // Video Call State
   const [receivingCall, setReceivingCall] = useState(false);
@@ -122,6 +136,7 @@ const PatientDashboard = () => {
     { label: "Messages", icon: <MessageCircle size={20} />, index: 8 },
     { label: "Payments", icon: <CreditCard size={20} />, index: 9 },
     { label: "Settings", icon: <Settings size={20} />, index: 10 },
+    { label: "AI Health Check", icon: <Brain size={20} />, index: 11 },
   ];
 
   const handleTabChange = (event, newValue) => {
@@ -270,22 +285,62 @@ const PatientDashboard = () => {
 
   // 1. Doctor Booking Logic
   const handleBookingClick = (doctor) => {
+    setBookingStep(1);
+    setIntakeForm(prev => ({
+      ...prev,
+      patientName: user?.name || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      date: '',
+      timeSlot: '',
+      symptoms: '',
+      isEmergency: false
+    }));
+    setIntakeErrors({});
     setConfirmDialog({ open: true, doctor });
   };
 
+  const handleIntakeChange = (field, value) => {
+    setIntakeForm(prev => ({ ...prev, [field]: value }));
+    if (intakeErrors[field]) {
+      setIntakeErrors(prev => ({ ...prev, [field]: null }));
+    }
+  };
+
+  const validateStep = () => {
+    const errors = {};
+    if (bookingStep === 1) {
+      if (!intakeForm.patientName) errors.patientName = 'Full Name is required';
+      if (!intakeForm.phone) errors.phone = 'Phone number is required';
+    } else if (bookingStep === 2) {
+      if (!intakeForm.symptoms) errors.symptoms = 'Please describe your symptoms';
+    } else if (bookingStep === 3) {
+      if (!intakeForm.date) errors.date = 'Please select a date';
+      if (!intakeForm.timeSlot) errors.timeSlot = 'Please select a preferred time slot';
+    }
+
+    setIntakeErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const confirmBooking = async () => {
+    if (!validateStep()) return;
+
     const doctor = confirmDialog.doctor;
     setBooking(true);
 
     const token = localStorage.getItem('token');
-    // Remove the user.name from the request body since it's fetched from the token on the backend
+
+    // Structure notes to include symptoms, emergency status and preferred time slot
+    const professionalNotes = `Symptoms: ${intakeForm.symptoms}\nPreferred Time: ${intakeForm.timeSlot}\nEmergency: ${intakeForm.isEmergency ? 'YES' : 'NO'}\nPhone: ${intakeForm.phone}`;
 
     const res = await fetch(`${API_URL}/api/appointments/book`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
         doctorId: doctor._id,
-        date: new Date().toISOString()
+        date: new Date(intakeForm.date).toISOString(),
+        notes: professionalNotes
       })
     });
 
@@ -507,8 +562,8 @@ const PatientDashboard = () => {
                   whileHover={{ scale: 1.02, x: 5 }}
                   whileTap={{ scale: 0.98 }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors duration-200 text-sm font-medium ${tabValue === item.index
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md shadow-blue-200'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-blue-600'
+                    ? 'bg-primary-blue text-white shadow-sm'
+                    : 'text-body-gray hover:bg-slate-50 hover:text-primary-navy'
                     }`}
                 >
                   {item.icon}
@@ -535,7 +590,7 @@ const PatientDashboard = () => {
                 <Grid container spacing={3} mb={4}>
                   {/* Welcome Banner */}
                   <Grid size={{ xs: 12 }}>
-                    <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-8 text-white relative overflow-hidden shadow-lg">
+                    <div className="bg-primary-navy rounded-2xl p-8 text-white relative overflow-hidden shadow-sm">
                       <div className="relative z-10">
                         <Typography variant="h4" fontWeight="bold" gutterBottom>
                           Welcome back, {user?.name?.split(' ')[0]}! 👋
@@ -1034,7 +1089,7 @@ const PatientDashboard = () => {
                                       </div>
 
                                       {/* Report Header */}
-                                      <div className="bg-gradient-to-r from-blue-600 to-teal-600 p-6 rounded-xl border border-blue-200 shadow-lg">
+                                      <div className="bg-primary-navy p-6 rounded-xl border border-divider-gray shadow-sm">
                                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                                           <div className="flex items-center gap-4">
                                             <div className="bg-white/20 p-3 rounded-full">
@@ -1327,26 +1382,205 @@ const PatientDashboard = () => {
               )}
 
               {/* Confirm Doctor Booking Dialog */}
-              <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false, doctor: null })}>
-                <DialogTitle>Confirm Appointment</DialogTitle>
-                <DialogContent>
-                  <Typography>
-                    Are you sure you want to book an appointment with <strong>{confirmDialog.doctor?.name}</strong>?
-                  </Typography>
+              {/* MULTI-STEP APPOINTMENT BOOKING MODAL */}
+              <Dialog
+                open={confirmDialog.open}
+                onClose={() => setConfirmDialog({ open: false, doctor: null })}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+              >
+                <DialogTitle sx={{ pb: 1, borderBottom: '1px solid #f1f5f9' }}>
+                  <div className="flex justify-between items-center">
+                    <Typography variant="h5" fontWeight="bold" className="text-slate-800">
+                      Patient Intake Form
+                    </Typography>
+                    {confirmDialog.doctor && (
+                      <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
+                        <Stethoscope size={16} />
+                        Dr. {confirmDialog.doctor.name.split(' ')[1] || confirmDialog.doctor.name}
+                      </div>
+                    )}
+                  </div>
+                  {/* Custom Stepper */}
+                  <div className="flex items-center mt-6 mb-2">
+                    {[1, 2, 3].map((step) => (
+                      <React.Fragment key={step}>
+                        <div className="flex flex-col items-center relative z-10">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${bookingStep === step ? 'bg-blue-600 text-white shadow-md' :
+                            bookingStep > step ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'
+                            }`}>
+                            {bookingStep > step ? <CheckCircle size={16} /> : step}
+                          </div>
+                          <span className={`text-xs mt-1 font-semibold ${bookingStep >= step ? 'text-slate-800' : 'text-slate-400'}`}>
+                            {step === 1 ? 'Patient Info' : step === 2 ? 'Medical Details' : 'Scheduling'}
+                          </span>
+                        </div>
+                        {step < 3 && (
+                          <div className={`flex-grow h-1 mx-2 rounded-full transition-colors ${bookingStep > step ? 'bg-green-500' : 'bg-slate-200'
+                            }`} />
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </DialogTitle>
+
+                <DialogContent sx={{ mt: 3, minHeight: '300px' }}>
+                  {bookingStep === 1 && (
+                    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">Full Patient Name <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all ${intakeErrors.patientName ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-slate-50 focus:bg-white'}`}
+                          value={intakeForm.patientName}
+                          onChange={(e) => handleIntakeChange('patientName', e.target.value)}
+                          placeholder="John Doe"
+                        />
+                        {intakeErrors.patientName && <p className="text-red-500 text-xs mt-1">{intakeErrors.patientName}</p>}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
+                          <input
+                            type="tel"
+                            className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all ${intakeErrors.phone ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-slate-50 focus:bg-white'}`}
+                            value={intakeForm.phone}
+                            onChange={(e) => handleIntakeChange('phone', e.target.value)}
+                            placeholder="+1 (555) 000-0000"
+                          />
+                          {intakeErrors.phone && <p className="text-red-500 text-xs mt-1">{intakeErrors.phone}</p>}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-1">Email Address</label>
+                          <input
+                            type="email"
+                            className="w-full p-3 border border-slate-300 bg-slate-50 focus:bg-white rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                            value={intakeForm.email}
+                            onChange={(e) => handleIntakeChange('email', e.target.value)}
+                            placeholder="john@example.com"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {bookingStep === 2 && (
+                    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">Describe Your Symptoms <span className="text-red-500">*</span></label>
+                        <textarea
+                          rows={4}
+                          className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all ${intakeErrors.symptoms ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-slate-50 focus:bg-white'}`}
+                          value={intakeForm.symptoms}
+                          onChange={(e) => handleIntakeChange('symptoms', e.target.value)}
+                          placeholder="Briefly describe what you are experiencing..."
+                        />
+                        {intakeErrors.symptoms && <p className="text-red-500 text-xs mt-1">{intakeErrors.symptoms}</p>}
+                      </div>
+
+                      <div className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex items-start gap-3 ${intakeForm.isEmergency ? 'border-red-500 bg-red-50' : 'border-slate-200 hover:border-red-200'}`} onClick={() => handleIntakeChange('isEmergency', !intakeForm.isEmergency)}>
+                        <div className="mt-0.5">
+                          <input
+                            type="checkbox"
+                            className="w-5 h-5 accent-red-600 rounded cursor-pointer"
+                            checked={intakeForm.isEmergency}
+                            readOnly
+                          />
+                        </div>
+                        <div>
+                          <p className={`font-bold ${intakeForm.isEmergency ? 'text-red-700' : 'text-slate-700'}`}>This is an Emergency</p>
+                          <p className="text-sm text-slate-500">Check this box if your condition is severe. Note: our system will flag this for priority review.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {bookingStep === 3 && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">Select Date <span className="text-red-500">*</span></label>
+                        <input
+                          type="date"
+                          min={new Date().toISOString().split('T')[0]}
+                          className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-700 transition-all ${intakeErrors.date ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-slate-50 focus:bg-white'}`}
+                          value={intakeForm.date}
+                          onChange={(e) => handleIntakeChange('date', e.target.value)}
+                        />
+                        {intakeErrors.date && <p className="text-red-500 text-xs mt-1">{intakeErrors.date}</p>}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-3">Preferred Time Slot <span className="text-red-500">*</span></label>
+                        <div className="grid grid-cols-3 gap-3">
+                          {['Morning', 'Afternoon', 'Evening'].map((slot) => (
+                            <button
+                              key={slot}
+                              type="button"
+                              onClick={() => handleIntakeChange('timeSlot', slot)}
+                              className={`py-3 px-2 rounded-xl border text-sm font-bold transition-all ${intakeForm.timeSlot === slot
+                                ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
+                                : 'border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-slate-50'
+                                }`}
+                            >
+                              {slot}
+                            </button>
+                          ))}
+                        </div>
+                        {intakeErrors.timeSlot && <p className="text-red-500 text-xs mt-1 block">{intakeErrors.timeSlot}</p>}
+                      </div>
+
+                      <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex gap-3 items-start">
+                        <AlertTriangle className="text-blue-600 shrink-0" size={20} />
+                        <p className="text-sm text-blue-800">
+                          By confirming, your intake form will be sent directly to <b>Dr. {confirmDialog.doctor?.name.split(' ')[1] || confirmDialog.doctor?.name}</b> for immediate review.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </DialogContent>
-                <DialogActions>
-                  <Button onClick={() => setConfirmDialog({ open: false, doctor: null })} autoFocus>Cancel</Button>
-                  <Button
-                    onClick={confirmBooking}
-                    variant="contained"
-                    color="primary"
-                    disabled={booking}
-                  >
-                    {booking ? <CircularProgress size={24} /> : 'Confirm Booking'}
-                  </Button>
+
+                <DialogActions sx={{ p: 3, pt: 0, borderTop: '1px solid #f1f5f9', mt: 2 }}>
+                  {bookingStep > 1 && (
+                    <Button
+                      onClick={() => setBookingStep(step => step - 1)}
+                      color="inherit"
+                      variant="text"
+                      sx={{ mr: 'auto', fontWeight: 'bold' }}
+                    >
+                      Back
+                    </Button>
+                  )}
+                  {bookingStep === 1 && (
+                    <Button onClick={() => setConfirmDialog({ open: false, doctor: null })} color="inherit" sx={{ mr: 'auto', fontWeight: 'bold' }}>
+                      Cancel
+                    </Button>
+                  )}
+
+                  {bookingStep < 3 ? (
+                    <Button
+                      onClick={() => {
+                        if (validateStep()) setBookingStep(step => step + 1);
+                      }}
+                      variant="contained"
+                      color="primary"
+                      sx={{ px: 4, py: 1, borderRadius: 2, fontWeight: 'bold' }}
+                    >
+                      Continue
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={confirmBooking}
+                      variant="contained"
+                      color="primary"
+                      disabled={booking}
+                      sx={{ px: 4, py: 1, borderRadius: 2, fontWeight: 'bold' }}
+                    >
+                      {booking ? <CircularProgress size={24} color="inherit" /> : `Confirm Appointment`}
+                    </Button>
+                  )}
                 </DialogActions>
               </Dialog>
-
               {/* Confirm Ambulance Booking Dialog */}
               <Dialog open={ambulanceDialog.open} onClose={() => setAmbulanceDialog({ open: false, driver: null })}>
                 <DialogTitle>Confirm Ambulance Request</DialogTitle>
@@ -1417,6 +1651,18 @@ const PatientDashboard = () => {
                     />
                   )}
                 </>
+              )}
+
+              {/* TAB 11: AI DECISION SUPPORT */}
+              {tabValue === 11 && (
+                <Grid container spacing={3}>
+                  <Grid item xs={12}>
+                    <AIDecisionSupport
+                      doctors={doctors}
+                      onBookAppointment={handleBookingClick}
+                    />
+                  </Grid>
+                </Grid>
               )}
 
             </motion.div>
