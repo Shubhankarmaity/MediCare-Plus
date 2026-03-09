@@ -333,7 +333,7 @@ const DoctorDashboard = () => {
                   <div className="space-y-3">
                     {todayAppointments
                       .sort((a, b) => (a.assignedTimeSlot || '').localeCompare(b.assignedTimeSlot || ''))
-                      .map((appt, i) => (
+                      .map((appt) => (
                         <div key={appt._id} className={`p-4 rounded-xl border-2 flex flex-col md:flex-row md:items-center justify-between ${appt.isEmergency ? 'bg-red-50 border-red-300' : 'bg-blue-50 border-blue-200'}`}>
                           <div className="flex items-center gap-4 mb-3 md:mb-0">
                             <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center text-white font-bold ${appt.isEmergency ? 'bg-red-500' : 'bg-blue-600'}`}>
