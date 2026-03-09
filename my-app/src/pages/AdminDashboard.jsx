@@ -359,6 +359,7 @@ const AdminDashboard = () => {
       socket.off('new_user');
       socket.off('admin_notification');
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) return <div className="flex justify-center mt-20"><CircularProgress /></div>;
