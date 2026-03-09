@@ -13,15 +13,34 @@ const AppointmentSchema = new mongoose.Schema({
     required: true,
     index: true
   },
-  patientName: { type: String, required: true, trim: true },
-  date: { type: Date, required: true, index: true },
-  status: { 
-    type: String, 
-    enum: ['pending', 'approved', 'rejected'], 
-    default: 'pending',
+  hospitalId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Hospital',
     index: true
   },
+  patientName: { type: String, required: true, trim: true },
+  // Patient's preferred date (submitted during booking)
+  preferredDate: { type: Date },
+  preferredTimeSlot: { type: String, trim: true },
+  // Admin-assigned confirmed date & time
+  date: { type: Date, required: true, index: true },
+  assignedTimeSlot: { type: String, trim: true },
+  status: { 
+    type: String, 
+    enum: ['requested', 'approved', 'rejected', 'cancelled', 'completed', 'pending'], 
+    default: 'requested',
+    index: true
+  },
+  // Structured patient info
+  symptoms: { type: String, trim: true },
+  isEmergency: { type: Boolean, default: false },
+  patientPhone: { type: String, trim: true },
   notes: { type: String, trim: true },
+  // Admin assignment fields
+  assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  adminNotes: { type: String, trim: true },
+  assignedAt: { type: Date },
+  rejectionReason: { type: String, trim: true },
   // Doctor's report for the patient
   doctorReport: {
     diagnosis: { type: String, trim: true },
@@ -41,5 +60,6 @@ const AppointmentSchema = new mongoose.Schema({
 // Compound index for faster queries
 AppointmentSchema.index({ doctorId: 1, status: 1 });
 AppointmentSchema.index({ patientId: 1, createdAt: -1 });
+AppointmentSchema.index({ hospitalId: 1, status: 1 });
 
 module.exports = mongoose.model('Appointment', AppointmentSchema);

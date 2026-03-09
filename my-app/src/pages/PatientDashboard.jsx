@@ -13,12 +13,13 @@ import html2canvas from 'html2canvas';
 import ChatWindow from '../components/ChatWindow';
 import VideoCall from '../components/VideoCall';
 import AIDecisionSupport from '../components/AIDecisionSupport';
+import HealthSummaryPanel from '../components/HealthSummaryPanel';
 import HealthVitals from '../components/HealthVitals';
 import PrescriptionManager from '../components/PrescriptionManager';
 import PatientSettings from '../components/PatientSettings';
 import PatientPaymentHistory from '../components/PatientPaymentHistory';
 import { API_URL } from '../config';
-import { Settings, CreditCard, Brain } from 'lucide-react';
+import { Settings, CreditCard, Brain, HeartPulse } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import io from 'socket.io-client';
 
@@ -137,6 +138,7 @@ const PatientDashboard = () => {
     { label: "Payments", icon: <CreditCard size={20} />, index: 9 },
     { label: "Settings", icon: <Settings size={20} />, index: 10 },
     { label: "AI Health Check", icon: <Brain size={20} />, index: 11 },
+    { label: "Health Summary", icon: <HeartPulse size={20} />, index: 12 },
   ];
 
   const handleTabChange = (event, newValue) => {
@@ -236,16 +238,46 @@ const PatientDashboard = () => {
 
   // Real-time: refresh doctor list when a new doctor is approved
   useEffect(() => {
-    const socket = io(API_URL);
-    socket.on('doctor_approved', () => {
+    const socket2 = io(API_URL);
+    socket2.on('doctor_approved', () => {
       const token = localStorage.getItem('token');
       fetch(`${API_URL}/api/doctors`, { headers: { 'Authorization': `Bearer ${token}` } })
         .then(res => res.json())
         .then(data => setDoctors(data))
         .catch(err => console.error('Error refreshing doctors:', err));
     });
-    return () => { socket.off('doctor_approved'); socket.disconnect(); };
+    return () => { socket2.off('doctor_approved'); socket2.disconnect(); };
   }, []);
+
+  // Real-time: listen for appointment status changes (admin assigned, doctor completed)
+  useEffect(() => {
+    if (!user?._id) return;
+    const refreshAppointments = () => {
+      const token = localStorage.getItem('token');
+      fetch(`${API_URL}/api/appointments/my-appointments`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => { if (Array.isArray(data)) setPatientAppointments(data); })
+        .catch(err => console.error('Error refreshing appointments:', err));
+    };
+
+    const handleNotification = (data) => {
+      if (data.type === 'appointment_completed') {
+        setNotify({ open: true, msg: '✅ Your checkup is complete! Doctor\'s report is ready.', type: 'success' });
+        refreshAppointments();
+      } else if (data.type === 'appointment_assigned') {
+        setNotify({ open: true, msg: data.message || 'Your appointment has been confirmed!', type: 'success' });
+        refreshAppointments();
+      } else if (data.type === 'appointment_rejected') {
+        setNotify({ open: true, msg: data.message || 'Your appointment request was declined.', type: 'error' });
+        refreshAppointments();
+      }
+    };
+
+    socket.on(`notification_${user._id}`, handleNotification);
+    return () => { socket.off(`notification_${user._id}`, handleNotification); };
+  }, [user?._id, socket]);
 
   // Refetch appointments when My Reports tab is selected
   useEffect(() => {
@@ -331,16 +363,16 @@ const PatientDashboard = () => {
 
     const token = localStorage.getItem('token');
 
-    // Structure notes to include symptoms, emergency status and preferred time slot
-    const professionalNotes = `Symptoms: ${intakeForm.symptoms}\nPreferred Time: ${intakeForm.timeSlot}\nEmergency: ${intakeForm.isEmergency ? 'YES' : 'NO'}\nPhone: ${intakeForm.phone}`;
-
     const res = await fetch(`${API_URL}/api/appointments/book`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
         doctorId: doctor._id,
         date: new Date(intakeForm.date).toISOString(),
-        notes: professionalNotes
+        symptoms: intakeForm.symptoms,
+        isEmergency: intakeForm.isEmergency,
+        phone: intakeForm.phone,
+        timeSlot: intakeForm.timeSlot
       })
     });
 
@@ -355,7 +387,7 @@ const PatientDashboard = () => {
       const aptData = await aptRes.json();
       setPatientAppointments(aptData);
 
-      setNotify({ open: true, msg: `✅ Appointment booked with ${doctor.name}!`, type: 'success' });
+      setNotify({ open: true, msg: `✅ Appointment request sent for ${doctor.name}! The hospital admin will review and assign a time slot.`, type: 'success' });
     } else {
       // Try to get error message from response
       let errorMsg = 'Booking Failed. Please try again.';
@@ -623,7 +655,7 @@ const PatientDashboard = () => {
                         <div>
                           <Typography color="text.secondary" variant="caption" fontWeight="bold">UPCOMING</Typography>
                           <Typography variant="h6" fontWeight="bold">
-                            {patientAppointments.filter(apt => ['scheduled', 'rescheduled', 'approved'].includes(apt.status)).length} Appointments
+                            {patientAppointments.filter(apt => ['scheduled', 'rescheduled', 'approved', 'requested'].includes(apt.status)).length} Appointments
                           </Typography>
                         </div>
                       </div>
@@ -691,32 +723,38 @@ const PatientDashboard = () => {
                           </div>
                         </CardContent>
                         <CardActions sx={{ p: 2, pt: 0 }}>
-                          <Button
-                            fullWidth
-                            variant="contained"
-                            onClick={() => handleBookingClick(doc)}
-                            disabled={patientAppointments.some(apt =>
-                              apt.doctorId._id === doc._id &&
-                              (apt.status === 'pending' || apt.status === undefined)
-                            )}
-                            sx={{
-                              ...(patientAppointments.some(apt =>
-                                apt.doctorId._id === doc._id &&
-                                (apt.status === 'pending' || apt.status === undefined)
-                              ) && {
-                                bgcolor: 'grey.600',
-                                color: 'grey.300',
-                                '&:hover': {
-                                  bgcolor: 'grey.700'
-                                }
-                              })
-                            }}
-                          >
-                            {patientAppointments.some(apt =>
-                              apt.doctorId._id === doc._id &&
-                              (apt.status === 'pending' || apt.status === undefined)
-                            ) ? "Pending Approval" : "Book Appointment"}
-                          </Button>
+                          {(() => {
+                            const activeApt = patientAppointments.find(apt =>
+                              apt.doctorId?._id === doc._id &&
+                              ['requested', 'pending', 'approved'].includes(apt.status)
+                            );
+                            const isDisabled = !!activeApt;
+                            let label = 'Book Appointment';
+                            let btnColor = {};
+                            if (activeApt?.status === 'requested' || activeApt?.status === 'pending') {
+                              label = '⏳ Awaiting Admin Approval';
+                              btnColor = { bgcolor: '#f59e0b', color: 'white', '&:hover': { bgcolor: '#d97706' }, '&.Mui-disabled': { bgcolor: '#fbbf24', color: 'white' } };
+                            } else if (activeApt?.status === 'approved') {
+                              label = `✅ Confirmed — ${activeApt.assignedTimeSlot ? new Date(activeApt.date).toLocaleDateString() + ' at ' + activeApt.assignedTimeSlot : 'Scheduled'}`;
+                              btnColor = { bgcolor: '#059669', color: 'white', '&:hover': { bgcolor: '#047857' }, '&.Mui-disabled': { bgcolor: '#10b981', color: 'white' } };
+                            }
+                            return (
+                              <Button
+                                fullWidth
+                                variant="contained"
+                                onClick={() => handleBookingClick(doc)}
+                                disabled={isDisabled}
+                                sx={{
+                                  borderRadius: 2,
+                                  fontWeight: 'bold',
+                                  py: 1,
+                                  ...btnColor
+                                }}
+                              >
+                                {label}
+                              </Button>
+                            );
+                          })()}
                         </CardActions>
                       </Card>
                     </Grid>
@@ -739,47 +777,80 @@ const PatientDashboard = () => {
                           <Calendar className="text-blue-600" size={20} /> Upcoming
                         </Typography>
 
-                        {patientAppointments.filter(apt => ['pending', 'approved'].includes(apt.status)).length === 0 ? (
+                        {patientAppointments.filter(apt => ['requested', 'pending', 'approved'].includes(apt.status)).length === 0 ? (
                           <Typography color="text.secondary" align="center" py={4}>No upcoming appointments.</Typography>
                         ) : (
                           <div className="space-y-4">
                             {patientAppointments
-                              .filter(apt => ['pending', 'approved'].includes(apt.status))
+                              .filter(apt => ['requested', 'pending', 'approved'].includes(apt.status))
                               .map(apt => (
-                                <Card key={apt._id} elevation={0} sx={{ bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #f3f4f6' }}>
-                                  <CardContent sx={{ p: 2 }}>
+                                <Card key={apt._id} elevation={0} sx={{
+                                  borderRadius: 3,
+                                  border: apt.status === 'approved' ? '2px solid #10b981' : '1px solid #fbbf24',
+                                  bgcolor: apt.status === 'approved' ? '#f0fdf4' : '#fffbeb',
+                                  overflow: 'hidden'
+                                }}>
+                                  {/* Status Banner */}
+                                  {apt.status === 'approved' && (
+                                    <Box sx={{ bgcolor: '#10b981', color: 'white', px: 2, py: 0.75, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <CheckCircle size={16} />
+                                      <Typography variant="body2" fontWeight="bold">Appointment Confirmed by Admin</Typography>
+                                    </Box>
+                                  )}
+                                  {(apt.status === 'requested' || apt.status === 'pending') && (
+                                    <Box sx={{ bgcolor: '#f59e0b', color: 'white', px: 2, py: 0.75, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <Clock size={16} />
+                                      <Typography variant="body2" fontWeight="bold">Waiting for Admin Approval</Typography>
+                                    </Box>
+                                  )}
+
+                                  <CardContent sx={{ p: 2.5 }}>
                                     <div className="flex justify-between items-start mb-2">
                                       <div>
-                                        <Typography variant="subtitle1" fontWeight="bold">{apt.doctorId?.name}</Typography>
+                                        <Typography variant="subtitle1" fontWeight="bold">Dr. {apt.doctorId?.name}</Typography>
                                         <Typography variant="caption" color="text.secondary">{apt.doctorId?.specialization}</Typography>
                                       </div>
-                                      <Chip
-                                        label={apt.status.toUpperCase()}
-                                        color={apt.status === 'approved' ? 'success' : 'warning'}
-                                        size="small"
-                                        sx={{ fontSize: '0.7rem', height: 20 }}
-                                      />
                                     </div>
 
-                                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                                      <Clock size={14} />
-                                      {new Date(apt.date).toLocaleDateString()} at {new Date(apt.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </div>
+                                    {/* Confirmed Date/Time — Big & Prominent */}
+                                    {apt.status === 'approved' && apt.assignedTimeSlot ? (
+                                      <Paper elevation={0} sx={{ p: 2, mb: 2, bgcolor: '#dcfce7', borderRadius: 2, border: '1px solid #86efac' }}>
+                                        <Typography variant="caption" color="#065f46" fontWeight="bold" sx={{ display: 'block', mb: 0.5 }}>YOUR APPOINTMENT</Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Calendar size={18} className="text-green-700" />
+                                            <Typography variant="h6" fontWeight="bold" color="#065f46">
+                                              {new Date(apt.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </Typography>
+                                          </Box>
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Clock size={18} className="text-green-700" />
+                                            <Typography variant="h6" fontWeight="bold" color="#065f46">
+                                              {apt.assignedTimeSlot}
+                                            </Typography>
+                                          </Box>
+                                        </Box>
+                                      </Paper>
+                                    ) : (
+                                      <Paper elevation={0} sx={{ p: 1.5, mb: 2, bgcolor: '#fef3c7', borderRadius: 2, border: '1px solid #fde68a' }}>
+                                        <Typography variant="body2" color="#92400e">
+                                          <b>Your Preference:</b> {apt.preferredDate ? new Date(apt.preferredDate).toLocaleDateString() : new Date(apt.date).toLocaleDateString()} — {apt.preferredTimeSlot || 'Any time'}
+                                        </Typography>
+                                        <Typography variant="caption" color="#92400e">Admin will confirm the final date & time.</Typography>
+                                      </Paper>
+                                    )}
 
-                                    <div className="flex gap-2 mt-3">
+                                    <div className="flex gap-2 mt-2">
                                       {apt.status === 'approved' && (
                                         <Button
                                           variant="contained"
                                           size="small"
                                           color="primary"
                                           startIcon={<Video size={16} />}
-                                          fullWidth
                                           onClick={() => {
-                                            // Normally we would just wait for the doctor to call, 
-                                            // but we can also have a "Join Waiting Room" feature if needed.
-                                            // For now, let's just show a toast that "Doctor will call you"
                                             setNotify({ open: true, msg: 'Please wait, the doctor will initiate the call at the scheduled time.', type: 'info' });
                                           }}
+                                          sx={{ flex: 1 }}
                                         >
                                           Join Call
                                         </Button>
@@ -798,7 +869,7 @@ const PatientDashboard = () => {
                                         Chat
                                       </Button>
 
-                                      {apt.status === 'pending' && (
+                                      {(apt.status === 'pending' || apt.status === 'requested') && (
                                         <Button
                                           variant="outlined"
                                           size="small"
@@ -833,23 +904,44 @@ const PatientDashboard = () => {
                             {patientAppointments
                               .filter(apt => ['completed', 'cancelled', 'rejected'].includes(apt.status))
                               .map(apt => (
-                                <Card key={apt._id} elevation={0} sx={{ bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #f3f4f6', opacity: 0.8 }}>
+                                <Card key={apt._id} elevation={0} sx={{
+                                  borderRadius: 2,
+                                  border: apt.status === 'completed' ? '1px solid #93c5fd' : '1px solid #fecaca',
+                                  bgcolor: apt.status === 'completed' ? '#eff6ff' : '#fef2f2'
+                                }}>
                                   <CardContent sx={{ p: 2 }}>
                                     <div className="flex justify-between items-start mb-2">
                                       <div>
-                                        <Typography variant="subtitle1" fontWeight="bold">{apt.doctorId?.name}</Typography>
+                                        <Typography variant="subtitle1" fontWeight="bold">Dr. {apt.doctorId?.name}</Typography>
                                         <Typography variant="caption" color="text.secondary">{apt.doctorId?.specialization}</Typography>
                                       </div>
                                       <Chip
-                                        label={apt.status.toUpperCase()}
+                                        label={apt.status === 'completed' ? 'CHECKUP DONE' : apt.status.toUpperCase()}
                                         color={apt.status === 'completed' ? 'primary' : 'error'}
                                         size="small"
-                                        sx={{ fontSize: '0.7rem', height: 20 }}
+                                        icon={apt.status === 'completed' ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                                        sx={{ fontSize: '0.7rem', height: 24, fontWeight: 'bold' }}
                                       />
                                     </div>
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
                                       <Calendar size={14} /> {new Date(apt.date).toLocaleDateString()}
+                                      {apt.assignedTimeSlot && <span>at {apt.assignedTimeSlot}</span>}
                                     </div>
+                                    {apt.status === 'completed' && apt.doctorReport && (
+                                      <Typography variant="caption" sx={{ color: '#1e40af', fontWeight: 600 }}>
+                                        📋 Doctor's report available — check My Reports tab
+                                      </Typography>
+                                    )}
+                                    {apt.status === 'rejected' && apt.rejectionReason && (
+                                      <Typography variant="caption" color="error">
+                                        Reason: {apt.rejectionReason}
+                                      </Typography>
+                                    )}
+                                    {apt.status === 'completed' && (
+                                      <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#059669' }}>
+                                        ✅ You can now book a new appointment with this doctor.
+                                      </Typography>
+                                    )}
                                   </CardContent>
                                 </Card>
                               ))}
@@ -1533,7 +1625,7 @@ const PatientDashboard = () => {
                       <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex gap-3 items-start">
                         <AlertTriangle className="text-blue-600 shrink-0" size={20} />
                         <p className="text-sm text-blue-800">
-                          By confirming, your intake form will be sent directly to <b>Dr. {confirmDialog.doctor?.name.split(' ')[1] || confirmDialog.doctor?.name}</b> for immediate review.
+                          By confirming, your appointment request will be sent to the <b>hospital admin</b> for review. The admin will verify doctor availability and assign a confirmed date and time. You will be notified once your appointment is confirmed.
                         </p>
                       </div>
                     </div>
@@ -1663,6 +1755,11 @@ const PatientDashboard = () => {
                     />
                   </Grid>
                 </Grid>
+              )}
+
+              {/* TAB 12: HEALTH SUMMARY & WELLNESS PLAN */}
+              {tabValue === 12 && (
+                <HealthSummaryPanel />
               )}
 
             </motion.div>

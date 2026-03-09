@@ -1,140 +1,106 @@
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
 const Hospital = require('../models/Hospital');
+const Notification = require('../models/Notification');
 
+// ─── PATIENT: Book Appointment (creates a "requested" appointment for admin review) ───
 exports.bookAppointment = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         if (!user) return res.status(404).json({ message: "User not found" });
 
-        console.log('Booking appointment - Patient:', user.name, 'Doctor ID:', req.body.doctorId);
+        const { doctorId, date, symptoms, isEmergency, phone, timeSlot } = req.body;
 
-        // --- HOSPITAL EXCLUSIVITY CHECK ---
-        const doctor = await User.findById(req.body.doctorId);
+        const doctor = await User.findById(doctorId);
         if (!doctor) return res.status(404).json({ message: "Doctor not found" });
 
-        // Determine Doctor's Hospital ID
+        // --- HOSPITAL EXCLUSIVITY CHECK ---
         let doctorHospitalId = doctor.hospitalId;
-
-        // Fallback for doctors registered with legacy 'hospitalName' string
         if (!doctorHospitalId && doctor.hospitalName) {
             const docHospital = await Hospital.findOne({ name: doctor.hospitalName });
             if (docHospital) doctorHospitalId = docHospital._id;
         }
 
-        if (!doctorHospitalId) {
-            console.log("Doctor not linked to any hospital");
-            // Optionally allow or block. For now, we proceed but can't enforce matching.
-        } else {
-            // 1. If Patient is already admitted (has hospitalId)
+        if (doctorHospitalId) {
             if (user.hospitalId) {
                 if (user.hospitalId.toString() !== doctorHospitalId.toString()) {
                     return res.status(403).json({
                         message: "You are currently admitted to a different hospital. You cannot book appointments elsewhere until discharged."
                     });
                 }
-            }
-            // 2. If Patient is NOT admitted, auto-admit them to this hospital
-            else {
+            } else {
                 user.hospitalId = doctorHospitalId;
-                // Optional: Set department if not set? Maybe not for simple appointment.
                 await user.save();
-                console.log(`Patient ${user.name} auto-admitted to hospital ${doctorHospitalId}`);
             }
         }
 
         const newAppointment = new Appointment({
             patientId: req.user.id,
-            doctorId: req.body.doctorId,
-            patientName: user.name, // Securely fetch from DB
-            date: req.body.date,
+            doctorId,
+            hospitalId: doctorHospitalId || undefined,
+            patientName: user.name,
+            preferredDate: date,
+            preferredTimeSlot: timeSlot || '',
+            date: date, // Initial date = preferred, admin will override
+            symptoms: symptoms || '',
+            isEmergency: isEmergency || false,
+            patientPhone: phone || user.phone || '',
+            status: 'requested'
         });
         await newAppointment.save();
-        console.log('Appointment saved with ID:', newAppointment._id);
 
-        // Populate patient details before emitting to Socket.io
         const populatedAppointment = await Appointment.findById(newAppointment._id)
-            .populate('patientId', 'name email')
-            .populate('doctorId', 'name');
+            .populate('patientId', 'name email phone')
+            .populate('doctorId', 'name specialization');
 
-        console.log('Populated appointment:', {
-            id: populatedAppointment._id,
-            patientName: populatedAppointment.patientId?.name || populatedAppointment.patientName,
-            doctorId: populatedAppointment.doctorId,
-            date: populatedAppointment.date
-        });
-
-        // Notify the specific doctor via Socket.io
-        if (req.io) {
-            console.log('Emitting new_appointment event');
-            req.io.emit('new_appointment', populatedAppointment);
-
-            // --- NOTIFY HOSPITAL ADMIN ---
+        // --- NOTIFY HOSPITAL ADMIN via Socket.IO ---
+        if (req.io && doctorHospitalId) {
             try {
-                const doctor = await User.findById(req.body.doctorId);
-                if (doctor) {
-                    let hospital;
+                const hospital = await Hospital.findById(doctorHospitalId);
+                if (hospital && hospital.adminId) {
+                    // Save notification to DB
+                    await Notification.create({
+                        userId: hospital.adminId,
+                        type: 'APPOINTMENT_REQUEST',
+                        message: `New appointment request from ${user.name} for Dr. ${doctor.name}${isEmergency ? ' [EMERGENCY]' : ''}`
+                    });
 
-                    // 1. Try finding by ID (Robust method)
-                    if (doctor.hospitalId) {
-                        hospital = await Hospital.findById(doctor.hospitalId);
-                    }
-                    // 2. Fallback to name (Legacy method)
-                    else if (doctor.hospitalName) {
-                        hospital = await Hospital.findOne({ name: doctor.hospitalName });
-                    }
+                    req.io.emit(`notification_${hospital.adminId}`, {
+                        type: 'appointment_request',
+                        message: `New appointment request from ${user.name} for Dr. ${doctor.name}${isEmergency ? ' ⚠️ EMERGENCY' : ''}`,
+                        appointment: populatedAppointment
+                    });
 
-                    if (hospital && hospital.adminId) {
-                        console.log(`Notifying Admin ${hospital.adminId} for hospital ${hospital.name}`);
-
-                        req.io.emit(`notification_${hospital.adminId}`, {
-                            type: 'new_appointment',
-                            message: `New appointment booked for ${doctor.name}`,
-                            appointment: populatedAppointment
-                        });
-
-                        req.io.emit('admin_notification', {
-                            adminId: hospital.adminId,
-                            type: 'new_appointment',
-                            appointment: populatedAppointment
-                        });
-                    } else {
-                        console.log('No specific admin found for hospital linked to doctor:', doctor.name);
-                    }
+                    req.io.emit('admin_appointment_request', {
+                        adminId: hospital.adminId,
+                        appointment: populatedAppointment
+                    });
                 }
             } catch (notifyErr) {
                 console.error('Error notifying admin:', notifyErr);
             }
-        } else {
-            console.error("Socket.io not attached to request");
         }
 
-        res.json({ message: "Appointment Request Sent" });
+        res.json({ message: "Appointment request sent to hospital admin for approval." });
     } catch (err) {
         console.error('Error booking appointment:', err);
-        res.status(500).json(err);
+        res.status(500).json({ message: "Failed to submit appointment request" });
     }
 };
 
+// ─── GET MY APPOINTMENTS (Patient or Doctor) ───
 exports.getMyAppointments = async (req, res) => {
     try {
-        // If doctor, find appointments where doctorId matches
-        // If patient, find where patientId matches
         const query = req.user.role === 'doctor'
-            ? { doctorId: req.user.id }
+            ? { doctorId: req.user.id, status: { $in: ['approved', 'completed'] } } // Doctors only see admin-approved
             : { patientId: req.user.id };
 
-        console.log(`Fetching appointments for ${req.user.role}:`, req.user.id);
-        console.log('Query:', query);
-
         const appointments = await Appointment.find(query)
-            .populate('patientId', 'name email')
+            .populate('patientId', 'name email phone')
             .populate('doctorId', 'name specialization hospitalName experience consultationFee availableDays availableTime doctorPhone')
             .sort({ createdAt: -1 });
 
-        console.log(`Found ${appointments.length} appointments`);
-
-        // If user is a doctor, check if they have access to patient profiles
+        // If user is a doctor, check privacy access
         if (req.user.role === 'doctor') {
             // For each appointment, check if the doctor has access to the patient's profile
             for (let i = 0; i < appointments.length; i++) {
@@ -175,9 +141,19 @@ exports.getMyAppointments = async (req, res) => {
     }
 };
 
+// ─── UPDATE STATUS (backward compat for cancel) ───
 exports.updateStatus = async (req, res) => {
     try {
-        await Appointment.findByIdAndUpdate(req.params.id, { status: req.body.status });
+        const { status } = req.body;
+        // Only allow patients to cancel their own requested appointments
+        if (status === 'cancelled') {
+            const apt = await Appointment.findById(req.params.id);
+            if (!apt) return res.status(404).json({ message: "Appointment not found" });
+            if (apt.patientId.toString() !== req.user.id && req.user.role !== 'admin') {
+                return res.status(403).json({ message: "Not authorized" });
+            }
+        }
+        await Appointment.findByIdAndUpdate(req.params.id, { status });
         res.json({ message: "Status Updated" });
     } catch (err) { res.status(500).json(err); }
 };
@@ -192,7 +168,7 @@ exports.submitReport = async (req, res) => {
         console.log('Submitting report for appointment:', req.params.id);
         console.log('Report data:', req.body);
 
-        // Update appointment with doctor's report
+        // Update appointment with doctor's report and mark as completed
         const updatedAppointment = await Appointment.findByIdAndUpdate(
             req.params.id,
             {
@@ -200,7 +176,8 @@ exports.submitReport = async (req, res) => {
                     doctorReport: {
                         ...req.body,
                         reportDate: new Date()
-                    }
+                    },
+                    status: 'completed'
                 }
             },
             { new: true }
@@ -211,6 +188,16 @@ exports.submitReport = async (req, res) => {
         }
 
         console.log('Report submitted successfully for appointment:', updatedAppointment._id);
+
+        // Notify patient that checkup is completed and report is ready
+        if (req.io && updatedAppointment.patientId) {
+            req.io.emit(`notification_${updatedAppointment.patientId}`, {
+                type: 'appointment_completed',
+                message: 'Your checkup is completed and the doctor\'s report is ready.',
+                appointmentId: updatedAppointment._id
+            });
+        }
+
         res.json({ message: "Report submitted successfully", appointment: updatedAppointment });
     } catch (err) {
         console.error('Error submitting report:', err);
@@ -260,5 +247,215 @@ exports.getPatientHistory = async (req, res) => {
     } catch (err) {
         console.error('Error fetching patient history:', err);
         res.status(500).json({ message: "Error fetching patient history" });
+    }
+};
+
+// ─── ADMIN: Get all appointment requests for their hospital ───
+exports.getHospitalAppointments = async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: "Access denied. Admins only." });
+        }
+
+        // Find the hospital this admin manages
+        const hospital = await Hospital.findOne({ adminId: req.user.id });
+        if (!hospital) {
+            return res.status(404).json({ message: "No hospital found for this admin." });
+        }
+
+        // Find all doctors in this hospital
+        const hospitalDoctors = await User.find({
+            role: 'doctor',
+            $or: [
+                { hospitalId: hospital._id },
+                { hospitalName: hospital.name }
+            ],
+            approvalStatus: 'approved'
+        }).select('_id');
+
+        const doctorIds = hospitalDoctors.map(d => d._id);
+
+        const statusFilter = req.query.status || 'all';
+        const query = { doctorId: { $in: doctorIds } };
+        if (statusFilter !== 'all') {
+            query.status = statusFilter;
+        }
+
+        const appointments = await Appointment.find(query)
+            .populate('patientId', 'name email phone age gender bloodGroup')
+            .populate('doctorId', 'name specialization availableDays availableTime department')
+            .populate('assignedBy', 'name')
+            .sort({ isEmergency: -1, createdAt: -1 });
+
+        res.json(appointments);
+    } catch (err) {
+        console.error('Error fetching hospital appointments:', err);
+        res.status(500).json({ message: "Failed to fetch appointments" });
+    }
+};
+
+// ─── ADMIN: Get doctor's existing appointments for a date (to find free slots) ───
+exports.getDoctorSlots = async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: "Access denied. Admins only." });
+        }
+
+        const { doctorId } = req.params;
+        const { date } = req.query; // format: YYYY-MM-DD
+
+        const doctor = await User.findById(doctorId).select('name specialization availableDays availableTime');
+        if (!doctor) return res.status(404).json({ message: "Doctor not found" });
+
+        // Get all approved appointments for that doctor on that date
+        let existingAppointments = [];
+        if (date) {
+            const dayStart = new Date(date);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(date);
+            dayEnd.setHours(23, 59, 59, 999);
+
+            existingAppointments = await Appointment.find({
+                doctorId,
+                date: { $gte: dayStart, $lte: dayEnd },
+                status: { $in: ['approved', 'requested'] }
+            })
+                .populate('patientId', 'name')
+                .sort({ date: 1 });
+        }
+
+        res.json({
+            doctor: {
+                _id: doctor._id,
+                name: doctor.name,
+                specialization: doctor.specialization,
+                availableDays: doctor.availableDays,
+                availableTime: doctor.availableTime
+            },
+            existingAppointments
+        });
+    } catch (err) {
+        console.error('Error fetching doctor slots:', err);
+        res.status(500).json({ message: "Failed to fetch doctor schedule" });
+    }
+};
+
+// ─── ADMIN: Assign appointment (approve with confirmed date/time) ───
+exports.assignAppointment = async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: "Access denied. Admins only." });
+        }
+
+        const { id } = req.params;
+        const { assignedDate, assignedTimeSlot, adminNotes } = req.body;
+
+        if (!assignedDate || !assignedTimeSlot) {
+            return res.status(400).json({ message: "Assigned date and time slot are required." });
+        }
+
+        const appointment = await Appointment.findById(id);
+        if (!appointment) return res.status(404).json({ message: "Appointment not found" });
+        if (appointment.status !== 'requested') {
+            return res.status(400).json({ message: "Only requested appointments can be assigned." });
+        }
+
+        // Update appointment
+        appointment.date = new Date(assignedDate);
+        appointment.assignedTimeSlot = assignedTimeSlot;
+        appointment.status = 'approved';
+        appointment.assignedBy = req.user.id;
+        appointment.assignedAt = new Date();
+        appointment.adminNotes = adminNotes || '';
+        await appointment.save();
+
+        const populatedApt = await Appointment.findById(id)
+            .populate('patientId', 'name email')
+            .populate('doctorId', 'name specialization');
+
+        const formattedDate = new Date(assignedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        // Notify PATIENT
+        await Notification.create({
+            userId: appointment.patientId,
+            type: 'APPOINTMENT_ASSIGNED',
+            message: `Your appointment with Dr. ${populatedApt.doctorId?.name} is confirmed for ${formattedDate} at ${assignedTimeSlot}.`
+        });
+
+        // Notify DOCTOR
+        await Notification.create({
+            userId: appointment.doctorId,
+            type: 'APPOINTMENT_ASSIGNED',
+            message: `New patient ${populatedApt.patientId?.name} assigned to you on ${formattedDate} at ${assignedTimeSlot}.`
+        });
+
+        // Real-time notifications via Socket.IO
+        if (req.io) {
+            req.io.emit(`notification_${appointment.patientId}`, {
+                type: 'appointment_assigned',
+                message: `Your appointment with Dr. ${populatedApt.doctorId?.name} is confirmed for ${formattedDate} at ${assignedTimeSlot}.`,
+                appointment: populatedApt
+            });
+
+            req.io.emit(`notification_${appointment.doctorId}`, {
+                type: 'appointment_assigned',
+                message: `New patient ${populatedApt.patientId?.name} assigned to you on ${formattedDate} at ${assignedTimeSlot}.`,
+                appointment: populatedApt
+            });
+
+            // Emit to doctor's new_appointment listener
+            req.io.emit('new_appointment', populatedApt);
+        }
+
+        res.json({ message: "Appointment assigned successfully.", appointment: populatedApt });
+    } catch (err) {
+        console.error('Error assigning appointment:', err);
+        res.status(500).json({ message: "Failed to assign appointment" });
+    }
+};
+
+// ─── ADMIN: Reject appointment request ───
+exports.rejectAppointment = async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: "Access denied. Admins only." });
+        }
+
+        const { id } = req.params;
+        const { reason } = req.body;
+
+        const appointment = await Appointment.findById(id);
+        if (!appointment) return res.status(404).json({ message: "Appointment not found" });
+        if (appointment.status !== 'requested') {
+            return res.status(400).json({ message: "Only requested appointments can be rejected." });
+        }
+
+        appointment.status = 'rejected';
+        appointment.rejectionReason = reason || 'No reason provided';
+        appointment.assignedBy = req.user.id;
+        await appointment.save();
+
+        const populatedApt = await Appointment.findById(id)
+            .populate('doctorId', 'name');
+
+        // Notify PATIENT
+        await Notification.create({
+            userId: appointment.patientId,
+            type: 'APPOINTMENT_REJECTED',
+            message: `Your appointment request for Dr. ${populatedApt.doctorId?.name} was declined. Reason: ${reason || 'No reason provided'}`
+        });
+
+        if (req.io) {
+            req.io.emit(`notification_${appointment.patientId}`, {
+                type: 'appointment_rejected',
+                message: `Your appointment request was declined. Reason: ${reason || 'No reason provided'}`,
+                appointment: populatedApt
+            });
+        }
+
+        res.json({ message: "Appointment rejected.", appointment: populatedApt });
+    } catch (err) {
+        console.error('Error rejecting appointment:', err);
+        res.status(500).json({ message: "Failed to reject appointment" });
     }
 };

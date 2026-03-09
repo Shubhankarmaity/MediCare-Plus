@@ -72,9 +72,10 @@ const DoctorReports = ({ open, onClose, appointment, onSubmit }) => {
     doc.text("Official Medical Prescription", 20, 30);
 
     // Doctor Info (Right Side Header)
+    const docUser = JSON.parse(localStorage.getItem('user'));
     doc.setFontSize(10);
-    doc.text(`Dr. ${JSON.parse(localStorage.getItem('user')).name}`, pageWidth - 20, 20, { align: 'right' });
-    doc.text("General Physician", pageWidth - 20, 25, { align: 'right' });
+    doc.text(`Dr. ${docUser.name}`, pageWidth - 20, 20, { align: 'right' });
+    doc.text(docUser.specialization || 'General Physician', pageWidth - 20, 25, { align: 'right' });
     doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - 20, 30, { align: 'right' });
 
     let yPos = 50;

@@ -8,7 +8,7 @@ const NotificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['REGISTRATION', 'JOKE', 'SYSTEM'], // Added JOKE just in case from previous context, mostly REGISTRATION
+        enum: ['REGISTRATION', 'JOKE', 'SYSTEM', 'APPOINTMENT_REQUEST', 'APPOINTMENT_ASSIGNED', 'APPOINTMENT_REJECTED', 'APPOINTMENT_CANCELLED'],
         default: 'SYSTEM'
     },
     message: {

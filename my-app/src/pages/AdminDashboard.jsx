@@ -4,9 +4,9 @@ import {
   Grid, Paper, Typography, Table, TableBody, TableCell,
   TableHead, TableRow, Chip, Avatar, CircularProgress, IconButton,
   Dialog, DialogTitle, DialogContent, DialogActions, Button, Divider, Box, Tooltip,
-  Select, MenuItem, FormControl, InputLabel
+  Select, MenuItem, FormControl, InputLabel, TextField
 } from '@mui/material';
-import { RefreshCw, X, Calendar, CheckCircle, XCircle, Clock, DoorOpen, MessageSquare } from 'lucide-react';
+import { RefreshCw, X, Calendar, CheckCircle, XCircle, Clock, DoorOpen, MessageSquare, AlertTriangle } from 'lucide-react';
 import io from 'socket.io-client';
 import NotificationBell from '../components/NotificationBell';
 import ChatWindow from '../components/ChatWindow';
@@ -24,6 +24,15 @@ const AdminDashboard = () => {
   const [pendingDoctors, setPendingDoctors] = useState([]);
   const [accessRequestStatus, setAccessRequestStatus] = useState(null);
   const [activeChat, setActiveChat] = useState(null);
+
+  // Appointment Management State
+  const [appointmentRequests, setAppointmentRequests] = useState([]);
+  const [appointmentFilter, setAppointmentFilter] = useState('requested');
+  const [assignDialog, setAssignDialog] = useState({ open: false, appointment: null });
+  const [assignForm, setAssignForm] = useState({ date: '', timeSlot: '', adminNotes: '' });
+  const [doctorSlots, setDoctorSlots] = useState({ doctor: null, existingAppointments: [] });
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [rejectDialog, setRejectDialog] = useState({ open: false, appointment: null, reason: '' });
 
   // Approval Modal State
   const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -213,9 +222,106 @@ const AdminDashboard = () => {
     }
   };
 
+  // ─── Appointment Management Functions ───
+  const fetchAppointmentRequests = async (status) => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${API_URL}/api/appointments/hospital-requests?status=${status || appointmentFilter}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const result = await res.json();
+      if (res.ok) setAppointmentRequests(result);
+    } catch (err) {
+      console.error("Error fetching appointment requests:", err);
+    }
+  };
+
+  const fetchDoctorSlots = async (doctorId, date) => {
+    if (!doctorId || !date) return;
+    setSlotsLoading(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${API_URL}/api/appointments/doctor-slots/${doctorId}?date=${date}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const result = await res.json();
+      if (res.ok) setDoctorSlots(result);
+    } catch (err) {
+      console.error("Error fetching doctor slots:", err);
+    } finally {
+      setSlotsLoading(false);
+    }
+  };
+
+  const handleAssignOpen = (appointment) => {
+    setAssignForm({
+      date: appointment.preferredDate ? new Date(appointment.preferredDate).toISOString().split('T')[0] : '',
+      timeSlot: appointment.preferredTimeSlot || '',
+      adminNotes: ''
+    });
+    setDoctorSlots({ doctor: null, existingAppointments: [] });
+    setAssignDialog({ open: true, appointment });
+    // Fetch doctor's schedule for the preferred date
+    if (appointment.doctorId?._id && appointment.preferredDate) {
+      fetchDoctorSlots(appointment.doctorId._id, new Date(appointment.preferredDate).toISOString().split('T')[0]);
+    }
+  };
+
+  const handleAssignAppointment = async () => {
+    const { appointment } = assignDialog;
+    if (!assignForm.date || !assignForm.timeSlot) {
+      alert('Please select a date and time slot.');
+      return;
+    }
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${API_URL}/api/appointments/assign/${appointment._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          assignedDate: assignForm.date,
+          assignedTimeSlot: assignForm.timeSlot,
+          adminNotes: assignForm.adminNotes
+        })
+      });
+      const result = await res.json();
+      if (res.ok) {
+        setAssignDialog({ open: false, appointment: null });
+        fetchAppointmentRequests();
+      } else {
+        alert(result.message || 'Failed to assign appointment');
+      }
+    } catch (err) {
+      console.error("Error assigning appointment:", err);
+      alert("Error assigning appointment");
+    }
+  };
+
+  const handleRejectAppointment = async () => {
+    const { appointment } = rejectDialog;
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${API_URL}/api/appointments/reject/${appointment._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ reason: rejectDialog.reason })
+      });
+      if (res.ok) {
+        setRejectDialog({ open: false, appointment: null, reason: '' });
+        fetchAppointmentRequests();
+      } else {
+        const result = await res.json();
+        alert(result.message || 'Failed to reject appointment');
+      }
+    } catch (err) {
+      console.error("Error rejecting appointment:", err);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     fetchPendingDoctors();
+    fetchAppointmentRequests('requested');
 
     // SOCKET.IO EVENT LISTENER
     socket.on('new_user', (newUser) => {
@@ -243,9 +349,7 @@ const AdminDashboard = () => {
 
       if (!data.adminId || data.adminId === currentUserId) {
         if (data.type === 'new_appointment') {
-          // Show notification (simple alert for now, or update state to show generic notification)
-          alert(`New Appointment: ${data.appointment.patientId?.name || 'Patient'} has booked an appointment.`);
-          // Refresh data
+          fetchAppointmentRequests();
           fetchData();
         }
       }
@@ -318,26 +422,140 @@ const AdminDashboard = () => {
 
       {/* Stats Cards */}
       <Grid container spacing={3} mb={4}>
-        <Grid size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Paper sx={{ p: 3, bgcolor: '#3b82f6', color: 'white', borderRadius: 3, position: 'relative', overflow: 'hidden' }}>
             <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Registered Doctors</Typography>
             <Typography variant="h3" fontWeight="bold">{data?.stats.doctorCount || 0}</Typography>
             <div className="absolute -right-4 -bottom-4 opacity-20 text-white"><Avatar sx={{ width: 80, height: 80 }} /></div>
           </Paper>
         </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Paper sx={{ p: 3, bgcolor: '#10b981', color: 'white', borderRadius: 3 }}>
             <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Hospital Patients</Typography>
             <Typography variant="h3" fontWeight="bold">{data?.stats.patientCount || 0}</Typography>
           </Paper>
         </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Paper sx={{ p: 3, bgcolor: '#f43f5e', color: 'white', borderRadius: 3 }}>
             <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Ambulance Drivers</Typography>
             <Typography variant="h3" fontWeight="bold">{data?.stats.driverCount || 0}</Typography>
           </Paper>
         </Grid>
+        <Grid size={{ xs: 12, md: 3 }}>
+          <Paper sx={{ p: 3, bgcolor: '#8b5cf6', color: 'white', borderRadius: 3 }}>
+            <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>Pending Requests</Typography>
+            <Typography variant="h3" fontWeight="bold">
+              {appointmentRequests.filter(a => a.status === 'requested').length}
+            </Typography>
+          </Paper>
+        </Grid>
       </Grid>
+
+      {/* ── APPOINTMENT MANAGEMENT ── */}
+      <Paper sx={{ p: 3, borderRadius: 3, mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Calendar size={22} /> Appointment Management
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {['requested', 'approved', 'rejected', 'all'].map(f => (
+              <Button
+                key={f}
+                size="small"
+                variant={appointmentFilter === f ? 'contained' : 'outlined'}
+                onClick={() => { setAppointmentFilter(f); fetchAppointmentRequests(f); }}
+                sx={{ textTransform: 'capitalize', borderRadius: 2, fontWeight: 600 }}
+                color={f === 'requested' ? 'warning' : f === 'approved' ? 'success' : f === 'rejected' ? 'error' : 'primary'}
+              >
+                {f}
+              </Button>
+            ))}
+          </Box>
+        </Box>
+
+        {appointmentRequests.length === 0 ? (
+          <Typography color="text.secondary" align="center" py={4}>No {appointmentFilter} appointment requests.</Typography>
+        ) : (
+          <div className="space-y-3">
+            {appointmentRequests.map((apt) => (
+              <Paper key={apt._id} elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: apt.isEmergency ? '#fef2f2' : '#f9fafb' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+                  <Box sx={{ flex: 1, minWidth: 200 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        {apt.patientId?.name || 'Unknown Patient'}
+                      </Typography>
+                      {apt.isEmergency && (
+                        <Chip label="EMERGENCY" size="small" color="error" icon={<AlertTriangle size={14} />} sx={{ fontWeight: 'bold' }} />
+                      )}
+                      <Chip
+                        label={apt.status.toUpperCase()}
+                        size="small"
+                        color={apt.status === 'requested' ? 'warning' : apt.status === 'approved' ? 'success' : 'error'}
+                        sx={{ fontWeight: 'bold' }}
+                      />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      <b>Doctor:</b> Dr. {apt.doctorId?.name || 'Unknown'} ({apt.doctorId?.specialization || ''})
+                    </Typography>
+                    {apt.symptoms && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        <b>Symptoms:</b> {apt.symptoms}
+                      </Typography>
+                    )}
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      <b>Preferred:</b> {apt.preferredDate ? new Date(apt.preferredDate).toLocaleDateString() : 'Not specified'} — {apt.preferredTimeSlot || 'No preference'}
+                    </Typography>
+                    {apt.patientPhone && (
+                      <Typography variant="body2" color="text.secondary">
+                        <b>Phone:</b> {apt.patientPhone}
+                      </Typography>
+                    )}
+                    {apt.assignedTimeSlot && (
+                      <Typography variant="body2" sx={{ mt: 0.5, color: '#065f46', fontWeight: 600 }}>
+                        <b>Assigned:</b> {new Date(apt.date).toLocaleDateString()} at {apt.assignedTimeSlot}
+                      </Typography>
+                    )}
+                    {apt.rejectionReason && (
+                      <Typography variant="body2" sx={{ mt: 0.5, color: '#991b1b' }}>
+                        <b>Rejection Reason:</b> {apt.rejectionReason}
+                      </Typography>
+                    )}
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                      Requested: {new Date(apt.createdAt).toLocaleString()}
+                    </Typography>
+                  </Box>
+
+                  {apt.status === 'requested' && (
+                    <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        size="small"
+                        startIcon={<CheckCircle size={16} />}
+                        onClick={() => handleAssignOpen(apt)}
+                        sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+                      >
+                        Assign
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        startIcon={<XCircle size={16} />}
+                        onClick={() => setRejectDialog({ open: true, appointment: apt, reason: '' })}
+                        sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+                      >
+                        Reject
+                      </Button>
+                    </Box>
+                  )}
+                </Box>
+              </Paper>
+            ))}
+          </div>
+        )}
+      </Paper>
 
       {/* Detailed User Database */}
       <Paper sx={{ p: 3, borderRadius: 3, mb: 4 }}>
@@ -853,6 +1071,134 @@ const AdminDashboard = () => {
           />
         )
       }
+
+      {/* ── ASSIGN APPOINTMENT DIALOG ── */}
+      <Dialog open={assignDialog.open} onClose={() => setAssignDialog({ open: false, appointment: null })} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ bgcolor: '#f0fdf4', borderBottom: '1px solid #d1fae5', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Calendar size={20} color="#10b981" />
+          <Typography fontWeight="bold">Assign Appointment</Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {assignDialog.appointment && (
+            <Box>
+              {/* Patient & Doctor Summary */}
+              <Paper sx={{ p: 2, mb: 3, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                <Typography variant="body2"><b>Patient:</b> {assignDialog.appointment.patientId?.name}</Typography>
+                <Typography variant="body2"><b>Doctor:</b> Dr. {assignDialog.appointment.doctorId?.name} ({assignDialog.appointment.doctorId?.specialization})</Typography>
+                {assignDialog.appointment.symptoms && (
+                  <Typography variant="body2"><b>Symptoms:</b> {assignDialog.appointment.symptoms}</Typography>
+                )}
+                {assignDialog.appointment.isEmergency && (
+                  <Chip label="EMERGENCY" size="small" color="error" sx={{ mt: 1, fontWeight: 'bold' }} />
+                )}
+              </Paper>
+
+              {/* Date Picker */}
+              <TextField
+                label="Appointment Date"
+                type="date"
+                fullWidth
+                size="small"
+                value={assignForm.date}
+                onChange={(e) => {
+                  setAssignForm(prev => ({ ...prev, date: e.target.value }));
+                  if (assignDialog.appointment.doctorId?._id) {
+                    fetchDoctorSlots(assignDialog.appointment.doctorId._id, e.target.value);
+                  }
+                }}
+                slotProps={{ inputLabel: { shrink: true } }}
+                sx={{ mb: 2, mt: 1 }}
+                inputProps={{ min: new Date().toISOString().split('T')[0] }}
+              />
+
+              {/* Doctor's Existing Appointments for the selected date */}
+              {slotsLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={24} /></Box>
+              ) : doctorSlots.existingAppointments.length > 0 ? (
+                <Paper sx={{ p: 2, mb: 2, bgcolor: '#fffbeb', borderRadius: 2, border: '1px solid #fde68a' }}>
+                  <Typography variant="caption" fontWeight="bold" color="#92400e">Doctor's existing appointments on this date:</Typography>
+                  {doctorSlots.existingAppointments.map((slot, i) => (
+                    <Typography key={i} variant="body2" color="text.secondary">
+                      • {slot.assignedTimeSlot || new Date(slot.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {slot.patientId?.name || 'Patient'}
+                    </Typography>
+                  ))}
+                </Paper>
+              ) : assignForm.date ? (
+                <Typography variant="body2" color="success.main" sx={{ mb: 2 }}>No appointments on this date — doctor is free.</Typography>
+              ) : null}
+
+              {/* Doctor's available time info */}
+              {doctorSlots.doctor && (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  <b>Doctor's availability:</b> {doctorSlots.doctor.availableDays || 'Not set'} | {doctorSlots.doctor.availableTime || 'Not set'}
+                </Typography>
+              )}
+
+              {/* Time Slot Input */}
+              <TextField
+                label="Assigned Time Slot"
+                fullWidth
+                size="small"
+                value={assignForm.timeSlot}
+                onChange={(e) => setAssignForm(prev => ({ ...prev, timeSlot: e.target.value }))}
+                placeholder="e.g., 10:00 AM - 10:30 AM"
+                sx={{ mb: 2 }}
+              />
+
+              {/* Admin Notes */}
+              <TextField
+                label="Admin Notes (optional)"
+                fullWidth
+                size="small"
+                multiline
+                rows={2}
+                value={assignForm.adminNotes}
+                onChange={(e) => setAssignForm(prev => ({ ...prev, adminNotes: e.target.value }))}
+                placeholder="Any special instructions..."
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, bgcolor: '#f9fafb', borderTop: '1px solid #e5e7eb', gap: 1 }}>
+          <Button onClick={() => setAssignDialog({ open: false, appointment: null })} variant="outlined" color="inherit" sx={{ borderRadius: 2, textTransform: 'none' }}>Cancel</Button>
+          <Button onClick={handleAssignAppointment} variant="contained" color="success" startIcon={<CheckCircle size={16} />} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 'bold' }}>
+            Confirm & Assign
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── REJECT APPOINTMENT DIALOG ── */}
+      <Dialog open={rejectDialog.open} onClose={() => setRejectDialog({ open: false, appointment: null, reason: '' })} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ bgcolor: '#fef2f2', borderBottom: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <XCircle size={20} color="#ef4444" />
+          <Typography fontWeight="bold">Reject Appointment</Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {rejectDialog.appointment && (
+            <Box>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Rejecting appointment request from <b>{rejectDialog.appointment.patientId?.name}</b> for <b>Dr. {rejectDialog.appointment.doctorId?.name}</b>.
+              </Typography>
+              <TextField
+                label="Rejection Reason"
+                fullWidth
+                size="small"
+                multiline
+                rows={3}
+                value={rejectDialog.reason}
+                onChange={(e) => setRejectDialog(prev => ({ ...prev, reason: e.target.value }))}
+                placeholder="Explain why this request is being rejected..."
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, bgcolor: '#f9fafb', borderTop: '1px solid #e5e7eb', gap: 1 }}>
+          <Button onClick={() => setRejectDialog({ open: false, appointment: null, reason: '' })} variant="outlined" color="inherit" sx={{ borderRadius: 2, textTransform: 'none' }}>Cancel</Button>
+          <Button onClick={handleRejectAppointment} variant="contained" color="error" startIcon={<XCircle size={16} />} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 'bold' }}>
+            Reject Request
+          </Button>
+        </DialogActions>
+      </Dialog>
     </DashboardLayout >
   );
 };
