@@ -23,8 +23,8 @@ const HospitalSchema = new mongoose.Schema({
         type: String,
     },
     image: {
-        type: String, // URL to image
-        default: 'https://images.unsplash.com/photo-1587351021759-3e566b9af922?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+        type: String, // URL to image or empty (frontend resolves local images)
+        default: ''
     },
     facilities: [{
         type: String
@@ -79,8 +79,17 @@ const HospitalSchema = new mongoose.Schema({
 
     // --- ACCREDITATION & SPECIALTY ---
     naabhAccredited: { type: Boolean, default: false },
-    specialties: { type: String, trim: true },        // e.g. "Cardiology", "Orthopedics"
-    hospitalType: { type: String, trim: true },       // "Multi Specialty" / "Super Specialty"
+    specialties: { type: String, trim: true },        // e.g. "Cardiology, Orthopedics, General Medicine"
+    hospitalType: { type: String, trim: true },       // "Multi Specialty" / "Super Specialty" / "General"
+
+    // --- TREATMENTS & CAPACITY ---
+    availableTreatments: [{ type: String, trim: true }],  // e.g. ["angioplasty", "joint replacement"]
+    doctorCount: { type: Number, default: 0 },
+    waitTimeMins: { type: Number, default: 0 },
+    patientSatisfactionPct: { type: Number, default: 0 },
+    bloodBank: { type: Boolean, default: false },
+    icuBeds: { type: Number, default: 0 },
+    ventilatorCount: { type: Number, default: 0 },
 
     // --- NETWORK & LOCATION ---
     networkStatus: { type: String, default: 'Active' },

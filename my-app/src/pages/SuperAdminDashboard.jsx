@@ -13,32 +13,7 @@ import {
 import { API_URL } from '../config';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Import local images
-import cityHospitalImg from '../assets/images/city hospital.avif';
-import hospital2Img from '../assets/images/hospital2.avif';
-import hospital3Img from '../assets/images/hospital3.avif';
-import hospital4Img from '../assets/images/hospital4.avif';
-
-const hospitalImages = [cityHospitalImg, hospital2Img, hospital3Img, hospital4Img];
-
-// Helper to determine which image to show
-const resolveHospitalImage = (hospital, index) => {
-    if (!hospital) return hospitalImages[0];
-
-    const name = hospital.name.toLowerCase();
-
-    // Priority 1: Match known names to local assets (Consistency with Home.jsx)
-    if (name.includes('city general')) return cityHospitalImg;
-    if (name.includes('metropolitan')) return hospital4Img;
-    if (name.includes('sunrise')) return hospital2Img;
-    if (name.includes('green valley') || name.includes('st. mary')) return hospital3Img;
-
-    // Priority 2: Use DB image if valid URL (and not a placeholder/broken one if we could detect that, but we assume valid for now)
-    if (hospital.image && hospital.image.length > 10) return hospital.image;
-
-    // Priority 3: Fallback to round-robin
-    return hospitalImages[index % hospitalImages.length];
-};
+import { resolveHospitalImage } from '../utils/hospitalImages';
 
 const containerVariants = {
     hidden: { opacity: 0 },

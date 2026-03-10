@@ -3,10 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Container, Grid, Card, CardContent, Button, Typography, Chip, Divider } from '@mui/material';
 import { MapPin, Phone, Mail, CheckCircle, AlertCircle, Bed, Activity, Clock } from 'lucide-react';
 import { API_URL } from '../config';
-
-import cityGeneralImg from '../assets/images/city hospital.avif';
-import metropolitanImg from '../assets/images/hospital2.avif';
-import greenValleyImg from '../assets/images/hospital3.avif';
+import { resolveHospitalImage } from '../utils/hospitalImages';
 
 const HospitalDetails = () => {
     const { id } = useParams();
@@ -19,28 +16,7 @@ const HospitalDetails = () => {
                 const response = await fetch(`${API_URL}/api/hospitals/${id}`);
                 const data = await response.json();
 
-                // Map API data to local images for consistency
-                let hospitalData = data;
-
-                // If the hospital has an uploaded image from our backend, use it directly
-                if (data.image && !data.image.includes('images.unsplash.com')) {
-                    setHospital(hospitalData);
-                    return;
-                }
-
-                // Otherwise, use static fallback based on name
-                const name = data.name.toLowerCase();
-
-                if (name.includes('city general')) {
-                    hospitalData = { ...data, image: cityGeneralImg };
-                } else if (name.includes('metropolitan')) {
-                    hospitalData = { ...data, image: metropolitanImg };
-                } else if (name.includes('green valley')) {
-                    hospitalData = { ...data, image: greenValleyImg };
-                } else if (name.includes('sunrise')) {
-                    hospitalData = { ...data, image: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" };
-                }
-
+                const hospitalData = { ...data, image: resolveHospitalImage(data) };
                 setHospital(hospitalData);
             } catch (error) {
                 console.error('Error fetching hospital details:', error);

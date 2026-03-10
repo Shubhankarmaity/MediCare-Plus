@@ -7,9 +7,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Avatar } from '@mui/material'; // Keeping for Avatar support if needed, or replace with img
-import cityGeneralImg from '../assets/images/city hospital.avif';
-import metropolitanImg from '../assets/images/hospital4.avif';
-import greenValleyImg from '../assets/images/hospital3.avif';
+import { resolveHospitalImage } from '../utils/hospitalImages';
 import { API_URL } from '../config';
 
 const Home = () => {
@@ -95,20 +93,8 @@ const Home = () => {
                 const hospRes = await fetch(`${API_URL}/api/hospitals`);
                 if (hospRes.ok) {
                     const hospData = await hospRes.json();
-                    const featured = (Array.isArray(hospData) ? hospData : []).slice(0, 4).map(hospital => {
-                        const name = hospital.name ? hospital.name.toLowerCase() : '';
-                        // First, use the image from DB if it exists and isn't the default unsplash URL
-                        let img = hospital.image;
-
-                        // If no valid image exists, use our static fallbacks based on name
-                        if (!img || img.includes('images.unsplash.com')) {
-                            img = "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
-                            if (name.includes('city general')) img = cityGeneralImg;
-                            else if (name.includes('metropolitan')) img = metropolitanImg;
-                            else if (name.includes('green valley')) img = greenValleyImg;
-                        }
-
-                        return { ...hospital, image: img };
+                    const featured = (Array.isArray(hospData) ? hospData : []).slice(0, 4).map((hospital, idx) => {
+                        return { ...hospital, image: resolveHospitalImage(hospital, idx) };
                     });
                     setHospitals(featured);
                 } else {

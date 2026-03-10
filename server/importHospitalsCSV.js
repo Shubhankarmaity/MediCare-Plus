@@ -90,6 +90,16 @@ async function parseCSV(filePath) {
             specialties: row['specialties'],
             hospitalType: row['hospital_type'],
 
+            // Treatments & capacity (new columns)
+            availableTreatments: (row['available_treatments'] || '')
+                .split(',').map(s => s.trim()).filter(Boolean),
+            doctorCount: parseNum(row['doctor_count']) || 0,
+            waitTimeMins: parseNum(row['wait_time_mins']) || 0,
+            patientSatisfactionPct: parseNum(row['patient_satisfaction_pct']) || 0,
+            bloodBank: parseBoolean(row['blood_bank']),
+            icuBeds: parseNum(row['icu_beds']) || 0,
+            ventilatorCount: parseNum(row['ventilator_count']) || 0,
+
             // Network
             networkStatus: row['network_status'] || 'Active',
             distanceFromCity: parseNum(row['distance_from_city_center_km']),

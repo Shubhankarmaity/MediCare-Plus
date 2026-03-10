@@ -3,10 +3,7 @@ import { Container, Grid, Card, CardContent, CardMedia, Typography, TextField, B
 import { Search, MapPin, Phone, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
-
-import cityGeneralImg from '../assets/images/city hospital.avif';
-import metropolitanImg from '../assets/images/hospital2.avif';
-import greenValleyImg from '../assets/images/hospital3.avif';
+import { resolveHospitalImage } from '../utils/hospitalImages';
 
 const HospitalSearch = () => {
     const [hospitals, setHospitals] = useState([]);
@@ -23,26 +20,9 @@ const HospitalSearch = () => {
             const response = await fetch(`${API_URL}/api/hospitals`);
             const data = await response.json();
 
-            // Map API data to local images for consistency
-            const mappedData = data.map(hospital => {
-                // If the hospital has an uploaded image from our backend, use it directly
-                if (hospital.image && !hospital.image.includes('images.unsplash.com')) {
-                    return hospital;
-                }
-
-                // Otherwise, normalize name for static matching
-                const name = hospital.name.toLowerCase();
-
-                if (name.includes('city general')) {
-                    return { ...hospital, image: cityGeneralImg };
-                } else if (name.includes('metropolitan')) {
-                    return { ...hospital, image: metropolitanImg };
-                } else if (name.includes('green valley')) {
-                    return { ...hospital, image: greenValleyImg };
-                } else if (name.includes('sunrise')) {
-                    return { ...hospital, image: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" };
-                }
-                return hospital;
+            // Map API data to local images
+            const mappedData = data.map((hospital, idx) => {
+                return { ...hospital, image: resolveHospitalImage(hospital, idx) };
             });
 
             setHospitals(mappedData);

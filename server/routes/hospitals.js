@@ -62,7 +62,6 @@ router.post('/recommend', async (req, res) => {
     try {
         const { patientInfo, insuranceCompany } = req.body;
 
-        // Fetch hospitals from DB (either insurance-filtered or all)
         let hospitalsQuery = { networkStatus: 'Active' };
         if (insuranceCompany) {
             hospitalsQuery.insuranceCompany = { $regex: insuranceCompany, $options: 'i' };
@@ -73,23 +72,7 @@ router.post('/recommend', async (req, res) => {
             return res.json({ recommendedHospitals: [] });
         }
 
-        // --- AI SCORING ENGINE ---
-        // Analyze patient needs via keyword matching on medicalHistory
         const history = ((patientInfo.medicalHistory || '') + ' ' + (patientInfo.allergies || '')).toLowerCase();
-
-        // Specialty keyword map
-        const specialtyKeywords = {
-            'Cardiology': ['heart', 'cardiac', 'chest pain', 'hypertension', 'blood pressure', 'arrhythmia'],
-            'Orthopedics': ['bone', 'joint', 'fracture', 'knee', 'spine', 'arthritis', 'ortho'],
-            'Oncology': ['cancer', 'tumor', 'chemotherapy', 'oncology', 'malignant'],
-            'Neurology': ['brain', 'neuro', 'stroke', 'epilepsy', 'headache', 'migraine', 'nervous'],
-            'Emergency Care': ['accident', 'emergency', 'trauma', 'injury', 'sudden', 'critical'],
-            'Kidney Care': ['kidney', 'renal', 'dialysis', 'urinary', 'nephro'],
-            'Maternity': ['pregnancy', 'prenatal', 'delivery', 'maternity', 'gynec', 'obstetric'],
-            'General Surgery': ['surgery', 'operation', 'appendix', 'hernia', 'gallbladder'],
-            'Pediatrics': ['child', 'infant', 'baby', 'pediatric', 'newborn'],
-            'Dermatology': ['skin', 'derma', 'rash', 'eczema', 'psoriasis'],
-        };
 
         const isSeriousCondition = /diabetes|heart|cancer|kidney|stroke|hypertension|chronic|critical|tumor|renal/i.test(history);
         const needsEmergency = /accident|trauma|emergency|chest pain|sudden|critical/.test(history);
@@ -98,63 +81,70 @@ router.post('/recommend', async (req, res) => {
             let score = 0;
             const reasons = [];
 
-            // 1. Specialty match (up to 35 pts)
-            const specialty = (h.specialties || '').toLowerCase();
+            // 1. Specialty match (up to 30 pts) — supports multi-specialty
+            const hSpecialties = (h.specialties || '').toLowerCase();
             let specialtyMatched = false;
-            for (const [spec, keywords] of Object.entries(specialtyKeywords)) {
+            for (const [spec, keywords] of Object.entries(SPECIALTY_KEYWORDS)) {
                 const match = keywords.some(kw => history.includes(kw));
-                const hospitalHasSpec = specialty.includes(spec.toLowerCase());
-                if (match && hospitalHasSpec) {
-                    score += 35;
+                if (match && hSpecialties.includes(spec.toLowerCase())) {
+                    score += 30;
                     reasons.push(`Specializes in ${spec}, matching patient's condition`);
                     specialtyMatched = true;
                     break;
                 }
             }
-            if (!specialtyMatched && specialty) {
-                score += 5; // General specialty bonus
+            if (!specialtyMatched && hSpecialties) score += 5;
+
+            // 2. Treatment match bonus (up to 10 pts)
+            const treatments = (h.availableTreatments || []).map(t => t.toLowerCase());
+            const historyWords = history.split(/\s+/);
+            const matchedTreatments = treatments.filter(t => historyWords.some(w => w.length > 3 && t.includes(w)));
+            if (matchedTreatments.length > 0) {
+                score += Math.min(matchedTreatments.length * 5, 10);
+                reasons.push(`Offers relevant treatments: ${matchedTreatments.slice(0, 3).join(', ')}`);
             }
 
-            // 2. ICU for serious conditions (up to 20 pts)
+            // 3. ICU for serious conditions (up to 15 pts)
             if (isSeriousCondition && h.hasICU) {
-                score += 20;
+                score += 15;
                 reasons.push('ICU available for serious/chronic condition management');
             }
 
-            // 3. Emergency for urgent needs (up to 15 pts)
+            // 4. Emergency for urgent needs (up to 10 pts)
             if (needsEmergency && h.hasEmergency) {
-                score += 15;
+                score += 10;
                 reasons.push('24/7 Emergency services match urgent care requirement');
             } else if (h.hasEmergency) {
-                score += 5;
+                score += 3;
             }
 
-            // 4. Rating score (up to 15 pts — scales 0–5 star to 0–15 pts)
-            const ratingScore = Math.round(((h.rating || 0) / 5) * 15);
+            // 5. Rating + satisfaction (up to 15 pts)
+            const ratingScore = Math.round(((h.rating || 0) / 5) * 10);
             score += ratingScore;
+            const satisfaction = h.patientSatisfactionPct || 0;
+            if (satisfaction >= 85) { score += 5; reasons.push(`${satisfaction}% patient satisfaction`); }
+            else if (satisfaction >= 70) score += 3;
             if (h.rating >= 4.5) reasons.push(`Highly rated (${h.rating}⭐ from ${h.totalReviews || 0} reviews)`);
 
-            // 5. NABH Accreditation (up to 10 pts)
+            // 6. NABH Accreditation (up to 5 pts)
             if (h.naabhAccredited) {
-                score += 10;
-                reasons.push('NABH Accredited — meets national healthcare quality standards');
+                score += 5;
+                reasons.push('NABH Accredited — national healthcare quality standards');
             }
 
-            // 6. Cashless insurance (up to 5 pts)
+            // 7. Cashless insurance (up to 5 pts)
             if (h.cashlessAvailable) {
                 score += 5;
                 reasons.push(`Cashless treatment available (up to ₹${(h.cashlessLimit || 0).toLocaleString('en-IN')})`);
             }
 
-            // 7. Key facilities bonus (up to 5 pts)
-            const facilityCount = [h.diagnosticLab, h.pharmacyAvailable, h.hasOT, h.ambulanceAvailable].filter(Boolean).length;
-            score += Math.min(facilityCount, 4);
-            if (facilityCount >= 3) reasons.push('Comprehensive facilities: lab, pharmacy, OT & ambulance');
+            // 8. Key facilities bonus (up to 5 pts)
+            const facilityCount = [h.diagnosticLab, h.pharmacyAvailable, h.hasOT, h.ambulanceAvailable, h.bloodBank].filter(Boolean).length;
+            score += Math.min(facilityCount, 5);
+            if (facilityCount >= 3) reasons.push('Comprehensive facilities available');
 
-            // Cap score at 100
             score = Math.min(score, 100);
 
-            // Build reason summary
             const finalReason = reasons.length
                 ? reasons.join('. ') + '.'
                 : `General-purpose ${h.hospitalType || 'hospital'} with ${h.specialties || 'multiple'} specialty and ${h.rating || 'good'} rating.`;
@@ -172,7 +162,6 @@ router.post('/recommend', async (req, res) => {
             };
         });
 
-        // Sort by matchScore desc, return top 3
         const top3 = scoredHospitals
             .sort((a, b) => b.matchScore - a.matchScore)
             .slice(0, 3);
@@ -207,11 +196,8 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 }
 
 function distanceScore(km) {
-    if (km <= 5) return 25;
-    if (km <= 15) return 20;
-    if (km <= 30) return 15;
-    if (km <= 50) return 8;
-    return 2;
+    // Smooth exponential decay — better differentiation than hard buckets
+    return Math.round(25 * Math.exp(-km / 15));
 }
 
 function budgetScore(fee, budget) {
@@ -225,21 +211,25 @@ function budgetScore(fee, budget) {
 }
 
 const SPECIALTY_KEYWORDS = {
-    'Cardiology': ['heart', 'cardiac', 'chest pain', 'hypertension', 'blood pressure', 'arrhythmia', 'coronary'],
-    'Orthopedics': ['bone', 'joint', 'fracture', 'knee', 'spine', 'arthritis', 'ortho', 'scoliosis'],
-    'Oncology': ['cancer', 'tumor', 'chemotherapy', 'oncology', 'malignant', 'radiation'],
-    'Neurology': ['brain', 'neuro', 'stroke', 'epilepsy', 'headache', 'migraine', 'nervous', 'alzheimer'],
-    'Emergency Care': ['accident', 'emergency', 'trauma', 'injury', 'sudden', 'critical'],
-    'Kidney Care': ['kidney', 'renal', 'dialysis', 'urinary', 'nephro', 'urology'],
-    'Maternity': ['pregnancy', 'prenatal', 'delivery', 'maternity', 'gynec', 'obstetric', 'ivf'],
-    'General Surgery': ['surgery', 'operation', 'appendix', 'hernia', 'gallbladder', 'laparoscopy'],
-    'Pediatrics': ['child', 'infant', 'baby', 'pediatric', 'newborn', 'neonatal'],
-    'Dermatology': ['skin', 'derma', 'rash', 'eczema', 'psoriasis', 'acne'],
-    'Gastroenterology': ['stomach', 'liver', 'gut', 'intestine', 'gastro', 'digestion', 'colon'],
-    'Pulmonology': ['lung', 'asthma', 'breath', 'copd', 'pulmonary', 'respiratory'],
-    'Endocrinology': ['diabetes', 'thyroid', 'hormone', 'endocrine', 'insulin', 'sugar'],
-    'Psychiatry': ['mental', 'depression', 'anxiety', 'psychiatry', 'psychology', 'stress'],
-    'Ophthalmology': ['eye', 'vision', 'cataract', 'glaucoma', 'retina', 'ophthalmology'],
+    'Cardiology': ['heart', 'cardiac', 'chest pain', 'hypertension', 'blood pressure', 'arrhythmia', 'coronary', 'palpitations', 'angina'],
+    'Orthopedics': ['bone', 'joint', 'fracture', 'knee', 'spine', 'arthritis', 'ortho', 'scoliosis', 'ligament', 'sports injury', 'back pain'],
+    'Oncology': ['cancer', 'tumor', 'chemotherapy', 'oncology', 'malignant', 'radiation', 'biopsy', 'lymphoma', 'leukemia'],
+    'Neurology': ['brain', 'neuro', 'stroke', 'epilepsy', 'headache', 'migraine', 'nervous', 'alzheimer', 'paralysis', 'seizure', 'dizziness', 'numbness'],
+    'Emergency Care': ['accident', 'emergency', 'trauma', 'injury', 'sudden', 'critical', 'bleeding', 'burn', 'poisoning', 'unconscious'],
+    'Kidney Care': ['kidney', 'renal', 'dialysis', 'urinary', 'nephro', 'creatinine'],
+    'Urology': ['kidney stone', 'prostate', 'bladder', 'urinary tract', 'urology'],
+    'Gynecology': ['pregnancy', 'prenatal', 'delivery', 'maternity', 'gynec', 'obstetric', 'ivf', 'cesarean', 'menstrual', 'female'],
+    'General Surgery': ['surgery', 'operation', 'appendix', 'hernia', 'gallbladder', 'laparoscopy', 'abscess'],
+    'Pediatrics': ['child', 'infant', 'baby', 'pediatric', 'newborn', 'neonatal', 'vaccination'],
+    'Dermatology': ['skin', 'derma', 'rash', 'eczema', 'psoriasis', 'acne', 'allergy', 'itching', 'fungal'],
+    'Gastroenterology': ['stomach', 'liver', 'gut', 'intestine', 'gastro', 'digestion', 'colon', 'acidity', 'ulcer', 'jaundice', 'constipation'],
+    'Pulmonology': ['lung', 'asthma', 'breath', 'copd', 'pulmonary', 'respiratory', 'tb', 'tuberculosis', 'pneumonia', 'coughing'],
+    'Endocrinology': ['diabetes', 'thyroid', 'hormone', 'endocrine', 'insulin', 'sugar', 'pcos', 'adrenal'],
+    'Psychiatry': ['mental', 'depression', 'anxiety', 'psychiatry', 'psychology', 'stress', 'insomnia', 'bipolar', 'addiction', 'panic'],
+    'Ophthalmology': ['eye', 'vision', 'cataract', 'glaucoma', 'retina', 'ophthalmology', 'lasik', 'blindness'],
+    'ENT': ['ear', 'nose', 'throat', 'tonsil', 'sinus', 'hearing', 'deafness', 'snoring', 'voice'],
+    'General Medicine': ['fever', 'infection', 'flu', 'cold', 'cough', 'weakness', 'fatigue', 'checkup', 'body pain'],
+    'Physiotherapy': ['rehabilitation', 'physiotherapy', 'recovery', 'muscle pain', 'stiffness'],
 };
 
 router.post('/ai-recommend', async (req, res) => {
@@ -280,6 +270,7 @@ router.post('/ai-recommend', async (req, res) => {
             pharmacy: 'pharmacyAvailable',
             ambulance: 'ambulanceAvailable',
             nabh: 'naabhAccredited',
+            bloodbank: 'bloodBank',
         };
 
         const scored = hospitals.map(h => {
@@ -287,60 +278,72 @@ router.post('/ai-recommend', async (req, res) => {
             const reasons = [];
             const breakdown = {};
 
-            // ── 1. SPECIALTY MATCH (max 30 pts) ──────────────────────────────
+            // ── 1. SPECIALTY MATCH (max 25 pts) ──────────────────────────────
             let specScore = 0;
             const hSpecialty = (h.specialties || '').toLowerCase();
             let matchedSpec = null;
 
             // Direct specialization selection match
-            if (specialization && hSpecialty.toLowerCase().includes(specialization.toLowerCase())) {
-                specScore = 30;
+            if (specialization && hSpecialty.includes(specialization.toLowerCase())) {
+                specScore = 25;
                 matchedSpec = specialization;
             } else {
                 // Keyword matching from condition text
                 for (const [spec, keywords] of Object.entries(SPECIALTY_KEYWORDS)) {
                     if (keywords.some(kw => searchText.includes(kw)) &&
                         hSpecialty.includes(spec.toLowerCase())) {
-                        specScore = 30;
+                        specScore = 25;
                         matchedSpec = spec;
                         break;
                     }
                 }
-                // Partial — hospital has specialties but didn't perfectly match
-                if (specScore === 0 && hSpecialty) specScore = 5;
+                if (specScore === 0 && hSpecialty) specScore = 3;
             }
             score += specScore;
             breakdown.specialty = specScore;
             if (matchedSpec) reasons.push(`Specializes in ${matchedSpec} matching your condition`);
 
-            // ── 2. DISTANCE (max 25 pts) ──────────────────────────────────────
-            let distScore = 10; // neutral
+            // ── 2. TREATMENT MATCH (max 10 pts — NEW) ─────────────────────────
+            let treatScore = 0;
+            const treatments = (h.availableTreatments || []).map(t => t.toLowerCase());
+            const searchWords = searchText.split(/\s+/).filter(w => w.length > 3);
+            const matchedTreatments = treatments.filter(t => searchWords.some(w => t.includes(w)));
+            if (matchedTreatments.length > 0) {
+                treatScore = Math.min(matchedTreatments.length * 5, 10);
+                reasons.push(`Offers: ${matchedTreatments.slice(0, 3).join(', ')}`);
+            }
+            score += treatScore;
+            breakdown.treatment = treatScore;
+
+            // ── 3. DISTANCE (max 20 pts) ──────────────────────────────────────
+            let distScore = 8; // neutral when no GPS
             let distKm = null;
             if (patientLat && patientLng && h.lat && h.lng) {
                 distKm = haversineKm(patientLat, patientLng, h.lat, h.lng);
-                distScore = distanceScore(distKm);
+                distScore = Math.round(20 * Math.exp(-distKm / 15));
                 if (distKm <= 5) reasons.push(`Very close — just ${distKm.toFixed(1)} km away`);
                 else if (distKm <= 15) reasons.push(`Nearby — ${distKm.toFixed(1)} km from your location`);
             }
             score += distScore;
             breakdown.distance = distScore;
 
-            // ── 3. BUDGET FIT (max 20 pts) ────────────────────────────────────
+            // ── 4. BUDGET FIT (max 15 pts) ────────────────────────────────────
             const bScore = budgetScore(h.consultationFee, budget);
-            score += bScore;
-            breakdown.budget = bScore;
+            const scaledBudget = Math.round(bScore * 15 / 20); // scale from 0-20 to 0-15
+            score += scaledBudget;
+            breakdown.budget = scaledBudget;
             if (bScore >= 14 && h.consultationFee) {
                 reasons.push(`Consultation fee ₹${h.consultationFee} fits your budget well`);
             } else if (bScore === 0 && h.consultationFee) {
                 reasons.push(`⚠️ Consultation fee ₹${h.consultationFee} exceeds your budget`);
             }
 
-            // ── 4. FACILITY PREFERENCES (max 15 pts) ─────────────────────────
+            // ── 5. FACILITY PREFERENCES (max 10 pts) ─────────────────────────
             let facScore = 0;
             const matchedFacilities = [];
             const missingFacilities = [];
             if (facilities.length > 0) {
-                const perFacility = 15 / facilities.length;
+                const perFacility = 10 / facilities.length;
                 for (const fac of facilities) {
                     const key = facilityMap[fac];
                     if (key && h[key]) {
@@ -352,33 +355,38 @@ router.post('/ai-recommend', async (req, res) => {
                 }
                 facScore = Math.round(facScore);
             } else {
-                // No preferences — give partial bonus for full facilities
-                const allFacs = [h.hasICU, h.hasEmergency, h.hasOT, h.diagnosticLab, h.pharmacyAvailable, h.ambulanceAvailable];
-                facScore = Math.round((allFacs.filter(Boolean).length / allFacs.length) * 15);
+                const allFacs = [h.hasICU, h.hasEmergency, h.hasOT, h.diagnosticLab, h.pharmacyAvailable, h.ambulanceAvailable, h.bloodBank];
+                facScore = Math.round((allFacs.filter(Boolean).length / allFacs.length) * 10);
             }
-            // Urgency-specific facility bonus
-            if (isUrgent && h.hasEmergency) { facScore = Math.min(facScore + 5, 15); reasons.push('24/7 Emergency services for your urgent need'); }
+            if (isUrgent && h.hasEmergency) { facScore = Math.min(facScore + 3, 10); reasons.push('24/7 Emergency services for your urgent need'); }
             if ((isUrgent || isSemiUrgent) && h.hasICU) { reasons.push('ICU available for critical care'); }
             score += facScore;
             breakdown.facilities = facScore;
             if (matchedFacilities.length > 0) reasons.push(`Has required facilities: ${matchedFacilities.join(', ')}`);
 
-            // ── 5. RATING (max 10 pts) ────────────────────────────────────────
-            const rScore = Math.round(((h.rating || 0) / 5) * 10);
+            // ── 6. QUALITY SIGNALS (max 15 pts) ───────────────────────────────
+            // Rating (max 8 pts)
+            const rScore = Math.round(((h.rating || 0) / 5) * 8);
             score += rScore;
-            breakdown.rating = rScore;
+            // Patient satisfaction (max 5 pts)
+            const satisfaction = h.patientSatisfactionPct || 0;
+            const satScore = satisfaction >= 85 ? 5 : satisfaction >= 70 ? 3 : satisfaction >= 50 ? 1 : 0;
+            score += satScore;
+            // NABH (2 pts)
+            if (h.naabhAccredited) { score += 2; reasons.push('NABH Accredited — national quality standards'); }
+            breakdown.quality = rScore + satScore + (h.naabhAccredited ? 2 : 0);
             if (h.rating >= 4.5) reasons.push(`Top-rated hospital (${h.rating}⭐ from ${h.totalReviews || 0} reviews)`);
             else if (h.rating >= 4.0) reasons.push(`Well-rated (${h.rating}⭐)`);
+            if (satisfaction >= 85) reasons.push(`${satisfaction}% patient satisfaction`);
 
-            // ── BONUSES ────────────────────────────────────────────────────────
-            if (h.naabhAccredited && !facilities.includes('nabh')) {
-                score = Math.min(score + 3, 100);
-                reasons.push('NABH Accredited — national quality standards');
-            }
+            // ── 7. INSURANCE BONUS (max 5 pts) ────────────────────────────────
+            let insScore = 0;
             if (hasMediclaim && h.cashlessAvailable) {
-                score = Math.min(score + 3, 100);
+                insScore = 5;
                 reasons.push(`Cashless treatment available (up to ₹${(h.cashlessLimit || 0).toLocaleString('en-IN')})`);
             }
+            score += insScore;
+            breakdown.insurance = insScore;
 
             score = Math.min(Math.round(score), 100);
 
@@ -411,6 +419,10 @@ router.post('/ai-recommend', async (req, res) => {
                 pharmacyAvailable: h.pharmacyAvailable,
                 ambulanceAvailable: h.ambulanceAvailable,
                 naabhAccredited: h.naabhAccredited,
+                bloodBank: h.bloodBank,
+                doctorCount: h.doctorCount,
+                waitTimeMins: h.waitTimeMins,
+                patientSatisfactionPct: h.patientSatisfactionPct,
                 missingFacilities,
                 matchedFacilities,
                 image: h.image,
