@@ -1,103 +1,175 @@
-# MediCare-Plus 🏥
+# MediCare Plus
 
-A comprehensive Hospital Management System built with the MERN stack (MongoDB, Express.js, React, Node.js).
+A production-style, multi-role Hospital Management System built with the MERN ecosystem, real-time communication, and ML-assisted hospital recommendations.
 
-## 🚀 Live Demo
-🔗 **Deployment Link:** [https://medi-care-plus-gules.vercel.app/](https://medi-care-plus-gules.vercel.app/)
+[![Frontend](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-0f172a?logo=react)](my-app)
+[![Backend](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-065f46?logo=node.js)](server)
+[![Database](https://img.shields.io/badge/Database-MongoDB-14532d?logo=mongodb)](server/models)
+[![Realtime](https://img.shields.io/badge/Realtime-Socket.io-111827?logo=socketdotio)](server/index.js)
 
-## 🚀 Features
+## Live Demo
 
-### 👤 User Roles
-- **Patients**: 
-  - 📅 **Book Appointments**: Schedule visits with doctors.
-  - 🚑 **Ambulance Services**: Book emergency rides and track drivers in real-time.
-  - 📄 **Medical Reports**: View and download PDF reports.
-  - 💬 **Chat**: Communicate with doctors directly.
-  - 🔐 **Profile Management**: Secure login and profile updates.
-  
-- **Doctors**: 
-  - 🗓️ **Appointment Management**: View schedule and manage patient bookings.
-  - 📝 **Medical Records**: upload and manage patient reports.
-  - 💬 **Patient Chat**: Consult with patients via secure chat.
-  
-- **Admins**: 
-  - 👥 **User Management**: Oversee doctors, patients, and drivers.
-  - 📊 **Dashboard Stats**: View platform analytics.
-  - ✅ **Approvals**: Verify doctor registrations.
-  
-- **Drivers**: 
-  - 📍 **Ride Requests**: Receive real-time ambulance requests.
-  - 🗺️ **Navigation**: Integrated map for locating patients.
-  - 🟢 **Availability**: Toggle online/offline status.
+- Application: https://medi-care-plus-gules.vercel.app/
 
-### ⚡ Key Functionalities
-- **Real-time Updates**: Socket.io integration for instant chat and ambulance tracking.
-- **Interactive Maps**: Mapbox GL integration for location services.
-- **PDF Generation**: Auto-generate medical reports using jsPDF.
-- **Secure Authentication**: JWT-based secure login/signup with role-based access control.
-- **Responsive Design**: Modern UI using Tailwind CSS and Framer Motion animations.
+## Why This Project
 
-### 🎬 AI Video Presentation Prompt
-To create an engaging demonstration video for this Hospital Management System, use the following prompt with your preferred AI video generation tool:
+MediCare Plus connects patients, doctors, hospital admins, drivers, and super admins on one platform with:
 
+- secure authentication and role-based access
+- appointment workflows and doctor approvals
+- real-time messaging, signaling, and ambulance alerts
+- hospital discovery and recommendation support
+- downloadable clinical records and reports
+
+## Core Features
+
+### Multi-Role Workflows
+
+- Patient: appointment booking, reports, vitals, payments, access requests, chatbot assistance
+- Doctor: appointment queue, consultation actions, patient communication, reporting
+- Admin: hospital-scoped operational controls and approvals
+- Driver: ambulance dispatch, availability status, live location updates
+- Super Admin: global hospital operations and centralized control
+
+### Real-Time and Communication
+
+- Socket.io-powered events for messaging, location sharing, ambulance dispatch, and call signaling
+- user-specific rooms for targeted notifications and communication
+
+### AI and Recommendations
+
+- NLP and knowledge-base assisted chatbot in backend controllers
+- optional Python ML microservice integration for hospital recommendations
+
+## Tech Stack
+
+### Frontend
+
+- React 19, Vite 5, React Router
+- Tailwind CSS, MUI, Framer Motion
+- Axios, Recharts, Mapbox GL, jsPDF, html2canvas
+
+### Backend
+
+- Node.js, Express 5
+- MongoDB + Mongoose
+- JWT, bcryptjs, multer, Socket.io
+
+### ML (Optional Service)
+
+- Python service for model training and prediction
+- integrated from backend via configurable service URL
+
+## Repository Structure
+
+```text
+.
+|- server/        # Express API, models, routes, controllers, socket server
+|- my-app/        # React + Vite frontend
+|- app.py         # Python ML service entrypoint
+|- train_model.py # Model training script
+|- README.md
 ```
-Create a professional 2-3 minute explainer video for a Hospital Management System called "MediCare-Plus". 
-The video should showcase a modern healthcare platform with the following key features:
 
-1. Opening scene: A clean, modern hospital with doctors, nurses, and patients in a well-lit environment
-2. Animated dashboard transitions showing:
-   - Admin panel with user management
-   - Doctor's interface with appointment calendar
-   - Patient portal with booking system
-   - Driver app with ambulance tracking map
-3. Real-time notifications appearing on screens (appointment confirmations, ambulance updates)
-4. Secure login sequence with role-based access
-5. Data visualization with charts showing patient statistics
-6. Mobile responsiveness showing the system works on all devices
-7. Closing scene: Happy patients, satisfied doctors, and efficient staff with the MediCare-Plus logo
-
-Style: Clean, professional, modern healthcare aesthetic with blue and white color scheme
-Animation: Smooth transitions, subtle motion graphics
-Music: Uplifting, professional background music
-Voiceover: Friendly, professional narrator explaining benefits
-```
-
-## 🛠️ Tech Stack
-- **Frontend**: React (Vite), Tailwind CSS, Framer Motion, Material UI (@mui/material), Lucide React
-- **Backend**: Node.js, Express.js
-- **Database**: MongoDB (Mongoose)
-- **Real-time**: Socket.io
-- **Utilities**: Mapbox GL, jsPDF, html2canvas, Axios
-
-## 📂 Project Structure
-- **`/server`**: Backend API and database logic.
-  - `models/`: Database schemas (User, Appointment, AmbulanceRequest, etc.).
-  - `routes/`: API endpoints (Auth, Doctors, Appointments, etc.).
-- **`/my-app`**: Frontend React application.
-  - `src/pages/`: Main application views (Dashboards, Home, Auth).
-  - `src/components/`: Reusable UI components (Navbar, ChatWindow, etc.).
-
-## 🏃‍♂️ How to Run
+## Quick Start (Local Development)
 
 ### Prerequisites
-- Node.js installed
-- MongoDB installed and running locally
 
-### 1. Backend Setup
+- Node.js 18+
+- npm 9+
+- MongoDB connection string
+
+### 1. Clone and Install
+
 ```bash
+git clone <your-repo-url>
+cd Hospital
+
 cd server
 npm install
+
+cd ../my-app
+npm install
+```
+
+### 2. Configure Environment
+
+Create `server/.env`:
+
+```env
+PORT=5000
+MONGODB_URI=<your_mongodb_uri>
+JWT_SECRET=<your_jwt_secret>
+CLIENT_URL=http://localhost:5173
+ML_SERVICE_URL=http://localhost:5001
+```
+
+### 3. Run Backend
+
+```bash
+cd server
 node index.js
 ```
-*Server runs on http://localhost:5000*
 
-### 2. Frontend Setup
+Backend runs at http://localhost:5000
+
+### 4. Run Frontend
+
 ```bash
 cd my-app
-npm install
 npm run dev
 ```
-*Client runs on http://localhost:5173*
 
-## 🔑 Environment Variables
-The server uses `dotenv` for configuration. Ensure your MongoDB URI is correctly set in `server/index.js` or via a `.env` file if configured.
+Frontend runs at the Vite URL shown in terminal (commonly http://localhost:5173 or http://localhost:5180)
+
+### 5. Optional: Run ML Service
+
+```bash
+python app.py
+```
+
+## API Surface (High Level)
+
+- Auth and profile: `/register`, `/login`, `/verify-email`, `/profile`
+- Doctors: `/api/doctors/*`
+- Appointments: `/api/appointments/*`
+- Hospitals: `/api/hospitals/*`
+- Ambulance: `/api/ambulance/*`
+- Chatbot: `/api/chatbot/*`
+- Notifications and messages: `/api/notifications/*`, `/api/messages/*`
+
+## Security Notes
+
+- keep `.env` out of version control
+- rotate credentials before production release
+- use a strong `JWT_SECRET` per environment
+- restrict CORS origins for deployed environments
+
+## Scripts
+
+### Backend (`server/package.json`)
+
+- `node index.js` to start API server
+
+### Frontend (`my-app/package.json`)
+
+- `npm run dev` for development
+- `npm run build` for production build
+- `npm run preview` for build preview
+- `npm run lint` for lint checks
+
+## Documentation
+
+- Detailed project documentation: `DOCUMENTATION.md`
+- Architecture and workflow notes: `PROJECT_OVERVIEW.md`, `workflow-diagram.md`
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit clear, focused changes
+4. Open a pull request with test notes and screenshots (if UI changes)
+
+## License
+
+This project is intended for educational and portfolio use unless otherwise specified by the repository owner.
