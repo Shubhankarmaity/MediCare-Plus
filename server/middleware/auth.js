@@ -6,7 +6,7 @@ const auth = (req, res, next) => {
     const token = req.header("Authorization").replace("Bearer ", "");
     if (!token) return res.status(401).json({ message: "Access Denied" });
 
-    const verified = jwt.verify(token, process.env.JWT_SECRET || "supersecretkey123");
+    const verified = jwt.verify(token, process.env.JWT_SECRET);
     req.user = verified; // Attach user info to request
     next();
   } catch (err) {

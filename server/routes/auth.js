@@ -2,8 +2,19 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const authController = require('../controllers/authController');
 
+// Input validation helpers
+const validateRequired = (fields) => (req, res, next) => {
+  for (const field of fields) {
+    const value = req.body[field];
+    if (typeof value !== 'string' || value.trim() === '') {
+      return res.status(400).json({ message: `${field} is required` });
+    }
+  }
+  next();
+};
+
 // REGISTER
-router.post('/register', authController.register);
+router.post('/register', validateRequired(['name', 'email', 'password', 'role']), authController.register);
 
 // VERIFY EMAIL
 router.post('/verify-email', authController.verifyEmail);
@@ -18,7 +29,7 @@ router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 
 // LOGIN
-router.post('/login', authController.login);
+router.post('/login', validateRequired(['email', 'password']), authController.login);
 
 // UPDATE PROFILE
 router.put('/profile', auth, authController.updateProfile);

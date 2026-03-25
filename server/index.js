@@ -4,7 +4,16 @@ const cors = require('cors');
 const http = require('http');
 const path = require('path');
 const { Server } = require('socket.io');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+
+// Validate required environment variables at startup
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter((v) => !process.env[v]);
+if (missingEnvVars.length > 0) {
+  console.error(`❌ FATAL: Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  process.exit(1);
+}
 
 // Import Routes
 const authRoutes = require('./routes/auth');
@@ -26,6 +35,15 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Rate limiting for authentication routes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // limit each IP to 20 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests, please try again later.' }
+});
+
 // Serve static files from the uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -36,7 +54,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use('/', authRoutes); // /login, /register
+app.use('/', authLimiter, authRoutes); // /login, /register — rate limited
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/admin', adminRoutes);
@@ -49,7 +67,9 @@ app.use('/api/super-admin', superAdminRoutes);
 const hospitalRoutes = require('./routes/hospitals');
 app.use('/api/hospitals', hospitalRoutes);
 const debugRoutes = require('./routes/debug');
-app.use('/api/debug', debugRoutes);
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/debug', debugRoutes);
+}
 const seedRoutes = require('./routes/seed');
 app.use('/api/seed', seedRoutes);
 const vitalsRoutes = require('./routes/vitals');
@@ -133,7 +153,8 @@ io.on("connection", (socket) => {
 const startServer = async () => {
   try {
     const MONGODB_URI = process.env.MONGODB_URI;
-    console.log("Attempting to connect to MongoDB at:", MONGODB_URI);
+    const maskedUri = MONGODB_URI.replace(/:\/\/[^@]+@/, '://***:***@');
+    console.log("Attempting to connect to MongoDB at:", maskedUri);
 
     await mongoose.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 5000 // Fail after 5 seconds if cannot connect
