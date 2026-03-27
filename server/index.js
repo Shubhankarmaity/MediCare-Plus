@@ -35,12 +35,23 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Rate limiting for authentication routes
+// Strict rate limiter for authentication endpoints (login/register) only
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // limit each IP to 20 requests per windowMs
+  max: 30, // 30 login/register attempts per 15 min per IP
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => process.env.NODE_ENV !== 'production', // disabled in local dev
+  message: { message: 'Too many login attempts, please try again later.' }
+});
+
+// Generous limiter for API routes — prevents abuse without blocking normal usage
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute window
+  max: 200, // 200 requests per minute per IP (very generous for local dev)
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV !== 'production', // disabled entirely in development
   message: { message: 'Too many requests, please try again later.' }
 });
 
@@ -53,8 +64,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
-app.use('/', authLimiter, authRoutes); // /login, /register — rate limited
+// Routes — authLimiter ONLY on the auth routes, apiLimiter on all /api/* routes
+app.use('/api', apiLimiter); // generous, skipped in dev
+app.use('/', authLimiter, authRoutes); // /login, /register — strict
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/admin', adminRoutes);

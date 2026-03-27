@@ -3,13 +3,42 @@ import DashboardLayout from '../components/DashboardLayout';
 import ChatWindow from '../components/ChatWindow';
 import DoctorAnalytics from '../components/DoctorAnalytics';
 import DoctorSettings from '../components/DoctorSettings';
-import { CheckCircle, X, User, Calendar, Clock, FileText, Video, MessageSquare, AlertTriangle, Search, Filter, Activity, Bell } from 'lucide-react';
+import { CheckCircle, X, User, Calendar, Clock, FileText, Video, MessageSquare, AlertTriangle, Search, Activity, Bell, Settings } from 'lucide-react';
 import io from 'socket.io-client';
 import DoctorReports from '../components/DoctorReports';
 import PatientDetails from '../components/PatientDetails';
 import VideoCall from '../components/VideoCall';
 import { Snackbar, Alert } from '@mui/material';
 import { API_URL } from '../config';
+
+// ─── Countdown hook: ms until a given HH:MM time-slot today ──────────────────
+function useCountdown(timeSlot) {
+  const [timeLeft, setTimeLeft] = useState(null);
+  useEffect(() => {
+    if (!timeSlot) { setTimeLeft(null); return; }
+    const calc = () => {
+      const now = new Date();
+      const [rawTime, period] = timeSlot.split(' ');
+      if (!rawTime) return null;
+      let [h, m] = rawTime.split(':').map(Number);
+      if (period === 'PM' && h !== 12) h += 12;
+      if (period === 'AM' && h === 12) h = 0;
+      const target = new Date(now);
+      target.setHours(h, m || 0, 0, 0);
+      const diff = target - now;
+      return diff > 0 ? diff : null;
+    };
+    setTimeLeft(calc());
+    const id = setInterval(() => setTimeLeft(calc()), 30000);
+    return () => clearInterval(id);
+  }, [timeSlot]);
+  if (timeLeft === null) return null;
+  const hrs = Math.floor(timeLeft / 3600000);
+  const mins = Math.floor((timeLeft % 3600000) / 60000);
+  if (hrs > 0) return `${hrs}h ${mins}m`;
+  if (mins > 0) return `${mins}m`;
+  return 'Now';
+}
 
 const DoctorDashboard = () => {
   const [appointments, setAppointments] = useState([]);
@@ -21,7 +50,8 @@ const DoctorDashboard = () => {
   const [notify, setNotify] = useState({ open: false, msg: '', type: 'success' });
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all'); // 'all', 'today', 'week'
-  const [appointmentView, setAppointmentView] = useState('active'); // 'active', 'today', 'completed'
+  const [appointmentView, setAppointmentView] = useState('active'); // 'active', 'today', 'completed', 'pending'
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user'));
   const socketRef = useRef(null);
@@ -83,6 +113,23 @@ const DoctorDashboard = () => {
     const today = new Date().toDateString();
     return appointments.filter(a => new Date(a.date).toDateString() === today && a.status === 'approved');
   }, [appointments]);
+
+  const filteredPending = useMemo(() => {
+    return appointments.filter(a => a.status === 'pending');
+  }, [appointments]);
+
+  // Next upcoming appointment today (sorted by time slot)
+  const nextTodayAppt = useMemo(() => {
+    const now = new Date();
+    const today = now.toDateString();
+    const todayActive = appointments.filter(a =>
+      new Date(a.date).toDateString() === today && a.status === 'approved' && a.assignedTimeSlot
+    );
+    if (!todayActive.length) return null;
+    return todayActive.sort((a, b) => (a.assignedTimeSlot || '').localeCompare(b.assignedTimeSlot || ''))[0];
+  }, [appointments]);
+
+  const countdown = useCountdown(nextTodayAppt?.assignedTimeSlot);
 
   const fetchAppointments = async () => {
     try {
@@ -203,10 +250,17 @@ const DoctorDashboard = () => {
         <div className="overflow-x-auto mb-6">
           <div className="flex space-x-1 border-b border-gray-200 min-w-max">
             <button
-              className={`pb-2 px-4 font-medium transition whitespace-nowrap ${activeTab === 'appointments' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`pb-2 px-4 font-medium transition whitespace-nowrap relative ${activeTab === 'appointments' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
               onClick={() => setActiveTab('appointments')}
             >
-              <span className="flex items-center gap-1.5"><Calendar size={16} />Appointments</span>
+              <span className="flex items-center gap-1.5">
+                <Calendar size={16} />Appointments
+                {(stats.pendingReports > 0 || stats.emergencyCount > 0) && (
+                  <span className="ml-1 inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-red-500 rounded-full">
+                    {stats.pendingReports + stats.emergencyCount}
+                  </span>
+                )}
+              </span>
             </button>
             <button
               className={`pb-2 px-4 font-medium transition whitespace-nowrap ${activeTab === 'analytics' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
@@ -218,7 +272,7 @@ const DoctorDashboard = () => {
               className={`pb-2 px-4 font-medium transition whitespace-nowrap ${activeTab === 'settings' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
               onClick={() => setActiveTab('settings')}
             >
-              Settings
+              <span className="flex items-center gap-1.5"><Settings size={16} />Settings</span>
             </button>
           </div>
         </div>
@@ -226,6 +280,74 @@ const DoctorDashboard = () => {
         {/* APPOINTMENTS TAB */}
         {activeTab === 'appointments' && (
           <>
+            {/* ── Pending Reports Banner ────────────────────────── */}
+            {stats.pendingReports > 0 && !bannerDismissed && (
+              <div className="flex items-center justify-between bg-amber-50 border border-amber-300 rounded-2xl px-5 py-3 mb-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📋</span>
+                  <div>
+                    <p className="font-semibold text-amber-800 text-sm">
+                      You have <span className="font-bold text-amber-900">{stats.pendingReports}</span> pending report{stats.pendingReports !== 1 ? 's' : ''} to submit
+                    </p>
+                    <p className="text-xs text-amber-600">Please complete the medical reports for your active patients.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setAppointmentView('active')}
+                    className="px-3 py-1.5 text-xs font-bold bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition"
+                  >
+                    Go to Patients
+                  </button>
+                  <button onClick={() => setBannerDismissed(true)} className="text-amber-400 hover:text-amber-700 transition">
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Next Appointment Countdown Widget ─────────────── */}
+            {nextTodayAppt && (
+              <div className={`relative overflow-hidden rounded-2xl mb-5 shadow-md ${
+                nextTodayAppt.isEmergency ? 'bg-gradient-to-r from-red-600 to-red-500' : 'bg-gradient-to-r from-blue-600 to-indigo-600'
+              } text-white`}>
+                <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-white opacity-10"></div>
+                <div className="absolute -right-2 -bottom-4 w-20 h-20 rounded-full bg-white opacity-10"></div>
+                <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white bg-opacity-20 p-3 rounded-xl">
+                      <Clock size={24} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest opacity-80">Next Appointment</p>
+                      <p className="text-xl font-bold">{nextTodayAppt.patientId?.name || nextTodayAppt.patientName}</p>
+                      <p className="text-sm opacity-90 flex items-center gap-1.5 mt-0.5">
+                        <Clock size={13} /> {nextTodayAppt.assignedTimeSlot}
+                        {nextTodayAppt.symptoms && <span className="opacity-70"> · {nextTodayAppt.symptoms}</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {countdown && (
+                      <div className="text-center bg-white bg-opacity-20 px-4 py-2 rounded-xl">
+                        <p className="text-2xl font-extrabold tracking-tight">{countdown}</p>
+                        <p className="text-xs opacity-80 font-medium">until appointment</p>
+                      </div>
+                    )}
+                    {nextTodayAppt.patientId?._id && (
+                      <div className="flex gap-2">
+                        <button onClick={() => startVideoCall(nextTodayAppt.patientId._id)} className="p-2.5 bg-white bg-opacity-20 rounded-xl hover:bg-opacity-30 transition" title="Start Video Call">
+                          <Video size={20} />
+                        </button>
+                        <button onClick={() => startChat(nextTodayAppt.patientId)} className="p-2.5 bg-white bg-opacity-20 rounded-xl hover:bg-opacity-30 transition" title="Chat">
+                          <MessageSquare size={20} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Enhanced Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-blue-600 text-white p-5 rounded-2xl shadow-lg">
@@ -301,11 +423,12 @@ const DoctorDashboard = () => {
             </div>
 
             {/* Section Toggle */}
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4 flex-wrap">
               {[
                 { key: 'active', label: 'Active Patients', count: filteredActive.length, color: 'green' },
                 { key: 'today', label: "Today's Schedule", count: todayAppointments.length, color: 'blue' },
                 { key: 'completed', label: 'Completed', count: filteredCompleted.length, color: 'teal' },
+                { key: 'pending', label: 'Pending Approval', count: filteredPending.length, color: 'yellow' },
               ].map(sec => (
                 <button
                   key={sec.key}
@@ -477,6 +600,43 @@ const DoctorDashboard = () => {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PENDING APPOINTMENTS (Awaiting Admin Approval) */}
+            {appointmentView === 'pending' && (
+              <div className="bg-white p-6 rounded-2xl shadow-sm border mb-6">
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                  <Clock className="text-yellow-500" /> Pending Admin Approval
+                  <span className="text-sm font-normal text-gray-400 ml-1">— these appointments need admin confirmation</span>
+                </h3>
+                {filteredPending.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No pending appointments. All requests have been reviewed by the admin.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredPending.map((appt) => (
+                      <div key={appt._id} className="p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                              <Clock size={20} />
+                            </div>
+                            <div>
+                              <p className="font-bold text-lg">{appt.patientId?.name || appt.patientName || 'Unknown Patient'}</p>
+                              <p className="text-xs text-gray-500 flex items-center gap-1">
+                                <Calendar size={12} /> {new Date(appt.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                              </p>
+                              {appt.symptoms && <p className="text-sm text-gray-600 mt-1">💊 {appt.symptoms}</p>}
+                            </div>
+                          </div>
+                          <span className="mt-2 md:mt-0 inline-flex items-center gap-1 text-xs font-bold text-yellow-700 bg-yellow-100 border border-yellow-300 px-3 py-1.5 rounded-full">
+                            <Clock size={12} /> Awaiting Admin Approval
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

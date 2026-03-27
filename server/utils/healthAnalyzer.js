@@ -342,12 +342,69 @@ function analyzeWeight(weight, heightCm) {
     };
 }
 
+// ─── DIAGNOSIS KEYWORD MAP ───────────────────────────────────────────
+// Maps keywords found in doctor's free-text diagnosis to recommendation categories
+const DIAGNOSIS_KEYWORD_MAP = [
+    { keywords: ['hypertension', 'high blood pressure', 'hbp', 'elevated bp', 'bp high', 'hypertensive'], category: 'highBP' },
+    { keywords: ['diabetes', 'diabetic', 'blood sugar', 'hyperglycemia', 'high sugar', 'type 2', 'type 1', 't2dm', 't1dm', 'prediabetes', 'pre-diabetes', 'insulin resistance'], category: 'highSugar' },
+    { keywords: ['tachycardia', 'palpitation', 'rapid heart', 'high heart rate', 'arrhythmia', 'atrial', 'bradycardia'], category: 'highHeartRate' },
+    { keywords: ['fever', 'pyrexia', 'febrile', 'dengue', 'malaria', 'typhoid', 'covid', 'influenza', 'flu', 'viral infection', 'bacterial infection'], category: 'fever' },
+    { keywords: ['obese', 'obesity', 'overweight', 'bmi', 'weight management', 'weight loss', 'metabolic syndrome'], category: 'overweight' },
+];
+
+/**
+ * Parse the doctor's free-text diagnosis to extract health categories.
+ * Returns a Set of category strings like { 'highBP', 'highSugar' }
+ */
+function parseDiagnosisToCategories(diagnosisText) {
+    if (!diagnosisText || typeof diagnosisText !== 'string') return new Set();
+    const lower = diagnosisText.toLowerCase();
+    const found = new Set();
+    for (const { keywords, category } of DIAGNOSIS_KEYWORD_MAP) {
+        if (keywords.some(kw => lower.includes(kw))) {
+            found.add(category);
+        }
+    }
+    return found;
+}
+
+/**
+ * Split a doctor's free-text field (recommendations / testsRecommended)
+ * into an array of individual items, cleaning up blank lines.
+ */
+function splitDoctorText(text) {
+    if (!text || typeof text !== 'string') return [];
+    return text
+        .split(/[\n,;]+/)
+        .map(s => s.trim())
+        .filter(s => s.length > 3);
+}
+
+/**
+ * Map doctor report severity to a statusColor.
+ * Only used when vitals provide no signal.
+ */
+function severityToStatusColor(severity) {
+    if (!severity) return null;
+    const map = { Critical: 'danger', High: 'warning', Medium: 'warning', Low: 'good' };
+    return map[severity] || null;
+}
+
 /**
  * Main analysis function — takes vitals array and appointment data,
  * returns a comprehensive health summary with recommendations.
  */
 function generateHealthSummary(vitalsHistory, appointments, userProfile) {
-    // Get latest vitals (most recent reading)
+    // ── STEP 1: Extract the most recent doctor report (primary source of truth) ──
+    const completedApts = (appointments || [])
+        .filter(a => a.doctorReport?.diagnosis)
+        .sort((a, b) => new Date(b.updatedAt || b.date) - new Date(a.updatedAt || a.date));
+
+    const lastReport = completedApts[0]?.doctorReport || null;
+    const lastReportDoctor = completedApts[0]?.doctorId?.name || null;
+    const lastReportDate = lastReport?.reportDate || completedApts[0]?.updatedAt || null;
+
+    // ── STEP 2: Analyze vitals ────────────────────────────────────────
     const sortedVitals = [...vitalsHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
     const latest = sortedVitals[0] || {};
 
@@ -436,7 +493,31 @@ function generateHealthSummary(vitalsHistory, appointments, userProfile) {
         }
     }
 
-    // Determine overall status
+    // ── STEP 3: Parse doctor's diagnosis to add more categories ──────
+    if (lastReport?.diagnosis) {
+        const diagnosisCategories = parseDiagnosisToCategories(lastReport.diagnosis);
+        const labelMap = {
+            highBP: 'Hypertension (confirmed by doctor)',
+            highSugar: 'Diabetes / High Blood Sugar (confirmed by doctor)',
+            highHeartRate: 'Heart Rate Concern (confirmed by doctor)',
+            fever: 'Infection / Fever (confirmed by doctor)',
+            overweight: 'Weight Management (confirmed by doctor)'
+        };
+        for (const cat of diagnosisCategories) {
+            if (!activeCategories.has(cat)) {
+                conditions.push({
+                    name: labelMap[cat] || cat,
+                    severity: 'caution',
+                    details: `Identified from Dr. ${lastReportDoctor || 'your doctor'}'s diagnosis: "${lastReport.diagnosis}"`,
+                    category: cat,
+                    source: 'doctor_report'
+                });
+                activeCategories.add(cat);
+            }
+        }
+    }
+
+    // ── STEP 4: Determine overall health status ───────────────────────
     const hasDanger = conditions.some(c => c.severity === 'danger');
     const hasCaution = conditions.some(c => c.severity === 'caution');
     let overallStatus, statusColor;
@@ -449,23 +530,38 @@ function generateHealthSummary(vitalsHistory, appointments, userProfile) {
     } else if (conditions.length === 0 && vitalsHistory.length > 0) {
         overallStatus = 'Looking Good!';
         statusColor = 'good';
+    } else if (lastReport) {
+        // No vitals & no conditions — use doctor's severity as fallback
+        const reportColor = severityToStatusColor(lastReport.severity);
+        statusColor = reportColor || 'info';
+        overallStatus = reportColor === 'danger' ? "Critical — Follow Doctor's Instructions"
+            : reportColor === 'warning' ? 'Needs Monitoring'
+            : reportColor === 'good' ? 'Recovering Well'
+            : "Based on Doctor's Latest Report";
     } else {
         overallStatus = 'No Data — Please Log Your Vitals';
         statusColor = 'info';
     }
 
-    // Build recommendations from active categories
+    // ── STEP 5: Build vitals-based recommendations ────────────────────
     const diet = buildDietPlan(activeCategories);
-    const lifestyle = buildLifestylePlan(activeCategories);
-    const tests = buildTestPlan(activeCategories);
+    let lifestyle = buildLifestylePlan(activeCategories);
+    let tests = buildTestPlan(activeCategories);
     const immediate = buildImmediateActions(conditions);
 
-    // Extract doctor notes from latest completed appointment
-    const completedApts = (appointments || [])
-        .filter(a => a.doctorReport?.diagnosis)
-        .sort((a, b) => new Date(b.updatedAt || b.date) - new Date(a.updatedAt || a.date));
+    // ── STEP 6: Prepend doctor's OWN written text (most authoritative) ─
+    if (lastReport?.recommendations) {
+        const doctorItems = splitDoctorText(lastReport.recommendations)
+            .map(item => `🩺 Dr. ${lastReportDoctor || 'Your Doctor'}: ${item}`);
+        lifestyle = [...doctorItems, ...lifestyle];
+    }
+    if (lastReport?.testsRecommended) {
+        const doctorTests = splitDoctorText(lastReport.testsRecommended)
+            .map(item => `📋 Ordered by Dr. ${lastReportDoctor || 'Your Doctor'}: ${item}`);
+        tests = [...doctorTests, ...tests];
+    }
 
-    const lastReport = completedApts[0]?.doctorReport || null;
+    // ── STEP 7: Build doctor notes for display ──────────────────────
     const doctorNotes = lastReport ? {
         lastDiagnosis: lastReport.diagnosis,
         lastPrescription: lastReport.prescription,
@@ -475,11 +571,11 @@ function generateHealthSummary(vitalsHistory, appointments, userProfile) {
         testsRecommended: lastReport.testsRecommended,
         followUpDate: lastReport.followUpDate,
         severity: lastReport.severity,
-        doctorName: completedApts[0]?.doctorId?.name || 'Your Doctor',
-        reportDate: lastReport.reportDate
+        doctorName: lastReportDoctor || 'Your Doctor',
+        reportDate: lastReportDate
     } : null;
 
-    // Active prescriptions from recent appointments
+    // Active prescriptions from all completed appointments
     const activePrescriptions = completedApts
         .filter(a => a.doctorReport?.prescription)
         .slice(0, 5)
@@ -492,21 +588,14 @@ function generateHealthSummary(vitalsHistory, appointments, userProfile) {
         }));
 
     return {
-        currentCondition: {
-            overallStatus,
-            statusColor,
-            conditions
-        },
+        currentCondition: { overallStatus, statusColor, conditions },
         vitalsAnalysis,
-        recommendations: {
-            immediate,
-            diet,
-            lifestyle,
-            tests
-        },
+        recommendations: { immediate, diet, lifestyle, tests },
         doctorNotes,
         activePrescriptions,
         lastVitalsDate: latest.date || null,
+        lastReportDate,
+        lastReportDoctor,
         vitalsCount: vitalsHistory.length,
         averages: avg
     };

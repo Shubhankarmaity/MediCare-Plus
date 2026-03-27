@@ -51,15 +51,34 @@ const HealthSummaryPanel = () => {
             setLoading(true);
             setError(null);
             const token = localStorage.getItem('token');
+            
+            if (!token) {
+                setError('You must be logged in to view your health summary.');
+                setLoading(false);
+                return;
+            }
+            
             const res = await fetch(`${API_URL}/api/health-summary`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'GET',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             });
-            if (!res.ok) throw new Error('Failed to fetch health summary');
+            
             const data = await res.json();
+            
+            if (!res.ok) {
+                const errorMsg = data.message || 'Failed to fetch health summary';
+                console.error('Health summary API error:', { status: res.status, message: errorMsg });
+                setError(errorMsg);
+                return;
+            }
+            
             setSummary(data);
         } catch (err) {
-            console.error('Health summary error:', err);
-            setError('Could not load your health summary. Please try again.');
+            console.error('Health summary fetch error:', err);
+            setError('Network error: Could not reach the server. Check your connection and try again.');
         } finally {
             setLoading(false);
         }
@@ -100,7 +119,32 @@ const HealthSummaryPanel = () => {
 
     return (
         <Box sx={{ width: '100%' }}>
+
+            {/* ─── DOCTOR REPORT SOURCE BADGE ────────────────────────── */}
+            {(summary.lastReportDate || summary.lastReportDoctor) && (
+                <Box sx={{
+                    display: 'flex', alignItems: 'center', gap: 1, mb: 2.5,
+                    p: 1.5, borderRadius: 2,
+                    background: 'linear-gradient(135deg, #f0f9ff 0%, #f5f3ff 100%)',
+                    border: '1px solid #bfdbfe'
+                }}>
+                    <Stethoscope size={18} color="#2563eb" style={{ flexShrink: 0 }} />
+                    <Box>
+                        <Typography variant="caption" fontWeight="bold" sx={{ color: '#1d4ed8', display: 'block', lineHeight: 1.2 }}>
+                            Recommendations based on Dr. {summary.lastReportDoctor || 'your doctor'}'s report
+                        </Typography>
+                        {summary.lastReportDate && (
+                            <Typography variant="caption" sx={{ color: '#64748b' }}>
+                                Last updated: {new Date(summary.lastReportDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </Typography>
+                        )}
+                    </Box>
+                    <Chip label="Doctor Verified" size="small" sx={{ ml: 'auto', bgcolor: '#dbeafe', color: '#1d4ed8', fontWeight: 600, fontSize: '0.65rem' }} />
+                </Box>
+            )}
+
             <Grid container spacing={3}>
+
 
                 {/* ─── OVERALL HEALTH STATUS CARD ───────────────────────── */}
                 <Grid size={{ xs: 12 }}>

@@ -120,51 +120,59 @@ const ChatWindow = ({ currentUser, chatPartner, onClose }) => {
 
     return (
         <Paper
-            elevation={6}
+            elevation={0}
             sx={{
                 position: 'fixed',
-                bottom: 20,
-                right: 20,
-                width: 350,
-                height: 450,
+                bottom: 24,
+                right: 24,
+                width: 360,
+                height: 500,
                 display: 'flex',
                 flexDirection: 'column',
-                borderRadius: 3,
+                borderRadius: 4,
                 overflow: 'hidden',
-                zIndex: 1300
+                zIndex: 1300,
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 10px 40px -10px rgba(0,0,0,0.15)'
             }}
         >
             {/* Header */}
-            <Box sx={{ p: 2, bgcolor: '#3b82f6', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Avatar sx={{ width: 32, height: 32, bgcolor: 'white', color: '#3b82f6', fontSize: '0.8rem' }}>
+            <Box sx={{ p: 2, background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Avatar sx={{ width: 36, height: 36, bgcolor: 'rgba(255,255,255,0.2)', color: '#ffffff', fontSize: '0.9rem', fontWeight: 'bold' }}>
                         {chatPartner?.name?.charAt(0) || '?'}
                     </Avatar>
                     <Box>
-                        <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>
+                        <Typography variant="subtitle2" fontWeight="800" lineHeight={1.2}>
                             {chatPartner?.name || 'User'}
                         </Typography>
-                        <Typography variant="caption" sx={{ opacity: 0.8, fontSize: '0.7rem' }}>
-                            Online
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                            <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.7rem', fontWeight: 500 }}>
+                                Online
+                            </Typography>
+                        </Box>
                     </Box>
                 </Box>
-                <IconButton size="small" onClick={onClose} sx={{ color: 'white' }}>
+                <IconButton size="small" onClick={onClose} sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' } }}>
                     <X size={18} />
                 </IconButton>
             </Box>
 
             {/* Messages Area */}
-            <Box sx={{ flex: 1, p: 2, overflowY: 'auto', bgcolor: '#e5ddd5', display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ flex: 1, p: 2, overflowY: 'auto', bgcolor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
 
                 {loading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                        <CircularProgress size={24} />
+                        <CircularProgress size={24} sx={{ color: '#3b82f6' }} />
                     </Box>
                 ) : messages.length === 0 ? (
-                    <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ mt: 4, bgcolor: 'rgba(255,255,255,0.8)', p: 1, borderRadius: 1 }}>
-                        Start a conversation with {chatPartner.name}
-                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.5 }}>
+                        <MessageSquare size={32} className="text-slate-400 mb-2" />
+                        <Typography variant="caption" color="#475569" fontWeight="600" textAlign="center">
+                            Start a conversation with {chatPartner.name}
+                        </Typography>
+                    </Box>
                 ) : (
                     messages.map((msg, index) => {
                         const isMe = msg.senderId._id === currentUser.id || msg.senderId === currentUser.id;
@@ -173,34 +181,38 @@ const ChatWindow = ({ currentUser, chatPartner, onClose }) => {
                                 key={index}
                                 sx={{
                                     alignSelf: isMe ? 'flex-end' : 'flex-start',
-                                    maxWidth: '80%',
+                                    maxWidth: '85%',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     alignItems: isMe ? 'flex-end' : 'flex-start'
                                 }}
                             >
                                 <Paper
-                                    elevation={1}
+                                    elevation={0}
                                     sx={{
-                                        p: 1,
-                                        px: 1.5,
-                                        bgcolor: isMe ? '#dcf8c6' : 'white', // WhatsApp style colors
-                                        color: 'black',
-                                        borderRadius: 2,
+                                        p: 1.2,
+                                        px: 2,
+                                        bgcolor: isMe ? '#dbeafe' : '#ffffff', 
+                                        color: isMe ? '#0f172a' : '#1e293b',
+                                        borderRadius: 3,
+                                        borderBottomRightRadius: isMe ? 4 : 12,
+                                        borderBottomLeftRadius: isMe ? 12 : 4,
+                                        border: isMe ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                                        boxShadow: '0 2px 5px rgba(0,0,0,0.02)',
                                         position: 'relative',
                                         minWidth: '80px'
                                     }}
                                 >
-                                    <Typography variant="body2" sx={{ mr: isMe ? 2 : 0 }}>{msg.content}</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.5, wordBreak: 'break-word', mr: isMe ? 2 : 0 }}>{msg.content}</Typography>
 
                                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                                        <Typography variant="caption" sx={{ color: isMe ? '#64748b' : '#94a3b8', fontSize: '0.65rem', fontWeight: 600 }}>
                                             {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </Typography>
                                         {isMe && (
                                             msg.read ?
-                                                <CheckCheck size={14} color="#34B7F1" /> :  // Blue double tick
-                                                <Check size={14} color="gray" />            // Gray single/double tick
+                                                <CheckCheck size={14} color="#0284c7" /> :  
+                                                <Check size={14} color="#94a3b8" />            
                                         )}
                                     </Box>
                                 </Paper>
@@ -212,19 +224,20 @@ const ChatWindow = ({ currentUser, chatPartner, onClose }) => {
             </Box>
 
             {/* Input Area */}
-            <Box component="form" onSubmit={handleSend} sx={{ p: 1.5, bgcolor: '#f0f0f0', display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Box component="form" onSubmit={handleSend} sx={{ p: 1.5, bgcolor: '#ffffff', display: 'flex', gap: 1, alignItems: 'center', borderTop: '1px solid #e2e8f0' }}>
                 <TextField
                     fullWidth
                     size="small"
-                    placeholder="Type a message..."
+                    placeholder="Message..."
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     variant="outlined"
                     sx={{
                         '& .MuiOutlinedInput-root': {
-                            borderRadius: 4,
-                            bgcolor: 'white',
-                            '& fieldset': { border: 'none' }
+                            borderRadius: 6,
+                            bgcolor: '#f1f5f9',
+                            '& fieldset': { border: 'none' },
+                            '& input': { py: 1.5, px: 2, fontSize: '0.9rem' }
                         }
                     }}
                 />
@@ -234,8 +247,9 @@ const ChatWindow = ({ currentUser, chatPartner, onClose }) => {
                     sx={{
                         bgcolor: '#3b82f6',
                         color: 'white',
-                        width: 40,
-                        height: 40,
+                        width: 42,
+                        height: 42,
+                        borderRadius: 6,
                         '&:hover': { bgcolor: '#2563eb' },
                         '&:disabled': { bgcolor: '#cbd5e1' }
                     }}

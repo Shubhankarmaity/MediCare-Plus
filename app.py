@@ -311,6 +311,122 @@ def retrain():
         print(f"Retrain error: {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/predict-diagnosis', methods=['POST'])
+def predict_diagnosis():
+    """
+    AI Diagnosis Assistant endpoint for the Doctor portal.
+    Given a patient's symptoms text, returns:
+     - matched_specialties: ranked list of relevant medical specialties
+     - possible_conditions: curated list of possible condition categories
+     - recommendations: general clinical guidance notes
+    """
+    try:
+        data = request.json
+        symptoms_text = (data.get('symptoms', '') or '').lower().strip()
+        if not symptoms_text:
+            return jsonify({'error': 'No symptoms provided'}), 400
+
+        # ── Condition / syndrome hints keyed by symptom keywords ─────────────
+        CONDITION_HINTS = {
+            'fever': ['Viral Infection', 'Bacterial Infection', 'Dengue', 'Typhoid', 'Malaria', 'COVID-19'],
+            'cough': ['Upper Respiratory Infection', 'Asthma', 'Bronchitis', 'Pneumonia', 'GERD', 'COVID-19'],
+            'chest pain': ['Angina', 'Myocardial Infarction', 'Costochondritis', 'GERD', 'Pulmonary Embolism'],
+            'headache': ['Tension Headache', 'Migraine', 'Hypertension', 'Sinusitis', 'Meningitis'],
+            'migraine': ['Migraine with Aura', 'Cluster Headache', 'Tension-type Headache'],
+            'diabetes': ['Type 2 Diabetes Mellitus', 'Pre-diabetes', 'Metabolic Syndrome'],
+            'sugar': ['Type 2 Diabetes', 'Hyperglycemia', 'Pre-diabetic State'],
+            'thyroid': ['Hypothyroidism', 'Hyperthyroidism', 'Hashimoto\'s Thyroiditis', 'Goiter'],
+            'stomach': ['Gastritis', 'Peptic Ulcer', 'GERD', 'IBS', 'Appendicitis'],
+            'abdominal': ['Appendicitis', 'Gastroenteritis', 'Colitis', 'PID (females)', 'Hernia'],
+            'joint pain': ['Rheumatoid Arthritis', 'Osteoarthritis', 'Gout', 'Lupus', 'Bursitis'],
+            'back pain': ['Lumbar Strain', 'Herniated Disc', 'Sciatica', 'Ankylosing Spondylitis'],
+            'knee': ['Osteoarthritis', 'Meniscus Tear', 'Ligament Injury', 'Bursitis'],
+            'skin': ['Eczema', 'Psoriasis', 'Dermatitis', 'Urticaria', 'Fungal Infection'],
+            'rash': ['Contact Dermatitis', 'Allergic Reaction', 'Viral Exanthem', 'Scabies'],
+            'breathing': ['Asthma', 'COPD', 'Pneumonia', 'Pulmonary Embolism', 'Heart Failure'],
+            'breath': ['Asthma', 'COPD', 'Bronchitis', 'Pulmonary Embolism'],
+            'eye': ['Conjunctivitis', 'Glaucoma', 'Cataract', 'Uveitis', 'Dry Eye Syndrome'],
+            'vision': ['Refractive Error', 'Retinal Detachment', 'Glaucoma', 'Diabetic Retinopathy'],
+            'ear': ['Otitis Media', 'Tinnitus', 'Ear Wax Impaction', 'Meniere\'s Disease'],
+            'depression': ['Major Depressive Disorder', 'Dysthymia', 'Bipolar Disorder (Depressive Phase)', 'SAD'],
+            'anxiety': ['Generalized Anxiety Disorder', 'Panic Disorder', 'PTSD', 'Social Anxiety'],
+            'kidney': ['UTI', 'Kidney Stones', 'Chronic Kidney Disease', 'Glomerulonephritis'],
+            'urinary': ['Urinary Tract Infection', 'Overactive Bladder', 'Cystitis', 'Interstitial Cystitis'],
+            'nausea': ['Gastroenteritis', 'GERD', 'Food Poisoning', 'Pregnancy', 'Vestibular Disorder'],
+            'fatigue': ['Anemia', 'Hypothyroid', 'Chronic Fatigue Syndrome', 'Depression', 'Diabetes'],
+            'dizziness': ['Vertigo (BPPV)', 'Orthostatic Hypotension', 'Meniere\'s Disease', 'Anemia'],
+            'bleeding': ['Anemia', 'Coagulation Disorder', 'GI Bleed', 'Trauma'],
+            'cancer': ['Malignant Neoplasm — refer to Oncology for further evaluation'],
+            'pregnancy': ['Normal Pregnancy', 'Gestational Diabetes', 'Pre-eclampsia', 'Ectopic Pregnancy'],
+        }
+
+        RECOMMENDATIONS_MAP = {
+            'cardiology': 'Order ECG, Troponin, and Lipid Profile. Monitor BP closely.',
+            'orthopedics': 'Consider X-ray and MRI if needed. Physiotherapy referral may be warranted.',
+            'neurology': 'MRI/CT brain may be indicated. Check for signs of meningism.',
+            'oncology': 'Urgent biopsy and oncology referral. CBC and tumor markers advised.',
+            'emergency care': 'Prioritise stabilisation. IV access, vitals monitoring, and early senior review.',
+            'pediatrics': 'Check vaccination history and growth charts. Parental counseling advised.',
+            'gynecology': 'Pelvic examination and USG abdomen/pelvis. Pregnancy test if applicable.',
+            'endocrinology': 'Fasting glucose, HbA1c, and thyroid function tests (TFT) advised.',
+            'nephrology': 'Urine R/E, serum creatinine, and eGFR recommended.',
+            'pulmonology': 'Chest X-ray, SpO2 monitoring, and spirometry if indicated.',
+            'gastroenterology': 'Stool examination and upper GI endoscopy may be required.',
+            'dermatology': 'Skin scraping and KOH mount if fungal. Patch test for allergy.',
+            'ophthalmology': 'Detailed slit-lamp examination and IOP measurement recommended.',
+            'psychiatry': 'PHQ-9 / GAD-7 screening. Consider referral for counseling or CBT.',
+            'ent': 'Ear/nose/throat examination. PTA audiogram if hearing loss suspected.',
+            'general medicine': 'CBC, CRP, and ESR baseline. Urine R/M/E if infection suspected.',
+            'general surgery': 'Clinical examination and abdominal ultrasound as first step.',
+        }
+
+        # Score each specialty
+        specialty_scores = {}
+        for specialty, keywords in SYMPTOM_MAP.items():
+            score = sum(1 for kw in keywords if kw in symptoms_text)
+            if score > 0:
+                specialty_scores[specialty] = score
+
+        ranked = sorted(specialty_scores.items(), key=lambda x: x[1], reverse=True)[:4]
+
+        # Gather condition hints
+        conditions_seen = set()
+        possible_conditions = []
+        for keyword, cond_list in CONDITION_HINTS.items():
+            if keyword in symptoms_text:
+                for c in cond_list:
+                    if c not in conditions_seen:
+                        conditions_seen.add(c)
+                        possible_conditions.append(c)
+        possible_conditions = possible_conditions[:8]
+
+        # Build recommendations
+        recommendations = []
+        for spec, _ in ranked[:2]:
+            rec = RECOMMENDATIONS_MAP.get(spec)
+            if rec:
+                recommendations.append({'specialty': spec.title(), 'note': rec})
+
+        if not ranked and not possible_conditions:
+            return jsonify({
+                'matched_specialties': [],
+                'possible_conditions': [],
+                'recommendations': [],
+                'message': 'No strong pattern detected. Consider a General Medicine evaluation.'
+            })
+
+        return jsonify({
+            'matched_specialties': [{'name': s.title(), 'score': sc} for s, sc in ranked],
+            'possible_conditions': possible_conditions,
+            'recommendations': recommendations,
+        })
+
+    except Exception as e:
+        print(f"Diagnosis prediction error: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
     app.run(host='0.0.0.0', port=port)
+

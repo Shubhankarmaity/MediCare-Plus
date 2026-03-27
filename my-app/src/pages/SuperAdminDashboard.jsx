@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import {
     Grid, Paper, Typography, Table, TableBody, TableCell,
@@ -79,7 +79,12 @@ const SuperAdminDashboard = () => {
         }
     };
 
+    // Guard against React Strict Mode's double-invocation of effects in development
+    const hasFetchedRef = useRef(false);
+
     useEffect(() => {
+        if (hasFetchedRef.current) return;
+        hasFetchedRef.current = true;
         fetchData();
     }, []);
 
@@ -207,7 +212,6 @@ const SuperAdminDashboard = () => {
         }
     };
 
-    console.log("Rendering SuperAdminDashboard. View:", view);
 
     if (loading && !stats && !selectedHospital && view === 'hospitals') return (
         <div className="flex justify-center items-center h-screen">
