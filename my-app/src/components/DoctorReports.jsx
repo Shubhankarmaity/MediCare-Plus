@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { Calendar, FileText, Pill, UserCheck, Activity, TestTube, Download } from 'lucide-react'; // Added Download icon
 import jsPDF from 'jspdf';
+import AIDiagnosisAssistant from './AIDiagnosisAssistant';
 
 const DoctorReports = ({ open, onClose, appointment, onSubmit }) => {
   // ... (getInitialFormData and state remain same)
@@ -196,6 +197,14 @@ const DoctorReports = ({ open, onClose, appointment, onSubmit }) => {
             <Divider sx={{ my: 2 }} />
 
             <div className="space-y-4">
+              {/* AI Diagnosis Assistant */}
+              <AIDiagnosisAssistant
+                symptoms={appointment?.symptoms || reportData.symptoms}
+                onDiagnosisSelect={(diagnosis) =>
+                  setReportData(prev => ({ ...prev, diagnosis }))
+                }
+              />
+
               <TextField
                 fullWidth
                 label="Primary Diagnosis"
@@ -204,7 +213,7 @@ const DoctorReports = ({ open, onClose, appointment, onSubmit }) => {
                 variant="outlined"
                 value={reportData.diagnosis}
                 onChange={(e) => setReportData({ ...reportData, diagnosis: e.target.value })}
-                placeholder="Enter the primary diagnosis..."
+                placeholder="Enter diagnosis or click an AI suggestion above…"
                 required
               />
 

@@ -4,7 +4,16 @@ const cors = require('cors');
 const http = require('http');
 const path = require('path');
 const { Server } = require('socket.io');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+
+// Validate required environment variables at startup
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter((v) => !process.env[v]);
+if (missingEnvVars.length > 0) {
+  console.error(`❌ FATAL: Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  process.exit(1);
+}
 
 // Import Routes
 const authRoutes = require('./routes/auth');
@@ -26,6 +35,26 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Strict rate limiter for authentication endpoints (login/register) only
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // 30 login/register attempts per 15 min per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV !== 'production', // disabled in local dev
+  message: { message: 'Too many login attempts, please try again later.' }
+});
+
+// Generous limiter for API routes — prevents abuse without blocking normal usage
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute window
+  max: 200, // 200 requests per minute per IP (very generous for local dev)
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV !== 'production', // disabled entirely in development
+  message: { message: 'Too many requests, please try again later.' }
+});
+
 // Serve static files from the uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -35,8 +64,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
-app.use('/', authRoutes); // /login, /register
+// Routes — authLimiter ONLY on the auth routes, apiLimiter on all /api/* routes
+app.use('/api', apiLimiter); // generous, skipped in dev
+app.use('/', authLimiter, authRoutes); // /login, /register — strict
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/admin', adminRoutes);
@@ -49,7 +79,9 @@ app.use('/api/super-admin', superAdminRoutes);
 const hospitalRoutes = require('./routes/hospitals');
 app.use('/api/hospitals', hospitalRoutes);
 const debugRoutes = require('./routes/debug');
-app.use('/api/debug', debugRoutes);
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/debug', debugRoutes);
+}
 const seedRoutes = require('./routes/seed');
 app.use('/api/seed', seedRoutes);
 const vitalsRoutes = require('./routes/vitals');
@@ -133,7 +165,8 @@ io.on("connection", (socket) => {
 const startServer = async () => {
   try {
     const MONGODB_URI = process.env.MONGODB_URI;
-    console.log("Attempting to connect to MongoDB at:", MONGODB_URI);
+    const maskedUri = MONGODB_URI.replace(/:\/\/[^@]+@/, '://***:***@');
+    console.log("Attempting to connect to MongoDB at:", maskedUri);
 
     await mongoose.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 5000 // Fail after 5 seconds if cannot connect

@@ -1,18 +1,26 @@
-const axios = require('axios');
+const nodemailer = require('nodemailer');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 console.log("Email Service Config:", {
     user: process.env.EMAIL_USER ? "Set" : "Not Set",
-    brevoKey: process.env.BREVO_API_KEY ? "Set" : "Not Set" // Security: Don't log the full key
+    pass: process.env.EMAIL_PASS ? "Set" : "Not Set" 
+});
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
 });
 
 const sendEmail = async (to, subject, text, html) => {
     try {
         // Mock Mode for Dev or Missing Credentials
-        if (!process.env.BREVO_API_KEY || !process.env.EMAIL_USER) {
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
             console.log("-----------------------------------------");
-            console.log("📧 [MOCK EMAIL] - Missing Brevo Key or Sender");
+            console.log("📧 [MOCK EMAIL] - Missing Credentials");
             console.log(`To: ${to}`);
             console.log(`Subject: ${subject}`);
             console.log(`Content: ${text}`);
@@ -20,28 +28,20 @@ const sendEmail = async (to, subject, text, html) => {
             return { messageId: 'mock-id' };
         }
 
-        const data = {
-            sender: { email: process.env.EMAIL_USER, name: "MediCare Plus" },
-            to: [{ email: to }],
+        const mailOptions = {
+            from: `"MediCare Plus" <${process.env.EMAIL_USER}>`,
+            to: to,
             subject: subject,
-            htmlContent: html,
-            textContent: text
+            text: text,
+            html: html
         };
 
-        const config = {
-            headers: {
-                'api-key': process.env.BREVO_API_KEY,
-                'Content-Type': 'application/json',
-                'accept': 'application/json'
-            }
-        };
-
-        const response = await axios.post('https://api.brevo.com/v3/smtp/email', data, config);
-        console.log('✅ Brevo Email Sent:', response.data);
-        return response.data;
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ Email Sent successfully:', info.messageId);
+        return info;
 
     } catch (error) {
-        console.error('❌ Brevo Email Error:', error.response ? error.response.data : error.message);
+        console.error('❌ Email Error:', error.message);
         // DO NOT THROW, just return null so app doesn't crash, but log it.
         return null;
     }

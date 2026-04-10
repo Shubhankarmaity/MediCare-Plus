@@ -87,7 +87,6 @@ exports.register = async (req, res) => {
         if (user.role === 'admin' && user.hospitalId) {
             await Hospital.findByIdAndUpdate(user.hospitalId, { adminId: user._id });
             console.log(`Hospital ${user.hospitalId} linked to Admin ${user._id}`);
-            console.log(`Hospital ${user.hospitalId} linked to Admin ${user._id}`);
         }
 
         // --- NOTIFY HOSPITAL ADMIN ON PATIENT REGISTRATION ---
@@ -156,8 +155,7 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
     try {
-        console.log('Login attempt payload:', req.body);
-        console.log('Login attempt email:', req.body.email);
+        console.log('Login attempt for:', req.body.email);
 
         // Find user and explicitly select password since it's excluded by default now
         const user = await User.findOne({ email: req.body.email.toLowerCase() }).select('+password');
@@ -207,7 +205,7 @@ exports.login = async (req, res) => {
         }
 
         // Create token with user ID and role
-        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || "supersecretkey123", { expiresIn: '7d' });
+        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
         // Remove password from response
         const userResponse = user.toObject();

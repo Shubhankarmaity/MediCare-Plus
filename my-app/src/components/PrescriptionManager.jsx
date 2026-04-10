@@ -70,51 +70,67 @@ const PrescriptionManager = ({ appointments }) => {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-3 mb-6">
-                <div className="bg-blue-100 p-3 rounded-full">
-                    <Pill className="text-blue-600" size={24} />
+            <div className="flex items-center gap-4 mb-8 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                <div className="bg-gradient-to-br from-indigo-100 to-blue-100 p-4 rounded-2xl border border-blue-200">
+                    <Pill className="text-indigo-600" size={32} strokeWidth={2.5} />
                 </div>
                 <div>
-                    <Typography variant="h5" fontWeight="bold">My Prescriptions</Typography>
-                    <Typography color="text.secondary">Access and download your digital prescriptions</Typography>
+                    <Typography variant="h5" fontWeight="800" color="#0f172a" sx={{ letterSpacing: -0.5 }}>My Prescriptions</Typography>
+                    <Typography color="#64748b" fontWeight="500">Access and download your digital prescriptions</Typography>
                 </div>
             </div>
 
             {prescriptions.length === 0 ? (
-                <Card sx={{ p: 4, textAlign: 'center', bgcolor: '#f8fafc', border: '1px dashed #cbd5e1' }} elevation={0}>
-                    <Pill className="mx-auto text-gray-300 mb-2" size={48} />
-                    <Typography color="text.secondary">No prescriptions found in your records.</Typography>
+                <Card sx={{ p: 8, textAlign: 'center', bgcolor: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: 4 }} elevation={0}>
+                    <div className="mx-auto bg-white w-20 h-20 rounded-full flex items-center justify-center shadow-sm border border-slate-100 mb-4">
+                        <Pill className="text-slate-300" size={40} />
+                    </div>
+                    <Typography variant="h6" color="#475569" fontWeight="700">No Prescriptions Found</Typography>
+                    <Typography color="#94a3b8" fontWeight="500" mt={1}>You don't have any prescriptions in your medical records yet.</Typography>
                 </Card>
             ) : (
-                <Grid container spacing={3}>
+                <Grid container spacing={4}>
                     {prescriptions.map((apt) => (
                         <Grid size={{ xs: 12, md: 6, lg: 4 }} key={apt._id}>
-                            <Card elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: 3, '&:hover': { boxShadow: 4, borderColor: '#3b82f6' }, transition: 'all 0.2s' }}>
-                                <CardContent className="space-y-4">
+                            <Card elevation={0} sx={{ 
+                                border: '1px solid #e2e8f0', 
+                                borderRadius: 4, 
+                                height: '100%',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                '&:hover': { 
+                                    transform: 'translateY(-4px)',
+                                    boxShadow: '0 12px 24px -8px rgba(59, 130, 246, 0.15)', 
+                                    borderColor: '#bfdbfe' 
+                                } 
+                            }}>
+                                <CardContent sx={{ p: 4, flex: 1, display: 'flex', flexDirection: 'column' }}>
 
                                     {/* Header */}
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex items-center gap-3">
-                                            <div className="bg-green-100 p-2 rounded-lg">
-                                                <FileText size={20} className="text-green-600" />
+                                    <div className="flex justify-between items-start mb-5">
+                                        <div className="flex items-center gap-4">
+                                            <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-100">
+                                                <FileText size={24} className="text-emerald-600" strokeWidth={2.5} />
                                             </div>
                                             <div>
-                                                <Typography variant="subtitle1" fontWeight="bold">{apt.doctorId?.name}</Typography>
-                                                <div className="flex items-center gap-1 text-xs text-gray-500">
-                                                    <Calendar size={12} /> {new Date(apt.date).toLocaleDateString()}
+                                                <Typography variant="subtitle1" fontWeight="800" color="#0f172a" sx={{ lineHeight: 1.2 }}>Dr. {apt.doctorId?.name}</Typography>
+                                                <div className="flex items-center gap-1.5 text-sm text-slate-500 font-medium mt-1">
+                                                    <Calendar size={14} className="text-slate-400" /> {new Date(apt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Body */}
-                                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 min-h-[80px]">
-                                        <Typography variant="caption" fontWeight="bold" color="text.secondary" gutterBottom>
-                                            PRESCRIBED MEDICINES:
+                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex-1 mb-5">
+                                        <Typography variant="caption" fontWeight="800" color="#64748b" sx={{ letterSpacing: 0.5, display: 'block', mb: 1.5 }}>
+                                            PRESCRIBED MEDICINES
                                         </Typography>
-                                        <Typography variant="body2" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
-                                            {apt.doctorReport.prescription.length > 100
-                                                ? `${apt.doctorReport.prescription.substring(0, 100)}...`
+                                        <Typography variant="body2" color="#334155" fontWeight="600" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                                            {apt.doctorReport.prescription.length > 120
+                                                ? `${apt.doctorReport.prescription.substring(0, 120)}...`
                                                 : apt.doctorReport.prescription}
                                         </Typography>
                                     </div>
@@ -123,11 +139,18 @@ const PrescriptionManager = ({ appointments }) => {
                                     <Button
                                         variant="outlined"
                                         fullWidth
-                                        startIcon={<Download size={16} />}
+                                        startIcon={<Download size={18} />}
                                         onClick={() => downloadPrescription(apt)}
-                                        sx={{ textTransform: 'none', borderRadius: 2 }}
+                                        sx={{ 
+                                            textTransform: 'none', 
+                                            borderRadius: 2.5, 
+                                            py: 1.2,
+                                            fontWeight: 'bold',
+                                            borderWidth: 2,
+                                            '&:hover': { borderWidth: 2 }
+                                        }}
                                     >
-                                        Download Prescription PDF
+                                        Download PDF
                                     </Button>
 
                                 </CardContent>

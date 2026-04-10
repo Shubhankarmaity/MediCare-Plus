@@ -77,9 +77,26 @@ const DoctorAnalytics = ({ appointments }) => {
     // Summary numbers
     const totalCompleted = appointments.filter(a => a.status === 'completed').length;
     const emergencyCount = appointments.filter(a => a.isEmergency).length;
-    const avgPerDay = appointments.length > 0
-        ? (appointments.length / Math.max(1, new Set(appointments.map(a => new Date(a.date).toDateString())).size)).toFixed(1)
-        : '0';
+    const completionRate = appointments.length > 0
+        ? Math.round((totalCompleted / appointments.length) * 100)
+        : 0;
+
+    // Top Symptoms extraction
+    const symptomCounts = {};
+    appointments.forEach(a => {
+        const raw = a.symptoms || a.appointment?.symptoms || '';
+        if (!raw) return;
+        raw.toLowerCase().split(/[,;\n]+/).forEach(s => {
+            const clean = s.trim().replace(/^[^a-z]+/, '').trim();
+            if (clean.length > 2) symptomCounts[clean] = (symptomCounts[clean] || 0) + 1;
+        });
+    });
+    const topSymptoms = Object.entries(symptomCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8);
+
+    const rateColor = completionRate >= 80 ? '#10b981' : completionRate >= 50 ? '#f59e0b' : '#ef4444';
+    const rateLabel = completionRate >= 80 ? 'Great' : completionRate >= 50 ? 'Fair' : 'Low';
 
     return (
         <Box sx={{ mb: 4 }}>
@@ -97,9 +114,10 @@ const DoctorAnalytics = ({ appointments }) => {
                     <Typography variant="h4" fontWeight="bold" sx={{ color: '#10b981' }}>{totalCompleted}</Typography>
                     <Typography variant="body2" color="text.secondary">Completed</Typography>
                 </Paper>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid #e5e7eb', textAlign: 'center' }}>
-                    <Typography variant="h4" fontWeight="bold" sx={{ color: '#f59e0b' }}>{avgPerDay}</Typography>
-                    <Typography variant="body2" color="text.secondary">Avg / Day</Typography>
+                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid #e5e7eb', textAlign: 'center', borderTop: `3px solid ${rateColor}` }}>
+                    <Typography variant="h4" fontWeight="bold" sx={{ color: rateColor }}>{completionRate}%</Typography>
+                    <Typography variant="body2" color="text.secondary">Completion Rate</Typography>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: rateColor }}>{rateLabel}</span>
                 </Paper>
                 <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid #e5e7eb', textAlign: 'center' }}>
                     <Typography variant="h4" fontWeight="bold" sx={{ color: '#ef4444' }}>{emergencyCount}</Typography>
@@ -190,6 +208,43 @@ const DoctorAnalytics = ({ appointments }) => {
                     </Paper>
                 )}
             </div>
+
+            {/* Top Symptoms List */}
+            {topSymptoms.length > 0 && (
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3 }}>
+                    <Typography variant="subtitle1" gutterBottom fontWeight="600" color="text.secondary">Most Common Reported Symptoms</Typography>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 8 }}>
+                        {topSymptoms.map(([sym, count], i) => {
+                            const colors = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316','#6366f1'];
+                            const bg = colors[i % colors.length];
+                            return (
+                                <span key={sym} style={{
+                                    background: bg + '18',
+                                    color: bg,
+                                    border: `1px solid ${bg}40`,
+                                    borderRadius: 999,
+                                    padding: '4px 14px',
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                }}>
+                                    {sym}
+                                    <span style={{
+                                        background: bg,
+                                        color: '#fff',
+                                        borderRadius: 999,
+                                        padding: '0px 7px',
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                    }}>{count}</span>
+                                </span>
+                            );
+                        })}
+                    </div>
+                </Paper>
+            )}
         </Box>
     );
 };
