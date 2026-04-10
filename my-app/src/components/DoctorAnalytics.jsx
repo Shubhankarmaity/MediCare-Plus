@@ -77,9 +77,6 @@ const DoctorAnalytics = ({ appointments }) => {
     // Summary numbers
     const totalCompleted = appointments.filter(a => a.status === 'completed').length;
     const emergencyCount = appointments.filter(a => a.isEmergency).length;
-    const avgPerDay = appointments.length > 0
-        ? (appointments.length / Math.max(1, new Set(appointments.map(a => new Date(a.date).toDateString())).size)).toFixed(1)
-        : '0';
     const completionRate = appointments.length > 0
         ? Math.round((totalCompleted / appointments.length) * 100)
         : 0;

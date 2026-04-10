@@ -54,6 +54,7 @@ const AIDiagnosisAssistant = ({ symptoms, onDiagnosisSelect }) => {
       setResult(data);
       setExpanded(true);
     } catch (err) {
+      console.error(err);
       setError('AI assistant unavailable. Please ensure the Flask server is running.');
     } finally {
       setLoading(false);

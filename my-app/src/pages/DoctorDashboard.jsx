@@ -15,7 +15,10 @@ import { API_URL } from '../config';
 function useCountdown(timeSlot) {
   const [timeLeft, setTimeLeft] = useState(null);
   useEffect(() => {
-    if (!timeSlot) { setTimeLeft(null); return; }
+    if (!timeSlot) {
+      const timer = setTimeout(() => setTimeLeft(null), 0);
+      return () => clearTimeout(timer);
+    }
     const calc = () => {
       const now = new Date();
       const [rawTime, period] = timeSlot.split(' ');
@@ -28,9 +31,12 @@ function useCountdown(timeSlot) {
       const diff = target - now;
       return diff > 0 ? diff : null;
     };
-    setTimeLeft(calc());
+    const initialTimer = setTimeout(() => setTimeLeft(calc()), 0);
     const id = setInterval(() => setTimeLeft(calc()), 30000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(id);
+    };
   }, [timeSlot]);
   if (timeLeft === null) return null;
   const hrs = Math.floor(timeLeft / 3600000);

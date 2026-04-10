@@ -40,7 +40,9 @@ const HealthSidePanel = () => {
 
     useEffect(() => { fetchSummary(); }, [fetchSummary]);
 
-    const SectionHeader = ({ icon: Icon, color, title, open, onToggle }) => (
+    const SectionHeader = ({ icon, color, title, open, onToggle }) => {
+        const IconComponent = icon;
+        return (
         <Box
             onClick={onToggle}
             sx={{
@@ -52,7 +54,7 @@ const HealthSidePanel = () => {
             }}
         >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Icon size={16} color={color} />
+                <IconComponent size={16} color={color} />
                 <Typography variant="subtitle2" fontWeight="bold" sx={{ fontSize: '0.78rem' }}>
                     {title}
                 </Typography>
@@ -60,6 +62,7 @@ const HealthSidePanel = () => {
             {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </Box>
     );
+};
 
     if (loading) {
         return (
