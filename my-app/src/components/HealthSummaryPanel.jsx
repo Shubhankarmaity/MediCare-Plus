@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Grid, Card, CardContent, Typography, Chip, CircularProgress,
-    Alert, Divider, Paper, Box, Button, Tooltip
+    Alert, Divider, Paper, Box, Button, Tooltip, LinearProgress
 } from '@mui/material';
 import {
     Heart, Activity, Thermometer, Droplets, Weight, AlertTriangle,
@@ -42,9 +42,17 @@ const VITAL_LABELS = {
 };
 
 const HealthSummaryPanel = () => {
+    // ────────────────────────────────────────────────────────────
+    // ALL HOOKS DECLARED AT TOP (before any conditional returns)
+    // ────────────────────────────────────────────────────────────
+    
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [completedPlanItems, setCompletedPlanItems] = useState({});
+    const [savingProgress, setSavingProgress] = useState(false);
+
+    const planDateKey = summary?.dailyPlan?.dateKey || null;
 
     const fetchSummary = useCallback(async () => {
         try {
@@ -65,9 +73,53 @@ const HealthSummaryPanel = () => {
         }
     }, []);
 
+    const saveProgress = useCallback(async (next) => {
+        if (!planDateKey) return;
+
+        try {
+            setSavingProgress(true);
+            const token = localStorage.getItem('token');
+            await fetch(`${API_URL}/api/health-summary/progress`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    dateKey: planDateKey,
+                    completedItems: next
+                })
+            });
+        } catch (e) {
+            console.error('Failed to save health plan progress:', e);
+        } finally {
+            setSavingProgress(false);
+        }
+    }, [planDateKey]);
+
+    const togglePlanItem = useCallback((id) => {
+        setCompletedPlanItems((prev) => {
+            const next = { ...prev, [id]: !prev[id] };
+            saveProgress(next);
+            return next;
+        });
+    }, [saveProgress]);
+
     useEffect(() => {
         fetchSummary();
     }, [fetchSummary]);
+
+    useEffect(() => {
+        if (!summary?.dailyPlan) {
+            setCompletedPlanItems({});
+            return;
+        }
+        setCompletedPlanItems(summary.dailyPlan.completedItems || {});
+    }, [summary]);
+
+    // ────────────────────────────────────────────────────────────
+    // CONDITIONAL LOGIC (after all hooks)
+    // ────────────────────────────────────────────────────────────
 
     if (loading) {
         return (
@@ -91,9 +143,21 @@ const HealthSummaryPanel = () => {
 
     if (!summary) return null;
 
+    // ────────────────────────────────────────────────────────────
+    // COMPONENT LOGIC (after hooks and conditional early returns)
+    // ────────────────────────────────────────────────────────────
+
     const { currentCondition, vitalsAnalysis, recommendations, doctorNotes, activePrescriptions, dailyPlan } = summary;
     const statusCfg = STATUS_CONFIG[currentCondition.statusColor] || STATUS_CONFIG.info;
     const StatusIcon = statusCfg.icon;
+
+    const prioritized = dailyPlan?.prioritized || {};
+    const mustDoNow = prioritized.mustDoNow || [];
+    const shouldDoToday = prioritized.shouldDoToday || [];
+    const optionalTasks = prioritized.optional || [];
+    const allActionItems = [...mustDoNow, ...shouldDoToday, ...optionalTasks];
+    const completedCount = allActionItems.filter(item => completedPlanItems[item.id]).length;
+    const progressPct = allActionItems.length > 0 ? Math.round((completedCount / allActionItems.length) * 100) : 0;
 
     // Filter out null vital entries
     const vitalEntries = Object.entries(vitalsAnalysis).filter(([, v]) => v !== null);
@@ -210,6 +274,82 @@ const HealthSummaryPanel = () => {
                                         </Box>
                                     </Paper>
 
+                                    {/* Priority Actions + Progress */}
+                                    {allActionItems.length > 0 && (
+                                        <Paper elevation={0} sx={{
+                                            p: 2, borderRadius: 2, mb: 2.5,
+                                            backgroundColor: '#ffffff',
+                                            border: '1px solid #cbd5e1'
+                                        }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                                                <Typography variant="subtitle2" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <Target size={16} color="#334155" /> Priority Actions
+                                                </Typography>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    {savingProgress && <Typography variant="caption" color="text.secondary">Saving...</Typography>}
+                                                    <Chip
+                                                        size="small"
+                                                        label={`${completedCount}/${allActionItems.length} done`}
+                                                        sx={{ fontWeight: 700, backgroundColor: '#eef2ff', color: '#4338ca' }}
+                                                    />
+                                                </Box>
+                                            </Box>
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={progressPct}
+                                                sx={{ height: 8, borderRadius: 10, mb: 1.5, backgroundColor: '#e2e8f0', '& .MuiLinearProgress-bar': { backgroundColor: '#4f46e5' } }}
+                                            />
+                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                                                {progressPct}% complete for today
+                                            </Typography>
+
+                                            {[{ key: 'must', title: 'Must Do Now', items: mustDoNow, bg: '#fef2f2', border: '#fecaca' },
+                                            { key: 'should', title: 'Should Do Today', items: shouldDoToday, bg: '#fffbeb', border: '#fde68a' },
+                                            { key: 'optional', title: 'Optional', items: optionalTasks, bg: '#f8fafc', border: '#e2e8f0' }].map((section) => (
+                                                section.items.length > 0 && (
+                                                    <Box key={section.key} sx={{ mb: 1.5 }}>
+                                                        <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+                                                            {section.title}
+                                                        </Typography>
+                                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                                                            {section.items.map((item) => {
+                                                                const isDone = !!completedPlanItems[item.id];
+                                                                return (
+                                                                    <Paper key={item.id} elevation={0} sx={{
+                                                                        p: 1.2,
+                                                                        borderRadius: 1.5,
+                                                                        border: `1px solid ${section.border}`,
+                                                                        backgroundColor: section.bg,
+                                                                        opacity: isDone ? 0.7 : 1
+                                                                    }}>
+                                                                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                                                            <Button
+                                                                                onClick={() => togglePlanItem(item.id)}
+                                                                                size="small"
+                                                                                variant={isDone ? 'contained' : 'outlined'}
+                                                                                sx={{ minWidth: 34, px: 0.8, borderRadius: 1.5, mt: 0.2, textTransform: 'none' }}
+                                                                            >
+                                                                                {isDone ? 'Done' : 'Mark'}
+                                                                            </Button>
+                                                                            <Box sx={{ flex: 1 }}>
+                                                                                <Typography variant="body2" sx={{ textDecoration: isDone ? 'line-through' : 'none' }}>
+                                                                                    {item.task}
+                                                                                </Typography>
+                                                                                <Typography variant="caption" color="text.secondary">
+                                                                                    {item.reason}
+                                                                                </Typography>
+                                                                            </Box>
+                                                                        </Box>
+                                                                    </Paper>
+                                                                );
+                                                            })}
+                                                        </Box>
+                                                    </Box>
+                                                )
+                                            ))}
+                                        </Paper>
+                                    )}
+
                                     {/* Daily Tips */}
                                     <Typography variant="subtitle2" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
                                         <Lightbulb size={18} color="#eab308" /> Today's Tips for You
@@ -223,7 +363,14 @@ const HealthSummaryPanel = () => {
                                                 border: '1px solid #fde68a'
                                             }}>
                                                 <Lightbulb size={16} color="#d97706" style={{ marginTop: 2, flexShrink: 0 }} />
-                                                <Typography variant="body2">{tipObj.tip}</Typography>
+                                                <Box>
+                                                    <Typography variant="body2">{tipObj.tip}</Typography>
+                                                    {tipObj.reason && (
+                                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                                                            Why: {tipObj.reason}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
                                             </Paper>
                                         ))}
                                     </Box>

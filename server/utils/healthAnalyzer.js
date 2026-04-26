@@ -862,22 +862,76 @@ const DAILY_ROUTINES = {
  * Generates a daily health plan with rotating tips and time-based routine.
  * Tips rotate based on the day of the year so patients get fresh advice daily.
  */
+function getPriorityFromSeverity(severity) {
+    if (severity === 'danger') return { label: 'high', score: 3 };
+    if (severity === 'caution') return { label: 'medium', score: 2 };
+    return { label: 'low', score: 1 };
+}
+
+function buildCategoryReason(category, condition) {
+    if (condition?.details) return condition.details;
+
+    const fallback = {
+        highBP: 'Your blood pressure needs tighter control today.',
+        highSugar: 'Your blood sugar trend needs close monitoring today.',
+        highHeartRate: 'Your heart rate pattern needs calm pacing and observation.',
+        fever: 'Your temperature trend suggests focused recovery and hydration.',
+        overweight: 'Your weight trend benefits from consistent daily habits.',
+        general: 'These steps support your daily preventive health routine.'
+    };
+
+    return fallback[category] || fallback.general;
+}
+
+function scoreTask(task, severityScore) {
+    const text = task.toLowerCase();
+    let score = severityScore;
+
+    if (text.includes('medication') || text.includes('medications') || text.includes('insulin')) score += 4;
+    if (text.includes('check') || text.includes('monitor') || text.includes('measure')) score += 3;
+    if (text.includes('doctor') || text.includes('emergency')) score += 3;
+    if (text.includes('blood sugar') || text.includes('bp') || text.includes('temperature') || text.includes('heart rate')) score += 2;
+    if (text.includes('sleep') || text.includes('rest') || text.includes('hydrat')) score += 1;
+
+    return score;
+}
+
+function createTaskId(slot, task, index) {
+    const slug = task
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40);
+    return `${slot}-${index}-${slug}`;
+}
+
 function generateDailyPlan(activeCategories, conditions) {
     const today = new Date();
     const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
     const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
     const dateStr = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const dateKey = today.toISOString().slice(0, 10);
 
     // Select today's tips — rotate through the pool based on day of year
     const dailyTips = [];
     const categories = activeCategories.size > 0 ? [...activeCategories] : ['general'];
+    const conditionByCategory = new Map(
+        (conditions || [])
+            .filter(c => c.category)
+            .map(c => [c.category, c])
+    );
 
     for (const cat of categories) {
         const pool = DAILY_TIPS_POOL[cat] || DAILY_TIPS_POOL.general;
         const idx = dayOfYear % pool.length;
+        const condition = conditionByCategory.get(cat);
+        const priority = getPriorityFromSeverity(condition?.severity);
         dailyTips.push({
             category: cat,
-            tip: pool[idx]
+            tip: pool[idx],
+            reason: buildCategoryReason(cat, condition),
+            priority: priority.label,
+            priorityScore: priority.score
         });
         // Optionally add a second tip from the pool on alternate days
         if (pool.length > 1) {
@@ -885,11 +939,17 @@ function generateDailyPlan(activeCategories, conditions) {
             if (idx2 !== idx) {
                 dailyTips.push({
                     category: cat,
-                    tip: pool[idx2]
+                    tip: pool[idx2],
+                    reason: buildCategoryReason(cat, condition),
+                    priority: priority.label,
+                    priorityScore: priority.score
                 });
             }
         }
     }
+
+    dailyTips.sort((a, b) => (b.priorityScore || 0) - (a.priorityScore || 0));
+    const cappedDailyTips = dailyTips.slice(0, 6);
 
     // Build daily routine - merge routines from active categories
     const routine = { morning: [], afternoon: [], evening: [], night: [] };
@@ -915,6 +975,36 @@ function generateDailyPlan(activeCategories, conditions) {
         }
     }
 
+    const hasDangerCondition = (conditions || []).some(c => c.severity === 'danger');
+    const maxTasksPerSlot = hasDangerCondition ? 6 : 4;
+    for (const slot of ['morning', 'afternoon', 'evening', 'night']) {
+        routine[slot] = routine[slot].slice(0, maxTasksPerSlot);
+    }
+
+    const primaryCondition = (conditions || [])[0] || null;
+    const primarySeverity = getPriorityFromSeverity(primaryCondition?.severity);
+    const primaryReason = buildCategoryReason(primaryCondition?.category || 'general', primaryCondition);
+
+    const rankedTasks = [];
+    for (const slot of ['morning', 'afternoon', 'evening', 'night']) {
+        routine[slot].forEach((task, index) => {
+            rankedTasks.push({
+                id: createTaskId(slot, task, index),
+                slot,
+                task,
+                reason: primaryReason,
+                priority: primarySeverity.label,
+                score: scoreTask(task, primarySeverity.score)
+            });
+        });
+    }
+
+    rankedTasks.sort((a, b) => b.score - a.score);
+
+    const mustDoNow = rankedTasks.slice(0, 3).map(({ id, slot, task, reason }) => ({ id, slot, task, reason, priority: 'high' }));
+    const shouldDoToday = rankedTasks.slice(3, 8).map(({ id, slot, task, reason }) => ({ id, slot, task, reason, priority: 'medium' }));
+    const optional = rankedTasks.slice(8, 14).map(({ id, slot, task, reason }) => ({ id, slot, task, reason, priority: 'low' }));
+
     // Generate daily wellness score suggestion text
     const conditionCount = conditions.length;
     let dailyFocus;
@@ -928,11 +1018,17 @@ function generateDailyPlan(activeCategories, conditions) {
     }
 
     return {
+        dateKey,
         date: dateStr,
         dayName,
         dailyFocus,
-        dailyTips,
-        routine
+        dailyTips: cappedDailyTips,
+        routine,
+        prioritized: {
+            mustDoNow,
+            shouldDoToday,
+            optional
+        }
     };
 }
 

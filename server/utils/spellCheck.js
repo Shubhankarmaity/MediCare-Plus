@@ -45,6 +45,23 @@ const MEDICAL_TERMS = [
     'headache', 'stomach', 'chest pain', 'back pain', 'fever'
 ];
 
+const MEDICAL_CONTEXT_HINTS = [
+    'pain', 'fever', 'symptom', 'medicine', 'treatment', 'doctor', 'hospital',
+    'blood', 'sugar', 'pressure', 'cough', 'breath', 'vomit', 'diarrhea',
+    'infection', 'disease', 'emergency', 'ambulance', 'appointment',
+    'cardio', 'neuro', 'ortho', 'kidney', 'liver', 'heart'
+];
+
+const MEDICAL_TERMS_SET = new Set(MEDICAL_TERMS);
+
+function hasMedicalContext(queryLower, tokens) {
+    if (tokens.some(token => MEDICAL_TERMS_SET.has(token))) {
+        return true;
+    }
+
+    return MEDICAL_CONTEXT_HINTS.some(hint => queryLower.includes(hint));
+}
+
 /**
  * Calculate Levenshtein distance between two strings.
  */
@@ -82,14 +99,18 @@ function levenshteinDistance(a, b) {
 function correctWord(word) {
     const lower = word.toLowerCase();
 
+    // Preserve non-alphabetic tokens (numbers, IDs, mixed strings).
+    if (!/^[a-z]+$/.test(lower)) return lower;
+
     // If already a known term, return as-is
-    if (MEDICAL_TERMS.includes(lower)) return lower;
+    if (MEDICAL_TERMS_SET.has(lower)) return lower;
 
     // Only attempt correction for words >= 4 characters
     if (lower.length < 4) return lower;
 
     let bestMatch = null;
     let bestDistance = Infinity;
+    let bestConfidence = 0;
 
     // Max allowed distance scales with word length
     const maxDistance = lower.length <= 5 ? 1 : 2;
@@ -99,21 +120,41 @@ function correctWord(word) {
         if (Math.abs(term.length - lower.length) > maxDistance) continue;
 
         const dist = levenshteinDistance(lower, term);
+        const maxLen = Math.max(lower.length, term.length);
+        const confidence = 1 - (dist / maxLen);
+
         if (dist < bestDistance && dist <= maxDistance) {
             bestDistance = dist;
             bestMatch = term;
+            bestConfidence = confidence;
         }
     }
 
-    return bestMatch || lower;
+    // Require strong confidence to prevent aggressive over-correction.
+    if (bestMatch && bestConfidence >= 0.72) {
+        return bestMatch;
+    }
+
+    return lower;
 }
 
 /**
  * Auto-correct a full query string.
  * Returns the corrected query and whether any corrections were made.
  */
-function autocorrectQuery(query) {
+function autocorrectQuery(query, options = {}) {
     const tokens = query.toLowerCase().trim().split(/\s+/);
+
+    // Only auto-correct when the query appears medically relevant.
+    const forceMedical = options.context === 'medical';
+    if (forceMedical && !hasMedicalContext(query.toLowerCase(), tokens)) {
+        return {
+            original: query,
+            corrected: query.toLowerCase().trim(),
+            wasCorrected: false
+        };
+    }
+
     let corrected = false;
     const correctedTokens = tokens.map(token => {
         const fixed = correctWord(token);

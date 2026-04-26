@@ -7,7 +7,7 @@ const chatbotAnalyticsSchema = new mongoose.Schema({
     intent: { type: String },
     intentConfidence: { type: Number },
     matchedCategory: { type: String },
-    matchSource: { type: String, enum: ['nlp', 'fuse', 'keyword', 'fallback'] },
+    matchSource: { type: String, enum: ['nlp', 'fuse', 'keyword', 'fallback', 'clarify'] },
     responseTime: { type: Number }, // milliseconds
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     feedback: { type: String, enum: ['helpful', 'not_helpful'] },

@@ -39,6 +39,39 @@ const EMERGENCY_KEYWORDS = [
     'accident', 'dying', 'cardiac arrest', 'baby not breathing'
 ];
 
+const INTENT_HIGH_THRESHOLD = 0.75;
+const INTENT_MEDIUM_THRESHOLD = 0.45;
+const INTENT_AMBIGUITY_GAP = 0.12;
+
+const INFO_KEYWORDS = [
+    'what is', 'what are', 'how to', 'how do', 'explain',
+    'tell me about', 'symptoms of', 'cause of', 'definition',
+    'treatment for', 'cure for', 'medicine for', 'diet for'
+];
+
+const RECOMMENDATION_KEYWORDS = [
+    'recommend', 'recomend', 'best hospital', 'find hospital', 'hospital for',
+    'hospital of', 'where should i go', 'need a hospital', 'suggest',
+    'looking for hospital', 'find me', 'show me', 'hospital', 'hospitals',
+    'clinic', 'clinics'
+];
+
+const MEDICAL_KEYWORDS = [
+    'chest pain', 'heart', 'kidney', 'cancer', 'ortho', 'surgery', 'diabetes',
+    'sugar', 'neuro', 'neurology', 'brain', 'eye', 'dental', 'teeth', 'skin',
+    'derma', 'stomach', 'gastro', 'pediatric', 'child', 'baby', 'maternity',
+    'gynecology', 'women', 'ent', 'ear', 'nose', 'throat', 'lung', 'asthma',
+    'breathing', 'fever', 'infection'
+];
+
+const QUERY_STOPWORDS = new Set([
+    'i', 'me', 'my', 'mine', 'you', 'your', 'the', 'a', 'an', 'to', 'for',
+    'of', 'and', 'or', 'is', 'are', 'was', 'were', 'in', 'on', 'at', 'with',
+    'please', 'help', 'need', 'have', 'has', 'had', 'do', 'does', 'did',
+    'can', 'could', 'should', 'would', 'tell', 'about', 'near', 'best',
+    'find', 'show', 'give', 'recommend', 'hospital', 'hospitals'
+]);
+
 /**
  * Logic to recommend hospitals based on query and patient info
  * Powered by ML (Python Microservice)
@@ -107,6 +140,131 @@ function checkEmergency(queryLower) {
     return EMERGENCY_KEYWORDS.some(kw => queryLower.includes(kw));
 }
 
+function hasEmergencyNegation(queryLower) {
+    const negationPatterns = [
+        'not emergency',
+        'no emergency',
+        'not severe',
+        'mild chest pain',
+        'not serious',
+        'no chest pain now'
+    ];
+
+    return negationPatterns.some(pattern => queryLower.includes(pattern));
+}
+
+function getTopIntentCandidates(nlpResponse) {
+    if (Array.isArray(nlpResponse?.classifications) && nlpResponse.classifications.length > 0) {
+        return [...nlpResponse.classifications]
+            .sort((a, b) => (b.score || 0) - (a.score || 0))
+            .slice(0, 2)
+            .map(c => ({ intent: c.intent, score: c.score || 0 }));
+    }
+
+    if (nlpResponse?.intent) {
+        return [{ intent: nlpResponse.intent, score: nlpResponse.score || 0 }];
+    }
+
+    return [];
+}
+
+function detectIntentByKeywords(queryLower) {
+    const infoKeywordHit = INFO_KEYWORDS.some(k => queryLower.includes(k));
+    const recKeywordHit = RECOMMENDATION_KEYWORDS.some(k => queryLower.includes(k));
+    const medicalKeywordHit = MEDICAL_KEYWORDS.some(k => queryLower.includes(k));
+
+    return {
+        infoConfidence: infoKeywordHit ? 0.58 : 0,
+        recommendationConfidence: (recKeywordHit || (!infoKeywordHit && medicalKeywordHit)) ? 0.58 : 0
+    };
+}
+
+function decideIntent(queryLower, nlpResponse) {
+    const topCandidates = getTopIntentCandidates(nlpResponse);
+    const top = topCandidates[0] || { intent: 'none', score: 0 };
+    const second = topCandidates[1] || { intent: 'none', score: 0 };
+
+    const nlpInfoConfidence = topCandidates.find(c => c.intent === 'medical.info')?.score || 0;
+    const nlpRecommendationConfidence = topCandidates.find(c => c.intent === 'hospital.recommendation')?.score || 0;
+    const keywordConfidence = detectIntentByKeywords(queryLower);
+
+    const infoConfidence = Math.max(nlpInfoConfidence, keywordConfidence.infoConfidence);
+    const recommendationConfidence = Math.max(nlpRecommendationConfidence, keywordConfidence.recommendationConfidence);
+
+    if (top.intent === 'emergency.sos' && top.score >= INTENT_MEDIUM_THRESHOLD) {
+        return { intent: 'emergency.sos', confidence: top.score, shouldClarify: false };
+    }
+
+    const confidenceGap = Math.abs(infoConfidence - recommendationConfidence);
+    if (
+        infoConfidence >= INTENT_MEDIUM_THRESHOLD &&
+        recommendationConfidence >= INTENT_MEDIUM_THRESHOLD &&
+        confidenceGap <= 0.15
+    ) {
+        return {
+            intent: 'ambiguous',
+            confidence: Math.max(infoConfidence, recommendationConfidence),
+            shouldClarify: true
+        };
+    }
+
+    const selectedIntent = infoConfidence >= recommendationConfidence ? 'medical.info' : 'hospital.recommendation';
+    const selectedConfidence = Math.max(infoConfidence, recommendationConfidence);
+    const secondaryConfidence = Math.min(infoConfidence, recommendationConfidence);
+
+    const nlpAmbiguous =
+        second.intent !== 'none' &&
+        ['medical.info', 'hospital.recommendation'].includes(top.intent) &&
+        ['medical.info', 'hospital.recommendation'].includes(second.intent) &&
+        Math.abs((top.score || 0) - (second.score || 0)) <= INTENT_AMBIGUITY_GAP;
+
+    if (selectedConfidence < INTENT_MEDIUM_THRESHOLD) {
+        return { intent: 'unknown', confidence: selectedConfidence, shouldClarify: false };
+    }
+
+    if (selectedConfidence < INTENT_HIGH_THRESHOLD && (nlpAmbiguous || secondaryConfidence >= INTENT_MEDIUM_THRESHOLD)) {
+        return { intent: selectedIntent, confidence: selectedConfidence, shouldClarify: true };
+    }
+
+    return { intent: selectedIntent, confidence: selectedConfidence, shouldClarify: false };
+}
+
+function extractTopicFromQuery(query) {
+    const tokens = query
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter(token => token.length > 3 && !QUERY_STOPWORDS.has(token));
+
+    if (tokens.length === 0) return 'this condition';
+    return tokens.slice(0, 3).join(' ');
+}
+
+function buildClarificationResponse(query) {
+    const topic = extractTopicFromQuery(query);
+    return {
+        type: 'medical_info',
+        answer: `I can help with this in two ways. Do you want medical information about **${topic}**, or should I recommend nearby hospitals for it?`,
+        category: 'Need Clarification',
+        severity: 'info',
+        confidence: 50,
+        matchSource: 'clarify',
+        followUpQuestions: [
+            `Explain symptoms and treatment for ${topic}`,
+            `Recommend hospitals for ${topic}`
+        ]
+    };
+}
+
+function buildRewriteSuggestions(query) {
+    const topic = extractTopicFromQuery(query);
+    return [
+        `What are the symptoms of ${topic}?`,
+        `How is ${topic} treated?`,
+        `Recommend hospitals for ${topic} near me.`
+    ];
+}
+
 /**
  * Build the response object with follow-up questions and confidence
  */
@@ -142,7 +300,7 @@ exports.ask = async (req, res) => {
 
     try {
         // Step 1: Spell-check the query
-        const spellResult = autocorrectQuery(query);
+        const spellResult = autocorrectQuery(query, { context: 'medical' });
         const correctedQuery = spellResult.corrected;
 
         // Step 2: Expand with synonyms
@@ -150,7 +308,7 @@ exports.ask = async (req, res) => {
         const queryLower = expandedQuery.toLowerCase();
 
         // Step 3: Check for emergency
-        if (checkEmergency(queryLower)) {
+        if (checkEmergency(queryLower) && !hasEmergencyNegation(queryLower)) {
             const analyticsEntry = {
                 query, correctedQuery, expandedQuery,
                 intent: 'emergency.sos', intentConfidence: 1.0,
@@ -170,59 +328,39 @@ exports.ask = async (req, res) => {
         // Step 4: NLP intent detection
         const nlpResponse = await nlpManager.process('en', correctedQuery);
         const intent = nlpResponse.intent;
-        const nlpScore = nlpResponse.score;
+        const nlpScore = nlpResponse.score || 0;
+        const intentDecision = decideIntent(queryLower, nlpResponse);
 
-        // Step 5: Determine query type
-        let isInfoQuery = false;
-        let isRecommendation = false;
-
-        if (intent === 'medical.info' && nlpScore > 0.5) {
-            isInfoQuery = true;
-        } else if (intent === 'hospital.recommendation' && nlpScore > 0.5) {
-            isRecommendation = true;
-        } else if (intent === 'emergency.sos' && nlpScore > 0.5) {
+        if (intentDecision.intent === 'emergency.sos') {
             // NLP also detected emergency
             return res.json({
                 type: 'emergency',
                 answer: nlpResponse.answer || '🚨 Please call 112 immediately for emergency assistance!',
                 severity: 'danger',
-                confidence: Math.round(nlpScore * 100)
+                confidence: Math.round((intentDecision.confidence || nlpScore) * 100)
             });
         }
 
-        // Keyword fallback for intent detection
-        if (!isInfoQuery && !isRecommendation) {
-            const infoKeywords = [
-                'what is', 'what are', 'how to', 'how do', 'explain',
-                'tell me about', 'symptoms of', 'cause of', 'definition',
-                'treatment for', 'cure for', 'medicine for', 'diet for'
-            ];
-            const recKeywords = [
-                'recommend', 'recomend', 'best hospital', 'find hospital', 'hospital for',
-                'hospital of', 'where should i go', 'need a hospital', 'suggest',
-                'looking for hospital', 'find me', 'show me', 'hospital', 'hospitals',
-                'clinic', 'clinics'
-            ];
-            const medicalKeywords = [
-                'chest pain', 'heart', 'kidney', 'cancer', 'ortho', 'surgery', 'diabetes',
-                'sugar', 'neuro', 'neurology', 'brain', 'eye', 'dental', 'teeth', 'skin',
-                'derma', 'stomach', 'gastro', 'pediatric', 'child', 'baby', 'maternity',
-                'gynecology', 'women', 'ent', 'ear', 'nose', 'throat', 'lung', 'asthma',
-                'breathing', 'fever', 'infection'
-            ];
+        if (intentDecision.shouldClarify) {
+            ChatbotAnalytics.create({
+                query, correctedQuery, expandedQuery,
+                intent: intentDecision.intent,
+                intentConfidence: intentDecision.confidence,
+                matchSource: 'clarify',
+                responseTime: Date.now() - startTime,
+                userId: req.user?._id
+            }).catch(() => {});
 
-            isInfoQuery = infoKeywords.some(k => queryLower.includes(k));
-            isRecommendation = recKeywords.some(k => queryLower.includes(k)) ||
-                (medicalKeywords.some(k => queryLower.includes(k)) && !isInfoQuery);
+            return res.json(buildClarificationResponse(query));
         }
 
         // Step 6: Hospital recommendation
-        if (isRecommendation) {
+        if (intentDecision.intent === 'hospital.recommendation') {
             const recsResponse = await recommendHospitals(query, patientInfo, insuranceCompany);
 
             const analyticsEntry = {
                 query, correctedQuery, expandedQuery,
-                intent: 'hospital.recommendation', intentConfidence: nlpScore,
+                intent: 'hospital.recommendation', intentConfidence: intentDecision.confidence || nlpScore,
                 matchSource: 'nlp', responseTime: Date.now() - startTime,
                 userId: req.user?._id
             };
@@ -302,7 +440,7 @@ exports.ask = async (req, res) => {
         // Step 8: Fallback — no match found
         ChatbotAnalytics.create({
             query, correctedQuery, expandedQuery,
-            intent: intent || 'unknown', intentConfidence: nlpScore || 0,
+            intent: intent || 'unknown', intentConfidence: intentDecision.confidence || nlpScore || 0,
             matchSource: 'fallback', responseTime: Date.now() - startTime,
             userId: req.user?._id
         }).catch(() => {});
@@ -310,14 +448,16 @@ exports.ask = async (req, res) => {
         // Provide helpful suggestions based on available categories
         const categories = [...new Set(MEDICAL_KB.map(e => e.category))];
         const sampleCategories = categories.slice(0, 8).join(', ');
+        const rewriteSuggestions = buildRewriteSuggestions(query);
 
         return res.json({
             type: 'medical_info',
-            answer: `🤖 I'm sorry, I couldn't find specific information on that topic in my database.\n\n**Here's what I can help with:**\n${sampleCategories}\n\n**Try asking about:**\n- Symptoms of a specific condition\n- Treatment options\n- Preventive health tips\n- Hospital recommendations\n\n💡 *You can also try rephrasing your question or ask me to recommend a hospital for your condition.*`,
+            answer: `🤖 I could not confidently understand this query yet.\n\n**Here's what I can help with:**\n${sampleCategories}\n\n**Try one of these rewrites:**\n- ${rewriteSuggestions[0]}\n- ${rewriteSuggestions[1]}\n- ${rewriteSuggestions[2]}\n\n💡 *You can also ask me to recommend hospitals for your condition.*`,
             category: 'General Info',
             severity: 'info',
             confidence: 0,
-            matchSource: 'fallback'
+            matchSource: 'fallback',
+            followUpQuestions: rewriteSuggestions
         });
 
     } catch (err) {
@@ -356,14 +496,73 @@ exports.submitFeedback = async (req, res) => {
     }
 };
 
+async function computeClarificationStats(startDate) {
+    const docs = await ChatbotAnalytics.find({
+        createdAt: { $gte: startDate },
+        userId: { $exists: true, $ne: null }
+    })
+        .select('userId createdAt matchSource')
+        .sort({ userId: 1, createdAt: 1 })
+        .lean();
+
+    const byUser = new Map();
+    for (const doc of docs) {
+        const userKey = doc.userId.toString();
+        if (!byUser.has(userKey)) byUser.set(userKey, []);
+        byUser.get(userKey).push(doc);
+    }
+
+    let clarificationCount = 0;
+    let clarificationRecoveredCount = 0;
+    const recoveryWindowMs = 30 * 60 * 1000;
+
+    for (const events of byUser.values()) {
+        for (let i = 0; i < events.length; i++) {
+            if (events[i].matchSource !== 'clarify') continue;
+
+            clarificationCount += 1;
+            const clarifyTime = new Date(events[i].createdAt).getTime();
+
+            for (let j = i + 1; j < events.length; j++) {
+                const eventTime = new Date(events[j].createdAt).getTime();
+                if ((eventTime - clarifyTime) > recoveryWindowMs) break;
+
+                const source = events[j].matchSource;
+                if (source === 'clarify') continue;
+                if (source === 'keyword' || source === 'fuse' || source === 'nlp') {
+                    clarificationRecoveredCount += 1;
+                }
+                break;
+            }
+        }
+    }
+
+    const clarificationRate = docs.length > 0
+        ? Math.round((clarificationCount / docs.length) * 100)
+        : 0;
+    const clarificationRecoveryRate = clarificationCount > 0
+        ? Math.round((clarificationRecoveredCount / clarificationCount) * 100)
+        : 0;
+
+    return {
+        totalTrackedQueries: docs.length,
+        clarificationCount,
+        clarificationRecoveredCount,
+        clarificationRate,
+        clarificationRecoveryRate,
+        recoveryWindowMinutes: 30
+    };
+}
+
 /**
  * Controller: Get chatbot analytics summary
  */
 exports.getAnalytics = async (req, res) => {
     try {
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-        const [totalQueries, matchSources, feedbackStats, avgResponseTime, topCategories] = await Promise.all([
+        const [totalQueries, matchSources, feedbackStats, avgResponseTime, topCategories, weeklyClarificationStats] = await Promise.all([
             ChatbotAnalytics.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
 
             ChatbotAnalytics.aggregate([
@@ -386,7 +585,9 @@ exports.getAnalytics = async (req, res) => {
                 { $group: { _id: '$matchedCategory', count: { $sum: 1 } } },
                 { $sort: { count: -1 } },
                 { $limit: 10 }
-            ])
+            ]),
+
+            computeClarificationStats(sevenDaysAgo)
         ]);
 
         const fallbackCount = matchSources.find(s => s._id === 'fallback')?.count || 0;
@@ -401,7 +602,16 @@ exports.getAnalytics = async (req, res) => {
             matchSources: matchSources.reduce((acc, s) => { acc[s._id] = s.count; return acc; }, {}),
             feedbackStats: feedbackStats.reduce((acc, s) => { acc[s._id] = s.count; return acc; }, {}),
             avgResponseTime: avgResponseTime[0]?.avg ? `${Math.round(avgResponseTime[0].avg)}ms` : 'N/A',
-            topCategories: topCategories.map(c => ({ category: c._id, count: c.count }))
+            topCategories: topCategories.map(c => ({ category: c._id, count: c.count })),
+            weekly: {
+                period: '7 days',
+                clarificationRate: `${weeklyClarificationStats.clarificationRate}%`,
+                clarificationRecoveryRate: `${weeklyClarificationStats.clarificationRecoveryRate}%`,
+                clarificationCount: weeklyClarificationStats.clarificationCount,
+                clarificationRecoveredCount: weeklyClarificationStats.clarificationRecoveredCount,
+                totalTrackedQueries: weeklyClarificationStats.totalTrackedQueries,
+                recoveryWindowMinutes: weeklyClarificationStats.recoveryWindowMinutes
+            }
         });
     } catch (err) {
         console.error('Analytics Error:', err);

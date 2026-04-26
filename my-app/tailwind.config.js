@@ -22,7 +22,8 @@ export default {
         'warning-yellow': '#D69E2E',
       },
       fontFamily: {
-        sans: ['Inter', 'Roboto', 'sans-serif'],
+        sans: ['Inter', 'sans-serif'],
+        outfit: ['Outfit', 'sans-serif'],
       },
       boxShadow: {
         'clinical': '0 1px 3px rgba(0, 0, 0, 0.05)',

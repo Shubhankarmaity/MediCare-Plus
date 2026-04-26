@@ -34,6 +34,11 @@ const AdminDashboard = () => {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [rejectDialog, setRejectDialog] = useState({ open: false, appointment: null, reason: '' });
 
+  // Chatbot Analytics State
+  const [chatbotAnalytics, setChatbotAnalytics] = useState(null);
+  const [chatbotLoading, setChatbotLoading] = useState(false);
+  const [chatbotError, setChatbotError] = useState('');
+
   // Approval Modal State
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [approvingDoctor, setApprovingDoctor] = useState(null);
@@ -236,6 +241,29 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchChatbotAnalytics = async () => {
+    setChatbotLoading(true);
+    setChatbotError('');
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${API_URL}/api/chatbot/analytics`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        setChatbotAnalytics(result);
+      } else {
+        setChatbotError(result.message || 'Unable to load chatbot analytics');
+      }
+    } catch (err) {
+      console.error('Error fetching chatbot analytics:', err);
+      setChatbotError('Unable to load chatbot analytics');
+    } finally {
+      setChatbotLoading(false);
+    }
+  };
+
   const fetchDoctorSlots = async (doctorId, date) => {
     if (!doctorId || !date) return;
     setSlotsLoading(true);
@@ -322,6 +350,7 @@ const AdminDashboard = () => {
     fetchData();
     fetchPendingDoctors();
     fetchAppointmentRequests('requested');
+    fetchChatbotAnalytics();
 
     // SOCKET.IO EVENT LISTENER
     socket.on('new_user', (newUser) => {
@@ -371,7 +400,17 @@ const AdminDashboard = () => {
       </Box>
       <div className="flex justify-between items-center mb-6">
         <Typography variant="body2" color="text.secondary">Live Real-time Data Feed</Typography>
-        <IconButton onClick={fetchData} title="Force Refresh"><RefreshCw size={18} /></IconButton>
+        <IconButton
+          onClick={() => {
+            fetchData();
+            fetchPendingDoctors();
+            fetchAppointmentRequests(appointmentFilter);
+            fetchChatbotAnalytics();
+          }}
+          title="Force Refresh"
+        >
+          <RefreshCw size={18} />
+        </IconButton>
       </div>
 
       {/* PENDING DOCTOR APPROVALS */}
@@ -451,6 +490,75 @@ const AdminDashboard = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Chatbot Quality Analytics */}
+      <Paper sx={{ p: 3, borderRadius: 3, mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <MessageSquare size={22} /> Chatbot Quality (7 Days)
+          </Typography>
+          <Chip
+            size="small"
+            color="primary"
+            variant="outlined"
+            label={chatbotAnalytics?.weekly?.period || '7 days'}
+          />
+        </Box>
+
+        {chatbotLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+            <CircularProgress size={24} />
+          </Box>
+        ) : chatbotError ? (
+          <Typography color="error" variant="body2">{chatbotError}</Typography>
+        ) : chatbotAnalytics?.weekly ? (
+          <>
+            <Grid container spacing={2} mb={2}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid #e5e7eb', textAlign: 'center', bgcolor: '#f8fafc' }}>
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#f59e0b' }}>
+                    {chatbotAnalytics.weekly.clarificationRate || '0%'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">Clarification Rate</Typography>
+                </Paper>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid #e5e7eb', textAlign: 'center', bgcolor: '#f8fafc' }}>
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#10b981' }}>
+                    {chatbotAnalytics.weekly.clarificationRecoveryRate || '0%'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">Recovery After Clarify</Typography>
+                </Paper>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid #e5e7eb', textAlign: 'center', bgcolor: '#f8fafc' }}>
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#3b82f6' }}>
+                    {chatbotAnalytics.weekly.clarificationCount ?? 0}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">Clarification Prompts</Typography>
+                </Paper>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid #e5e7eb', textAlign: 'center', bgcolor: '#f8fafc' }}>
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#8b5cf6' }}>
+                    {chatbotAnalytics.weekly.clarificationRecoveredCount ?? 0}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">Recovered Conversations</Typography>
+                </Paper>
+              </Grid>
+            </Grid>
+
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              <Chip label={`30-day success: ${chatbotAnalytics.successRate || 'N/A'}`} color="success" size="small" icon={<CheckCircle size={14} />} />
+              <Chip label={`Avg response: ${chatbotAnalytics.avgResponseTime || 'N/A'}`} size="small" />
+              <Chip label={`Tracked queries: ${chatbotAnalytics.weekly.totalTrackedQueries ?? 0}`} size="small" />
+              <Chip label={`Recovery window: ${chatbotAnalytics.weekly.recoveryWindowMinutes ?? 30} min`} size="small" />
+            </Box>
+          </>
+        ) : (
+          <Typography color="text.secondary" variant="body2">No chatbot analytics data available yet.</Typography>
+        )}
+      </Paper>
 
       {/* ── APPOINTMENT MANAGEMENT ── */}
       <Paper sx={{ p: 3, borderRadius: 3, mb: 4 }}>

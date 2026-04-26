@@ -123,4 +123,22 @@ body {
     .form-input-error {
         @apply border-error-red focus:ring-error-red;
     }
+
+    /* Premium UI Additions */
+    .glass-panel {
+        @apply bg-white/70 backdrop-blur-md border border-white/40 shadow-sm rounded-2xl;
+    }
+    
+    .soft-shadow {
+        box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+    }
+    
+    .animate-pulse-fast {
+        animation: pulse-fast 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse-fast {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
 }

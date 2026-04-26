@@ -115,7 +115,7 @@ const WEBSITE_FAQ = [
     },
     {
         keywords: ['admin role', 'hospital admin', 'how to become admin', 'admin account', 'manage hospital'],
-        answer: `🏢 **Hospital Admin accounts** are pre-configured by MediCare Plus.\n\nEach hospital has a **default admin account:**\n• 📧 Email: *{hospitalname}admin@gmail.com*\n• 🔑 Password: *123456*\n\n**As an Admin you can:**\n• ✅ Approve or reject doctor registrations\n• 👥 View patients and their appointments\n• 🏥 Manage hospital details\n• 📊 View hospital analytics & stats\n• 💬 Chat with patients`
+        answer: `🏢 **Hospital Admin accounts** are provisioned securely by MediCare Plus.\n\nFor admin onboarding or access recovery:\n• Contact the platform Super Admin\n• Use the secure account setup and reset flow\n• Never share credentials over chat or email\n\n**As an Admin you can:**\n• ✅ Approve or reject doctor registrations\n• 👥 View patients and their appointments\n• 🏥 Manage hospital details\n• 📊 View hospital analytics & stats\n• 💬 Chat with patients`
     },
     {
         keywords: ['video call', 'online consultation', 'virtual appointment', 'telemedicine', 'video chat', 'call doctor'],
@@ -274,6 +274,22 @@ const ChatMessage = ({ msg, navigate, closeChat, onFollowUp, onFeedback }) => {
     };
     const isEmergency = msg.type === 'emergency';
     const showFeedback = isBot && msg.matchSource && msg.matchSource !== 'fallback' && !isEmergency;
+    const qualityBadge = (() => {
+        if (!isBot || isEmergency) return null;
+        if (msg.matchSource === 'clarify') {
+            return { label: 'Needs Clarification', cls: 'bg-amber-100 text-amber-700' };
+        }
+        if (msg.confidence >= 80) {
+            return { label: 'High Confidence', cls: 'bg-green-100 text-green-700' };
+        }
+        if (msg.confidence >= 50) {
+            return { label: 'Moderate Confidence', cls: 'bg-blue-100 text-blue-700' };
+        }
+        if (msg.confidence > 0) {
+            return { label: 'Low Confidence', cls: 'bg-slate-100 text-slate-600' };
+        }
+        return null;
+    })();
     const handleFeedback = (type) => {
         setFeedbackGiven(type);
         if (onFeedback) onFeedback(msg.queryId, type);
@@ -291,12 +307,11 @@ const ChatMessage = ({ msg, navigate, closeChat, onFollowUp, onFeedback }) => {
                         : isBot ? 'bg-white border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm' : 'bg-primary-blue text-white rounded-tr-sm'
                 }`}>
                     {isBot && msg.severity && <SeverityBadge severity={msg.severity} />}
-                    {isBot && msg.confidence > 0 && !isEmergency && (
+                    {isBot && !isEmergency && (msg.confidence > 0 || msg.matchSource === 'clarify') && (
                         <div className="flex items-center gap-1.5 mb-1">
                             {msg.category && <span className="text-xs text-sky-600 font-semibold flex items-center gap-1"><Stethoscope className="w-3 h-3" /> {msg.category}</span>}
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${msg.confidence >= 80 ? 'bg-green-100 text-green-700' : msg.confidence >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
-                                {msg.confidence}% match
-                            </span>
+                            {qualityBadge && <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${qualityBadge.cls}`}>{qualityBadge.label}</span>}
+                            {msg.confidence > 0 && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500">{msg.confidence}% match</span>}
                         </div>
                     )}
                     {isBot && msg.category && !msg.confidence && <div className="text-xs text-sky-600 font-semibold mb-1 flex items-center gap-1"><Stethoscope className="w-3 h-3" /> {msg.category}</div>}
