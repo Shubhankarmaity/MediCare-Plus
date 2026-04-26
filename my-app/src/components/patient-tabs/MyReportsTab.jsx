@@ -31,7 +31,7 @@ const MyReportsTab = ({ patientAppointments, downloadReport }) => {
                 const dateA = a.doctorReport?.reportDate ? new Date(a.doctorReport.reportDate) : new Date(0);
                 const dateB = b.doctorReport?.reportDate ? new Date(b.doctorReport.reportDate) : new Date(0);
                 return dateB - dateA;
-              } catch (error) {
+              } catch {
                 return 0;
               }
             })
