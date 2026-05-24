@@ -9,3 +9,8 @@ __pycache__/
 .DS_Store
 .antigravitycli/
 .qoder/
+
+# Ignore all markdown files except README.md
+*.md
+!README.md
+docs/
