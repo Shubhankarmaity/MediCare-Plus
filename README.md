@@ -1,4 +1,4 @@
-# <p align="center"><img src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/master/icons/pulse.svg" width="50" height="50" style="vertical-align: middle; animation: pulse 2s infinite;"/> MediCare Plus</p>
+# <p align="center">🏥 MediCare Plus</p>
 
 <p align="center">
   <strong>A Production-Grade, Enterprise-Scale MERN Healthcare Management & Real-Time Discovery Platform</strong>
@@ -41,42 +41,13 @@ MediCare Plus utilizes a decoupled client-server architecture with an integrated
 
 ```mermaid
 graph TD
-    classDef client fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff;
-    classDef node fill:#065f46,stroke:#10b981,stroke-width:2px,color:#fff;
-    classDef db fill:#14532d,stroke:#059669,stroke-width:2px,color:#fff;
-    classDef python fill:#854d0e,stroke:#eab308,stroke-width:2px,color:#fff;
-    
-    A["💻 React SPA Client (Vite 5)"]:::client
-    B["⚙️ Node.js Express 5 API"]:::node
-    C["🔌 Socket.io Server (Real-Time Gateway)"]:::node
-    D["💾 MongoDB Atlas Cloud Cluster"]:::db
-    E["🤖 Python Flask ML Service"]:::python
-    
-    A -- "HTTP Rest API Requests (Secure HttpOnly Cookies)" --> B
-    A -- "WebRTC Call Signaling & SOS Alerts" --> C
-    B -- "Mongoose Schema Operations" --> D
-    C -- "Driver GPS Streams / Call Handshakes" --> A
-    B -- "Axios /predict & /retrain Ports" --> E
-    E -- "Live PyMongo Dataset Fetching" --> D
+    A[💻 React SPA Client] -->|HTTP Rest API Requests| B[⚙️ Node.js Express 5 API]
+    A -->|WebRTC Call Signaling / SOS| C[🔌 Socket.io Server]
+    B -->|Mongoose Schema Operations| D[💾 MongoDB Atlas]
+    C -->|Driver GPS / Call Handshakes| A
+    B -->|Axios /predict & /retrain| E[🤖 Python Flask ML Service]
+    E -->|Live PyMongo Dataset Fetching| D
 ```
-
----
-
-## 📸 Visual Previews
-
-<p align="center">
-  <img src="my-app/src/assets/images/screenshots/dashboard_mockup.png" width="850" alt="MediCare Plus Patient Dashboard Mockup"/>
-  <br/>
-  <em>Figure 1: Premium Glassmorphic Patient Dashboard & Vitals Telemetry</em>
-</p>
-
-<br/>
-
-<p align="center">
-  <img src="my-app/src/assets/images/screenshots/telehealth_mockup.png" width="850" alt="MediCare Plus Telehealth Room Mockup"/>
-  <br/>
-  <em>Figure 2: Real-Time P2P WebRTC Telehealth Consultation</em>
-</p>
 
 ---
 
