@@ -6,13 +6,17 @@ This document lists all discovered REST API endpoints, payload formats, authenti
 
 ## 🔒 Authentication Security Matrix
 
-Most endpoints are guarded by JWT authorization. The token must be passed in the HTTP request headers:
-*   **Header Key**: `x-auth-token`
-*   **Token Format**: JWT string containing `{ user: { id, role } }`.
+Most endpoints are guarded by JWT authorization. The token is delivered and verified securely via:
+1. **Secure HTTP-Only Cookie**: Automatically sent by the browser under the key `token` (uses `SameSite: none`, `Secure: true`).
+2. **Fallback Authorization Headers**:
+   * **Header Key**: `Authorization` (with `Bearer <token>` format).
+   * **Custom Header Key**: `x-auth-token`.
+*   **Token Format**: JWT string containing `{ id, role }`.
 
 | Endpoint Path | Authentication | Allowed Roles | Content-Type |
 | :--- | :--- | :--- | :--- |
 | `/register`, `/login`, `/verify-email` | 🔓 Public | All | `application/json` |
+| `/logout` | 🔓 Public / Protected | All | `application/json` |
 | `/api/chatbot` | 🔓 Public (or Patient) | All | `application/json` |
 | `/api/doctors`, `/api/hospitals` | 🔓 Public (or Protected) | All | `application/json` |
 | `/api/vitals/*`, `/api/appointments/book` | 🔑 Guarded | `patient` | `application/json` |
@@ -90,6 +94,16 @@ Most endpoints are guarded by JWT authorization. The token must be passed in the
       }
     }
     ```
+
+#### 🔹 User Logout
+*   **Path**: `POST /logout`
+*   **Response (200 OK)**:
+    ```json
+    {
+      "message": "Logged out successfully"
+    }
+    ```
+    *(Clears the secure `token` HttpOnly cookie).*
 
 ---
 

@@ -209,6 +209,14 @@ exports.login = async (req, res) => {
         // Create token with user ID and role
         const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || "supersecretkey123", { expiresIn: '7d' });
 
+        // Set secure HTTP-Only cookie
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
         // Remove password from response
         const userResponse = user.toObject();
         delete userResponse.password;
@@ -522,6 +530,19 @@ exports.resetPassword = async (req, res) => {
 
         res.json({ message: "Password reset successfully. You can now login." });
 
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+exports.logout = async (req, res) => {
+    try {
+        res.clearCookie('token', {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none'
+        });
+        res.json({ message: "Logged out successfully" });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

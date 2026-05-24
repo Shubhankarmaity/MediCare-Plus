@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppBar, Toolbar, IconButton, Typography, Menu, MenuItem, Avatar, Tooltip, Box } from '@mui/material';
 import { User, Shield, Activity, Ambulance } from 'lucide-react';
+import authService from '../services/authService';
 
 // Helper to generate color from name
 function stringToColor(string) {
@@ -37,8 +38,16 @@ const DashboardLayout = ({ title, userRole, children }) => {
     const handleMenu = (event) => setAnchorEl(event.currentTarget);
     const handleClose = () => setAnchorEl(null);
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
         console.log('Logging out - Clearing all data');
+
+        try {
+            // Trigger backend logout to clear HTTP-Only token cookie
+            await authService.logout();
+            console.log('Backend token cookie cleared successfully');
+        } catch (err) {
+            console.error('Error logging out from backend:', err);
+        }
 
         // Clear all localStorage items
         localStorage.clear();

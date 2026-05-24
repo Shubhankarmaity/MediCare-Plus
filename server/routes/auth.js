@@ -20,6 +20,9 @@ router.post('/reset-password', authController.resetPassword);
 // LOGIN
 router.post('/login', authController.login);
 
+// LOGOUT
+router.post('/logout', authController.logout);
+
 // UPDATE PROFILE
 router.put('/profile', auth, authController.updateProfile);
 
