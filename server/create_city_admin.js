@@ -11,7 +11,7 @@ const createCityAdmin = async () => {
         await mongoose.connect(MONGODB_URI);
         console.log('Connected to MongoDB');
 
-        // 1. Find City General Hospitals
+        // 1. Find City General Hospital
         const cityHospital = await Hospital.findOne({ name: "City General Hospital" });
         if (!cityHospital) {
             console.log('City General Hospital not found! Please run seedHospitals.js first.');
