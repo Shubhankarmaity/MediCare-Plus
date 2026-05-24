@@ -3,6 +3,29 @@ import Peer from "simple-peer";
 import { Phone, Mic, MicOff, Video, VideoOff } from "lucide-react";
 
 
+const defaultIceServers = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" }
+];
+
+const getIceServersConfig = () => {
+    const servers = [...defaultIceServers];
+    const turnUrl = import.meta.env.VITE_TURN_URL;
+    const turnUsername = import.meta.env.VITE_TURN_USERNAME;
+    const turnCredential = import.meta.env.VITE_TURN_CREDENTIAL;
+    
+    if (turnUrl) {
+        const turnServer = { urls: turnUrl };
+        if (turnUsername) turnServer.username = turnUsername;
+        if (turnCredential) turnServer.credential = turnCredential;
+        servers.push(turnServer);
+    }
+    return servers;
+};
+
 const VideoCall = ({ socket, user, partnerId, incomingSignal, isInitiator, onEnd }) => {
     const [stream, setStream] = useState(null);
     const [callAccepted, setCallAccepted] = useState(false);
@@ -61,6 +84,9 @@ const VideoCall = ({ socket, user, partnerId, incomingSignal, isInitiator, onEnd
                         initiator: true,
                         trickle: false,
                         stream: currentStream,
+                        config: {
+                            iceServers: getIceServersConfig()
+                        }
                     });
 
                     peer.on("signal", (data) => {
@@ -91,6 +117,9 @@ const VideoCall = ({ socket, user, partnerId, incomingSignal, isInitiator, onEnd
                         initiator: false,
                         trickle: false,
                         stream: currentStream,
+                        config: {
+                            iceServers: getIceServersConfig()
+                        }
                     });
 
                     peer.on("signal", (data) => {

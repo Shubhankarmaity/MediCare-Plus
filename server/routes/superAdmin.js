@@ -3,19 +3,7 @@ const User = require('../models/User');
 const Hospital = require('../models/Hospital');
 const Appointment = require('../models/Appointment'); // Optional: for cascading deletes or stats
 const auth = require('../middleware/auth');
-const multer = require('multer');
-const path = require('path');
-
-// Configure Multer for File Uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname.replace(/\s+/g, '_')}`);
-    }
-});
-const upload = multer({ storage });
+const upload = require('../utils/storage');
 // Middleware to ensure user is Super Admin
 const isSuperAdmin = (req, res, next) => {
     if (req.user.role !== 'super-admin') {
@@ -86,10 +74,9 @@ router.post('/hospital', auth, isSuperAdmin, upload.single('image'), async (req,
 
         // Handle Image Upload
         if (req.file) {
-            // Define the base URL structure
-            // If we are on production, we'd use the deployed URL. For now, localhost:5000 is for backend.
+            // Handles Cloudinary (.path), S3 (.location), and Local (.filename) structures dynamically
             const baseUrl = req.protocol + '://' + req.get('host');
-            newHospitalData.image = `${baseUrl}/uploads/${req.file.filename}`;
+            newHospitalData.image = req.file.path || req.file.location || `${baseUrl}/uploads/${req.file.filename}`;
         }
 
         const hospital = new Hospital(newHospitalData);
