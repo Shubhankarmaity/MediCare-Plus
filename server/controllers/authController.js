@@ -3,7 +3,8 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Hospital = require('../models/Hospital');
 const Notification = require('../models/Notification');
-const { sendOtpEmail } = require('../utils/emailService'); // Import email service
+const { sendOtpEmail } = require('../utils/emailService');
+const logger = require('../utils/logger');
 
 // Helper to generate 6-digit OTP
 const generateOTP = () => {
@@ -86,8 +87,7 @@ exports.register = async (req, res) => {
         // Link Hospital to Admin if role is admin
         if (user.role === 'admin' && user.hospitalId) {
             await Hospital.findByIdAndUpdate(user.hospitalId, { adminId: user._id });
-            console.log(`Hospital ${user.hospitalId} linked to Admin ${user._id}`);
-            console.log(`Hospital ${user.hospitalId} linked to Admin ${user._id}`);
+            logger.info(`Hospital ${user.hospitalId} linked to Admin ${user._id}`);
         }
 
         // --- NOTIFY HOSPITAL ADMIN ON PATIENT REGISTRATION ---
@@ -377,35 +377,43 @@ exports.getProfileAccessList = async (req, res) => {
             return res.status(403).json({ message: "Only patients can view their access list" });
         }
 
-        // Get patient's privacy settings
         const patient = await User.findById(req.user.id).select('privacySettings');
         if (!patient) {
             return res.status(404).json({ message: "Patient not found" });
         }
 
-        // Get list of users who have access
         const profileAccess = patient.privacySettings?.profileAccess || {};
-        const accessList = [];
 
-        // Get details for each user who has access
+        // Collect all approved userIds first (avoiding N+1 queries)
+        const approvedEntries = [];
         for (const [userId, accessInfo] of Object.entries(profileAccess)) {
             if (accessInfo.approved) {
-                const user = await User.findById(userId).select('name role email');
-                if (user) {
-                    accessList.push({
-                        id: user._id,
-                        name: user.name,
-                        role: user.role,
-                        email: user.email,
-                        approvedAt: accessInfo.approvedAt
-                    });
-                }
+                approvedEntries.push({ userId, accessInfo });
             }
         }
 
+        // Single batch query for all users
+        const userIds = approvedEntries.map(e => e.userId);
+        const users = await User.find({ _id: { $in: userIds } }).select('name role email');
+        const userMap = new Map(users.map(u => [u._id.toString(), u]));
+
+        const accessList = approvedEntries
+            .map(({ userId, accessInfo }) => {
+                const user = userMap.get(userId);
+                if (!user) return null;
+                return {
+                    id: user._id,
+                    name: user.name,
+                    role: user.role,
+                    email: user.email,
+                    approvedAt: accessInfo.approvedAt
+                };
+            })
+            .filter(Boolean);
+
         res.json({ accessList });
     } catch (err) {
-        console.error('Error fetching access list:', err);
+        logger.error(`Error fetching access list: ${err.message}`);
         res.status(500).json({ message: err.message });
     }
 };

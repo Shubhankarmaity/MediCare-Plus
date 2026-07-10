@@ -2,6 +2,7 @@ const Appointment = require('../models/Appointment');
 const User = require('../models/User');
 const Hospital = require('../models/Hospital');
 const Notification = require('../models/Notification');
+const logger = require('../utils/logger');
 
 // ─── PATIENT: Book Appointment (creates a "requested" appointment for admin review) ───
 exports.bookAppointment = async (req, res) => {
@@ -141,32 +142,72 @@ exports.getMyAppointments = async (req, res) => {
     }
 };
 
-// ─── UPDATE STATUS (backward compat for cancel) ───
+// ─── UPDATE STATUS ── Role-based status transition whitelist ───────────────
 exports.updateStatus = async (req, res) => {
     try {
         const { status } = req.body;
-        // Only allow patients to cancel their own requested appointments
-        if (status === 'cancelled') {
-            const apt = await Appointment.findById(req.params.id);
-            if (!apt) return res.status(404).json({ message: "Appointment not found" });
-            if (apt.patientId.toString() !== req.user.id && req.user.role !== 'admin') {
-                return res.status(403).json({ message: "Not authorized" });
+        const apt = await Appointment.findById(req.params.id);
+        if (!apt) return res.status(404).json({ message: 'Appointment not found' });
+
+        const role = req.user.role;
+        const userId = req.user.id;
+
+        // Define allowed transitions per role
+        const allowedTransitions = {
+            patient: ['cancelled'],
+            doctor: ['completed'],
+            admin: ['approved', 'rejected', 'cancelled'],
+            'super-admin': ['approved', 'rejected', 'cancelled', 'completed'],
+        };
+
+        const allowed = allowedTransitions[role] || [];
+        if (!allowed.includes(status)) {
+            return res.status(403).json({
+                message: `Role '${role}' cannot set appointment status to '${status}'.`
+            });
+        }
+
+        // Patients can only cancel their own appointments
+        if (role === 'patient') {
+            if (apt.patientId.toString() !== userId) {
+                return res.status(403).json({ message: 'Not authorized to modify this appointment.' });
+            }
+            if (!['requested', 'approved'].includes(apt.status)) {
+                return res.status(400).json({ message: 'This appointment cannot be cancelled at its current stage.' });
             }
         }
+
         await Appointment.findByIdAndUpdate(req.params.id, { status });
-        res.json({ message: "Status Updated" });
-    } catch (err) { res.status(500).json(err); }
+        res.json({ message: 'Status Updated' });
+    } catch (err) {
+        logger.error(`updateStatus error: ${err.message}`);
+        res.status(500).json(err);
+    }
 };
 
 exports.submitReport = async (req, res) => {
     try {
         // Verify user is a doctor
         if (req.user.role !== 'doctor') {
-            return res.status(403).json({ message: "Access denied. Doctors only." });
+            return res.status(403).json({ message: 'Access denied. Doctors only.' });
         }
 
-        console.log('Submitting report for appointment:', req.params.id);
-        console.log('Report data:', req.body);
+        const appointment = await Appointment.findById(req.params.id);
+        if (!appointment) {
+            return res.status(404).json({ message: 'Appointment not found' });
+        }
+
+        // ✅ Ownership check: only the assigned doctor can submit this report
+        if (appointment.doctorId.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'You are not assigned to this appointment.' });
+        }
+
+        // ✅ Only approved appointments can have reports submitted
+        if (appointment.status !== 'approved') {
+            return res.status(400).json({ message: 'Report can only be submitted for approved appointments.' });
+        }
+
+        logger.info(`Doctor ${req.user.id} submitting report for appointment: ${req.params.id}`);
 
         // Update appointment with doctor's report and mark as completed
         const updatedAppointment = await Appointment.findByIdAndUpdate(
@@ -183,24 +224,18 @@ exports.submitReport = async (req, res) => {
             { new: true }
         );
 
-        if (!updatedAppointment) {
-            return res.status(404).json({ message: "Appointment not found" });
-        }
-
-        console.log('Report submitted successfully for appointment:', updatedAppointment._id);
-
         // Notify patient that checkup is completed and report is ready
         if (req.io && updatedAppointment.patientId) {
-            req.io.emit(`notification_${updatedAppointment.patientId}`, {
+            req.io.to(updatedAppointment.patientId.toString()).emit('notification_appointment', {
                 type: 'appointment_completed',
-                message: 'Your checkup is completed and the doctor\'s report is ready.',
+                message: "Your checkup is completed and the doctor's report is ready.",
                 appointmentId: updatedAppointment._id
             });
         }
 
-        res.json({ message: "Report submitted successfully", appointment: updatedAppointment });
+        res.json({ message: 'Report submitted successfully', appointment: updatedAppointment });
     } catch (err) {
-        console.error('Error submitting report:', err);
+        logger.error(`Error submitting report: ${err.message}`);
         res.status(500).json(err);
     }
 };

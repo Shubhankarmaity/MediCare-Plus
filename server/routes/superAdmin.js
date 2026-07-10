@@ -1,9 +1,13 @@
 const router = require('express').Router();
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const axios = require('axios');
 const User = require('../models/User');
 const Hospital = require('../models/Hospital');
-const Appointment = require('../models/Appointment'); // Optional: for cascading deletes or stats
+const Appointment = require('../models/Appointment');
 const auth = require('../middleware/auth');
 const upload = require('../utils/storage');
+const logger = require('../utils/logger');
 // Middleware to ensure user is Super Admin
 const isSuperAdmin = (req, res, next) => {
     if (req.user.role !== 'super-admin') {
@@ -83,14 +87,13 @@ router.post('/hospital', auth, isSuperAdmin, upload.single('image'), async (req,
         await hospital.save();
 
         // --- AUTOMATIC ADMIN CREATION ---
-        const bcrypt = require('bcryptjs');
-
-        // Format: admin[hospitalname][4-digit-id]@hospital.com (stripping spaces and special chars)
+        // Build admin email: admin<hospitalname><4-digit-suffix>@hospital.com
         const cleanName = hospital.name.toLowerCase().replace(/[^a-z0-9]/g, '');
         const uniqueSuffix = Date.now().toString().slice(-4);
         const adminEmail = `admin${cleanName}${uniqueSuffix}@hospital.com`;
-        const adminPassword = 'admin123';
-        const hashedPassword = await bcrypt.hash(adminPassword, 10);
+        // Generate a cryptographically secure random password (16 hex chars)
+        const adminPassword = crypto.randomBytes(8).toString('hex');
+        const hashedPassword = await bcrypt.hash(adminPassword, 12);
 
         const adminUser = new User({
             name: `${hospital.name} Admin`,
@@ -112,27 +115,22 @@ router.post('/hospital', auth, isSuperAdmin, upload.single('image'), async (req,
 
         // Trigger ML Model Retraining
         try {
-            const axios = require('axios');
-            // Fetch all active hospitals to send to the ML service
             const activeHospitals = await Hospital.find({ networkStatus: 'Active' });
-
-            // Send to Python Flask microservice
-            // We use a short timeout so if the ML service is down, it doesn't hang the API response
             const mlUrl = process.env.ML_SERVICE_URL || 'http://localhost:5001';
             await axios.post(`${mlUrl}/retrain`, { hospitals: activeHospitals }, { timeout: 3000 });
-            console.log(`[ML Retrain] Successfully triggered retraining for ${activeHospitals.length} hospitals after adding ${hospital.name}`);
+            logger.info(`[ML Retrain] Triggered for ${activeHospitals.length} hospitals after adding ${hospital.name}`);
         } catch (mlError) {
-            console.error('[ML Retrain] Failed to trigger retraining. The hospital was still saved.', mlError.message);
-            // We do NOT fail the request if ML retraining fails, as the primary data is saved.
+            logger.error(`[ML Retrain] Failed. Hospital was still saved. ${mlError.message}`);
         }
 
         res.status(201).json({
-            message: "Hospital added successfully",
+            message: 'Hospital added successfully',
             hospital,
-            adminEmail // Send back the generated email so frontend knows what was created
+            adminEmail,
+            adminPassword // IMPORTANT: Show only once — admin should change on first login
         });
     } catch (err) {
-        console.error("Error adding hospital:", err);
+        logger.error(`Error adding hospital: ${err.message}`);
         res.status(500).json({ message: err.message });
     }
 });

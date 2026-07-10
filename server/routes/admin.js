@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Hospital = require('../models/Hospital');
 const Appointment = require('../models/Appointment');
 const auth = require('../middleware/auth');
+const logger = require('../utils/logger');
 
 // GET ALL SYSTEM STATS & DATA
 router.get('/dashboard-data', auth, async (req, res) => {
@@ -35,7 +36,11 @@ router.get('/dashboard-data', auth, async (req, res) => {
             hospitalId: hospital._id
         });
 
-        const driverCount = await User.countDocuments({ role: 'driver' });
+        // Only count drivers linked to this hospital
+        const driverCount = await User.countDocuments({
+            role: 'driver',
+            hospitalId: hospital._id
+        });
 
         // 3. Fetch Data Lists (Scoped to this Hospital only)
         const doctors = await User.find({
@@ -154,18 +159,21 @@ router.get('/pending-doctors', auth, async (req, res) => {
 
         if (!hospital) return res.status(400).json({ message: "Admin not linked to a hospital" });
 
-        console.log(`Fetching pending doctors for ${hospital.name}...`);
+        logger.info(`Fetching pending doctors for ${hospital.name}...`);
 
         const pendingDoctors = await User.find({
             role: 'doctor',
             approvalStatus: 'pending',
-            hospitalName: hospital.name // Filter by hospital name
+            $or: [
+                { hospitalId: hospital._id },
+                { hospitalName: hospital.name } // fallback for legacy records
+            ]
         }).select('-password').sort({ createdAt: -1 });
 
-        console.log(`Found ${pendingDoctors.length} pending doctors for ${hospital.name}`);
+        logger.info(`Found ${pendingDoctors.length} pending doctors for ${hospital.name}`);
         res.json(pendingDoctors);
     } catch (err) {
-        console.error('Error fetching pending doctors:', err);
+        logger.error(`Error fetching pending doctors: ${err.message}`);
         res.status(500).json({ message: err.message });
     }
 });
@@ -186,9 +194,12 @@ router.put('/approve-doctor/:id', auth, async (req, res) => {
         const doctorToApprove = await User.findById(req.params.id);
         if (!doctorToApprove) return res.status(404).json({ message: "Doctor not found" });
 
-        // Verify hospital match
-        if (doctorToApprove.hospitalName !== hospital.name) {
-            return res.status(403).json({ message: "You can only approve doctors for your own hospital" });
+        // Verify hospital match using hospitalId (reliable) with hospitalName as fallback
+        const doctorHospitalId = doctorToApprove.hospitalId?.toString();
+        if (doctorHospitalId && doctorHospitalId !== hospital._id.toString()) {
+            if (doctorToApprove.hospitalName !== hospital.name) {
+                return res.status(403).json({ message: 'You can only approve doctors for your own hospital' });
+            }
         }
 
         const { department } = req.body;
@@ -242,8 +253,12 @@ router.put('/reject-doctor/:id', auth, async (req, res) => {
         const doctorToReject = await User.findById(req.params.id);
         if (!doctorToReject) return res.status(404).json({ message: "Doctor not found" });
 
-        if (doctorToReject.hospitalName !== hospital.name) {
-            return res.status(403).json({ message: "You can only reject doctors for your own hospital" });
+        // Verify hospital match using hospitalId (reliable) with hospitalName as fallback
+        const doctorHospitalId = doctorToReject.hospitalId?.toString();
+        if (doctorHospitalId && doctorHospitalId !== hospital._id.toString()) {
+            if (doctorToReject.hospitalName !== hospital.name) {
+                return res.status(403).json({ message: 'You can only reject doctors for your own hospital' });
+            }
         }
 
         const doctor = await User.findByIdAndUpdate(

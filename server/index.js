@@ -4,41 +4,84 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const http = require('http');
 const path = require('path');
+const helmet = require('helmet');
+const compression = require('compression');
 const { Server } = require('socket.io');
 require('dotenv').config();
 
-// Import Routes
-const authRoutes = require('./routes/auth');
-const doctorRoutes = require('./routes/doctors');
-const appointmentRoutes = require('./routes/appointments');
-const adminRoutes = require('./routes/admin');
-const ambulanceRoutes = require('./routes/ambulance');
-const accessRequestRoutes = require('./routes/accessRequests');
-const messageRoutes = require('./routes/messages');
-const notificationRoutes = require('./routes/notifications');
+const logger = require('./utils/logger');
+
+// ── Crash fast if critical env vars are missing ─────────────────────────────
+if (!process.env.JWT_SECRET) {
+    logger.error('FATAL: JWT_SECRET environment variable is not set. Refusing to start.');
+    process.exit(1);
+}
+if (!process.env.MONGODB_URI) {
+    logger.error('FATAL: MONGODB_URI environment variable is not set. Refusing to start.');
+    process.exit(1);
+}
+
+// ── Import Routes ─────────────────────────────────────────────────────────────
+const authRoutes           = require('./routes/auth');
+const doctorRoutes         = require('./routes/doctors');
+const appointmentRoutes    = require('./routes/appointments');
+const adminRoutes          = require('./routes/admin');
+const ambulanceRoutes      = require('./routes/ambulance');
+const accessRequestRoutes  = require('./routes/accessRequests');
+const messageRoutes        = require('./routes/messages');
+const notificationRoutes   = require('./routes/notifications');
+const superAdminRoutes     = require('./routes/superAdmin');
+const hospitalRoutes       = require('./routes/hospitals');
+const vitalsRoutes         = require('./routes/vitals');
+const paymentRoutes        = require('./routes/payments');
+const chatbotRoutes        = require('./routes/chatbot');
+const healthSummaryRoutes  = require('./routes/healthSummary');
+const seedRoutes           = require('./routes/seed');
+// Debug routes only loaded in non-production environments
+const debugRoutes = process.env.NODE_ENV !== 'production'
+    ? require('./routes/debug')
+    : null;
 
 const app = express();
-const server = http.createServer(app); // Wrap Express with HTTP server for Socket.io
+const server = http.createServer(app);
 
-// Middleware
-app.use(cors({
-  origin: process.env.CLIENT_URL ? [process.env.CLIENT_URL, "http://localhost:5173", "http://localhost:5179", "http://localhost:5180", "https://medi-care-plus-gules.vercel.app"] : ["http://localhost:5173", "http://localhost:5179", "http://localhost:5180", "https://medi-care-plus-gules.vercel.app"],
-  credentials: true
+// ── Socket.io Initialization (declared BEFORE middleware that uses `io`) ─────
+const allowedOrigins = process.env.CLIENT_URL
+    ? [process.env.CLIENT_URL, 'http://localhost:5173', 'http://localhost:5179', 'http://localhost:5180', 'https://medi-care-plus-gules.vercel.app']
+    : ['http://localhost:5173', 'http://localhost:5179', 'http://localhost:5180', 'https://medi-care-plus-gules.vercel.app'];
+
+const io = new Server(server, {
+    cors: {
+        origin: allowedOrigins,
+        methods: ['GET', 'POST'],
+        credentials: true
+    }
+});
+
+// ── Core Middleware ───────────────────────────────────────────────────────────
+app.use(helmet({
+    crossOriginEmbedderPolicy: false,   // Allow embedding (needed for some frontend assets)
+    contentSecurityPolicy: false,        // CSP managed separately or by frontend framework
 }));
-app.use(express.json());
+app.use(compression());
+app.use(cors({
+    origin: allowedOrigins,
+    credentials: true
+}));
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
 // Serve static files from the uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Inject Socket.io into Request
+// Inject Socket.io instance into every request
 app.use((req, res, next) => {
-  req.io = io;
-  next();
+    req.io = io;
+    next();
 });
 
-// Routes
-app.use('/', authRoutes); // /login, /register
+// ── Routes ────────────────────────────────────────────────────────────────────
+app.use('/', authRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/admin', adminRoutes);
@@ -46,111 +89,119 @@ app.use('/api/ambulance', ambulanceRoutes);
 app.use('/api/access-requests', accessRequestRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
-const superAdminRoutes = require('./routes/superAdmin');
 app.use('/api/super-admin', superAdminRoutes);
-const hospitalRoutes = require('./routes/hospitals');
 app.use('/api/hospitals', hospitalRoutes);
-const debugRoutes = require('./routes/debug');
-app.use('/api/debug', debugRoutes);
-const seedRoutes = require('./routes/seed');
-app.use('/api/seed', seedRoutes);
-const vitalsRoutes = require('./routes/vitals');
 app.use('/api/vitals', vitalsRoutes);
-const paymentRoutes = require('./routes/payments');
 app.use('/api/payments', paymentRoutes);
-const chatbotRoutes = require('./routes/chatbot');
 app.use('/api/chatbot', chatbotRoutes);
-const healthSummaryRoutes = require('./routes/healthSummary');
 app.use('/api/health-summary', healthSummaryRoutes);
+app.use('/api/seed', seedRoutes);
 
-// --- SOCKET.IO REAL-TIME LOGIC ---
-const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL ? [process.env.CLIENT_URL, "http://localhost:5173", "http://localhost:5179", "http://localhost:5180", "https://medi-care-plus-gules.vercel.app"] : ["http://localhost:5173", "http://localhost:5179", "http://localhost:5180", "https://medi-care-plus-gules.vercel.app"], // Allow Frontend to connect from both ports
-    methods: ["GET", "POST"]
-  }
+// Debug routes only in non-production
+if (debugRoutes) {
+    app.use('/api/debug', debugRoutes);
+    logger.warn('⚠️  Debug routes are ACTIVE (NODE_ENV is not production).');
+}
+
+// ── Health Check ──────────────────────────────────────────────────────────────
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString(), env: process.env.NODE_ENV || 'development' });
 });
 
-io.on("connection", (socket) => {
-  console.log(`User Connected: ${socket.id}`);
-
-  // JOIN USER ROOM
-  socket.on("join_room", (userId) => {
-    if (userId) {
-      socket.join(userId);
-      console.log(`User ${socket.id} joined room: ${userId}`);
-    }
-  });
-
-  // SEND MESSAGE
-  socket.on("send_message", (data) => {
-    // data: { senderId, receiverId, content, etc... }
-    // This is often handled by API + broadcast, but purely socket chat is also Possible.
-    // We rely on the API triggering the 'receive_message' event usually, 
-    // but if we want socket-only:
-    // io.to(data.receiverId).emit("receive_message", data);
-  });
-
-  // 1. Driver sends location update
-  socket.on("send_location", (data) => {
-    // data = { lat: 40.7128, lng: -74.0060, driverId: '123' }
-    console.log("Location Update:", data);
-
-    // Broadcast to everyone (or specific patients)
-    io.emit("receive_location", data);
-  });
-
-  // 2. Ambulance Request (SOS)
-  socket.on("sos_alert", (data) => {
-    console.log("SOS Received!", data);
-    io.emit("dispatch_ambulance", data); // Alert all drivers
-  });
-
-  socket.on("disconnect", () => {
-    console.log("User Disconnected", socket.id);
-  });
-
-  // --- VIDEO CALL SIGNALING ---
-  socket.on("callUser", ({ userToCall, signalData, from, name }) => {
-    console.log(`Call initiated by ${from} to ${userToCall}`);
-    io.to(userToCall).emit("callUser", { signal: signalData, from, name });
-  });
-
-  socket.on("answerCall", (data) => {
-    console.log(`Call answered by ${data.from} to ${data.to}`);
-    io.to(data.to).emit("callAccepted", data.signal);
-  });
-
-  socket.on("ice-candidate", ({ target, candidate }) => {
-    io.to(target).emit("ice-candidate", candidate);
-  });
-
-  socket.on("endCall", ({ to }) => {
-    console.log(`Call ended for ${to}`);
-    io.to(to).emit("callEnded");
-  });
+// ── 404 Handler ───────────────────────────────────────────────────────────────
+app.use((req, res) => {
+    res.status(404).json({ message: `Route ${req.method} ${req.path} not found` });
 });
 
-// Database & Server Startup
+// ── Global Error Handler ──────────────────────────────────────────────────────
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+    logger.error(`Unhandled Error: ${err.message}`, { stack: err.stack });
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({
+        message: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message
+    });
+});
+
+// ── Socket.io Real-Time Logic ─────────────────────────────────────────────────
+io.on('connection', (socket) => {
+    logger.info(`Socket connected: ${socket.id}`);
+
+    // User joins their own private room (identified by MongoDB _id)
+    socket.on('join_room', (userId) => {
+        if (userId) {
+            socket.join(userId);
+            logger.debug(`Socket ${socket.id} joined room: ${userId}`);
+        }
+    });
+
+    // Driver joins a shared 'drivers' room for receiving SOS alerts
+    socket.on('join_drivers_room', () => {
+        socket.join('drivers');
+        logger.debug(`Socket ${socket.id} joined drivers room`);
+    });
+
+    // Driver sends location update — only notify the specific patient, not everyone
+    socket.on('send_location', (data) => {
+        // data = { lat, lng, driverId, patientId }
+        logger.debug(`Location update from driver ${data.driverId}`);
+        if (data.patientId) {
+            // Send only to the requesting patient
+            io.to(data.patientId).emit('receive_location', data);
+        } else {
+            // Fallback: broadcast only to drivers room (for admin monitoring)
+            io.to('drivers').emit('receive_location', data);
+        }
+    });
+
+    // SOS / Ambulance alert — only dispatched to drivers room, not all clients
+    socket.on('sos_alert', (data) => {
+        logger.info(`SOS alert received from patient ${data.patientId || 'unknown'}`);
+        io.to('drivers').emit('dispatch_ambulance', data);
+    });
+
+    socket.on('disconnect', () => {
+        logger.info(`Socket disconnected: ${socket.id}`);
+    });
+
+    // ── Video Call Signaling ──────────────────────────────────────────────────
+    socket.on('callUser', ({ userToCall, signalData, from, name }) => {
+        logger.debug(`Call initiated by ${from} to ${userToCall}`);
+        io.to(userToCall).emit('callUser', { signal: signalData, from, name });
+    });
+
+    socket.on('answerCall', (data) => {
+        logger.debug(`Call answered, signaling back to ${data.to}`);
+        io.to(data.to).emit('callAccepted', data.signal);
+    });
+
+    socket.on('ice-candidate', ({ target, candidate }) => {
+        io.to(target).emit('ice-candidate', candidate);
+    });
+
+    socket.on('endCall', ({ to }) => {
+        logger.debug(`Call ended for ${to}`);
+        io.to(to).emit('callEnded');
+    });
+});
+
+// ── Database & Server Startup ─────────────────────────────────────────────────
 const startServer = async () => {
-  try {
-    const MONGODB_URI = process.env.MONGODB_URI;
-    console.log("Attempting to connect to MongoDB at:", MONGODB_URI);
+    try {
+        logger.info(`Connecting to MongoDB...`);
+        await mongoose.connect(process.env.MONGODB_URI, {
+            serverSelectionTimeoutMS: 5000
+        });
+        logger.info('✅ MongoDB Connected');
 
-    await mongoose.connect(MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000 // Fail after 5 seconds if cannot connect
-    });
-    console.log("✅ MongoDB Connected");
-
-    const PORT = process.env.PORT || 5000;
-    server.listen(PORT, () => {
-      console.log(`🚀 Server & Socket.io running on port ${PORT}`);
-    });
-
-  } catch (err) {
-    console.error("❌ MongoDB Connection Error:", err.message);
-    process.exit(1); // Exit process with failure
-  }
+        const PORT = process.env.PORT || 5000;
+        server.listen(PORT, () => {
+            logger.info(`🚀 Server & Socket.io running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+        });
+    } catch (err) {
+        logger.error(`❌ MongoDB Connection Error: ${err.message}`);
+        process.exit(1);
+    }
 };
 
 startServer();

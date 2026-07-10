@@ -37,14 +37,7 @@ const HospitalSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
-    icuAvailable: {
-        type: Boolean,
-        default: false
-    },
-    emergencyServices: {
-        type: Boolean,
-        default: true
-    },
+    // Note: ICU and Emergency are tracked via hasICU and hasEmergency below (from CSV data)
     rating: {
         type: Number,
         default: 4.5

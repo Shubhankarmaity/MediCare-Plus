@@ -9,7 +9,7 @@ const api = axios.create({
     withCredentials: true, // Enable sending cross-origin cookies
 });
 
-// Add a request interceptor to include the auth token in headers
+// ── Request Interceptor: attach token from localStorage ───────────────────────
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
@@ -18,7 +18,32 @@ api.interceptors.request.use(
         }
         return config;
     },
+    (error) => Promise.reject(error)
+);
+
+// ── Response Interceptor: handle auth errors globally ────────────────────────
+api.interceptors.response.use(
+    (response) => response,
     (error) => {
+        const status = error.response?.status;
+
+        if (status === 401) {
+            // Token expired or invalid — clear local state and redirect to login
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            // Only redirect if not already on an auth page
+            const authPages = ['/login', '/signup', '/forgot-password'];
+            if (!authPages.includes(window.location.pathname)) {
+                window.location.href = '/login';
+            }
+        } else if (status === 403) {
+            // Forbidden — user doesn't have the required role
+            console.warn('Access forbidden:', error.response?.data?.message);
+        } else if (status === 429) {
+            // Rate limited
+            console.warn('Rate limited. Please slow down your requests.');
+        }
+
         return Promise.reject(error);
     }
 );
