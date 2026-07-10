@@ -197,6 +197,20 @@ const startServer = async () => {
         const PORT = process.env.PORT || 5000;
         server.listen(PORT, () => {
             logger.info(`🚀 Server & Socket.io running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+            
+            // Ping ML recommendation service every 10 minutes to keep it warm (Render free tier wakes up on traffic)
+            const axios = require('axios');
+            const mlUrl = process.env.ML_SERVICE_URL || 'http://localhost:5001';
+            
+            // Immediate warm-up ping
+            axios.get(mlUrl).catch(() => {});
+            
+            // Recurring ping
+            setInterval(() => {
+                axios.get(mlUrl)
+                    .then(() => logger.debug('ML Service keep-alive ping successful'))
+                    .catch(err => logger.debug(`ML Service keep-alive ping: ${err.message}`));
+            }, 10 * 60 * 1000);
         });
     } catch (err) {
         logger.error(`❌ MongoDB Connection Error: ${err.message}`);

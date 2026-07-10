@@ -1851,6 +1851,188 @@ Mix in 1 litre of clean water:
 **Prevention:** Warm-up before exercise, proper footwear, strengthen stabilizer muscles, don't push through pain.
 
 🏥 *See an Orthopedic surgeon or Sports Medicine specialist for Grade 2–3 injuries.*`
+    },
+    {
+        keywords: ['gerd', 'acid reflux', 'heartburn', 'acidity', 'chest burning', 'indigestion', 'reflux', 'gastric acid'],
+        category: 'Gastroenterology',
+        severity: 'info',
+        followUpQuestions: ['How can I prevent acid reflux at night?', 'What foods trigger heartburn?', 'Is heartburn related to heart attack?'],
+        answer: `**GERD & Acid Reflux**
+        
+**Acid Reflux** occurs when stomach acid flows back into the esophagus. **GERD (Gastroesophageal Reflux Disease)** is a chronic, more severe form of acid reflux.
+
+**Common Symptoms:**
+- Heartburn (burning sensation in chest, usually after eating)
+- Regurgitation (sour or bitter taste in mouth)
+- Difficulty swallowing (dysphagia)
+- Dry cough, sore throat, or hoarseness
+
+**Triggers:** Spicy/fatty foods, citrus, chocolate, caffeine, alcohol, smoking, eating large meals, lying down immediately after eating.
+
+**Management & Treatment:**
+- Lifestyle: Eat smaller meals; avoid lying down for 3 hours after eating; elevate the head of your bed.
+- Medications: Antacids (for quick relief), H2 Blockers (Famotidine), Proton Pump Inhibitors (Pantoprazole, Omeprazole).
+
+⚠️ *Note: Severe chest pain can be mistaken for heartburn. If accompanied by jaw/arm pain or shortness of breath, call 112 immediately.*`
+    },
+    {
+        keywords: ['pcos', 'pcod', 'polycystic ovarian', 'irregular periods', 'ovarian cyst', 'hormonal imbalance', 'period pain', 'white discharge'],
+        category: 'Obstetrics & Gynecology',
+        severity: 'info',
+        followUpQuestions: ['Can PCOS be cured?', 'What is the best diet for PCOS weight loss?', 'Does PCOS cause infertility?'],
+        answer: `**PCOS / PCOD (Polycystic Ovary Syndrome)**
+
+PCOS is a hormonal disorder common among women of reproductive age. It causes enlarged ovaries with small cysts on the outer edges.
+
+**Common Symptoms:**
+- Irregular or prolonged menstrual periods
+- Excess androgen levels (causing excess facial/body hair, severe acne, male-pattern baldness)
+- Polycystic ovaries (visible on ultrasound)
+- Weight gain or difficulty losing weight
+
+**Diagnosis:** Pelvic ultrasound, blood hormone profile, thyroid function tests.
+
+**Management:**
+- Lifestyle: Low GI diet, regular physical exercise (vital for insulin resistance).
+- Medical: Oral contraceptive pills (for period regulation), Metformin (for insulin resistance), Spironolactone (for excess hair/acne).
+
+🏥 *Consult a Gynecologist or Endocrinologist for a customized management plan.*`
+    },
+    {
+        keywords: ['uti', 'urinary tract infection', 'urine infection', 'painful urination', 'burning pee', 'dysuria', 'frequent urination'],
+        category: 'Nephrology',
+        severity: 'caution',
+        followUpQuestions: ['Can a UTI go away without antibiotics?', 'How can I prevent frequent UTIs?', 'What are signs of kidney infection from UTI?'],
+        answer: `**Urinary Tract Infection (UTI)**
+
+A UTI is an infection in any part of the urinary system (kidneys, ureters, bladder, urethra). Most infections involve the lower urinary tract (bladder and urethra).
+
+**Symptoms:**
+- A strong, persistent urge to urinate
+- A burning sensation when urinating (dysuria)
+- Passing frequent, small amounts of urine
+- Cloudy, red, or strong-smelling urine
+- Pelvic pain in women
+
+**Treatment:**
+- Antibiotics: Nitrofurantoin, Fosfomycin, or Cotrimoxazole (typically 3–7 day course).
+- Home care: Drink plenty of water to flush bacteria; cranberry extract (preventive).
+
+⚠️ *If you develop fever, chills, back/side pain, or vomiting, the infection may have reached your kidneys. Seek medical attention immediately.*`
+    },
+    {
+        keywords: ['liver disease', 'jaundice', 'hepatitis', 'yellow eyes', 'fatty liver', 'cirrhosis', 'sgpt', 'sgot', 'bilirubin'],
+        category: 'Gastroenterology',
+        severity: 'caution',
+        followUpQuestions: ['What is the difference between Fatty Liver Grade 1 and 2?', 'How is Hepatitis B transmitted?', 'What foods help regenerate the liver?'],
+        answer: `**Liver Conditions & Jaundice**
+
+The liver performs hundreds of essential functions. Dysfunction manifests as inflammation (hepatitis), fat buildup (fatty liver), or scarring (cirrhosis).
+
+**Common Liver Conditions:**
+1. **Fatty Liver Disease:** Non-alcoholic fatty liver disease (NAFLD) is linked to obesity and metabolic issues.
+2. **Hepatitis:** Viral infections (A, B, C, D, E) causing liver inflammation.
+3. **Jaundice:** A symptom where bilirubin builds up, causing yellowing of the skin and eyes, dark urine, and pale stools.
+
+**Key Laboratory Markers:**
+- Bilirubin (high indicates jaundice)
+- SGPT (ALT) and SGOT (AST) (elevated indicates liver cell injury)
+
+**Management:**
+- Absolute avoidance of alcohol
+- Low-fat, balanced diet; weight loss for fatty liver
+- Vaccines: Available for Hepatitis A and B
+
+🏥 *See a Gastroenterologist or Hepatologist if you notice yellowing of skin/eyes.*`
+    },
+    {
+        keywords: ['appendicitis', 'appendix pain', 'lower right stomach pain', 'abdominal pain right', 'rebound tenderness'],
+        category: 'Gastroenterology',
+        severity: 'danger',
+        followUpQuestions: ['Where exactly is appendix pain located?', 'How fast does an appendix rupture?', 'What happens during appendectomy?'],
+        answer: `**Appendicitis (Appendix Inflammation) 🚨**
+
+Appendicitis is an inflammation of the appendix, a finger-shaped pouch that projects from your colon on the lower right side of your abdomen.
+
+**🚨 Seek Emergency Medical Care Immediately If You Have:**
+- Pain starting near the navel and shifting to the lower right abdomen
+- Pain that worsens when coughing, walking, or making jarring movements
+- Nausea and vomiting shortly after abdominal pain begins
+- Low-grade fever that may worsen as the illness progresses
+- Loss of appetite, flatulence, or constipation/diarrhea
+
+**Diagnosis:** Abdominal ultrasound or CT scan, blood CBC (showing high WBC count).
+
+**Treatment:**
+- **Emergency Surgery:** Appendectomy (laparoscopic or open surgery) to remove the appendix before it ruptures and causes peritonitis (life-threatening infection).
+
+⚠️ *Do NOT take laxatives, pain killers, or use hot water bottles, as these can cause the appendix to rupture.*`
+    },
+    {
+        keywords: ['epilepsy', 'seizure', 'fits', 'convulsions', 'shaking', 'eeg', 'neurological episode'],
+        category: 'Neurology',
+        severity: 'danger',
+        followUpQuestions: ['What is the first aid for a seizure?', 'What triggers epileptic fits?', 'How is epilepsy diagnosed?'],
+        answer: `**Epilepsy & Seizures**
+
+Epilepsy is a neurological disorder in which brain activity becomes abnormal, causing seizures or periods of unusual behavior, sensations, and sometimes loss of awareness.
+
+**First Aid During a Seizure:**
+1. **Keep the person safe:** Gently roll them onto their side (recovery position) to keep the airway clear.
+2. **Protect the head:** Place something soft under their head.
+3. **Do NOT restrain them** or put anything in their mouth.
+4. **Time the seizure:** If it lasts more than 5 minutes, call 112 immediately.
+
+**Common Medications (Anticonvulsants):**
+- Levetiracetam, Valproate, Carbamazepine, Lamotrigine.
+
+🏥 *Consult a Neurologist. Diagnosis typically requires an EEG (Electroencephalogram) and MRI brain scan.*`
+    },
+    {
+        keywords: ['dementia', 'alzheimer', 'memory loss', 'forgetful', 'cognitive decline', 'amnesia'],
+        category: 'Neurology',
+        severity: 'info',
+        followUpQuestions: ['Is Alzheimer\'s hereditary?', 'What is the early stage of dementia?', 'How to care for a dementia patient at home?'],
+        answer: `**Dementia & Alzheimer's Disease**
+
+Dementia is an umbrella term for a decline in mental ability severe enough to interfere with daily life. Alzheimer's is the most common cause of dementia (60–80% of cases).
+
+**Symptoms:**
+- Progressive memory loss (forgetting recent events, names)
+- Difficulty communicating, organizing, or planning
+- Confusion, disorientation, and personality changes
+- Getting lost in familiar places
+
+**Treatment & Management:**
+- Cognitive stimulation therapy
+- Medications: Cholinesterase inhibitors (Donepezil) and Memantine (to temporarily manage cognitive symptoms)
+- Creating a safe, structured, and supportive home environment
+
+🏥 *Consult a Neurologist or Geriatric Psychiatrist for a detailed evaluation.*`
+    },
+    {
+        keywords: ['hypoglycemia', 'low blood sugar', 'shaking sweats', 'diabetic low sugar', 'sugar drop'],
+        category: 'Endocrinology',
+        severity: 'caution',
+        followUpQuestions: ['What is the 15-15 rule for low blood sugar?', 'What causes sudden blood sugar drops?', 'What is severe hypoglycemia treatment?'],
+        answer: `**Hypoglycemia (Low Blood Sugar)**
+
+Hypoglycemia occurs when your blood glucose levels drop below normal (typically < 70 mg/dL). It is a common risk for diabetics taking insulin or sulfonylureas.
+
+**Common Symptoms:**
+- Shakiness, sweating, pale skin
+- Rapid heartbeat (palpitations)
+- Anxiety, headache, dizziness
+- Confusion, blurred vision, or irritability
+- Severe: Loss of consciousness or seizures
+
+**Rule of 15 (Emergency Treatment):**
+1. **Eat/Drink 15g of fast-acting carbs:** 1/2 cup of fruit juice, 3-4 glucose tablets, or 1 tablespoon of sugar/honey.
+2. **Wait 15 minutes** and retest blood sugar.
+3. If still < 70 mg/dL, repeat the process.
+4. Once normal, eat a small snack/meal to stabilize.
+
+⚠️ *If a person is unconscious, do NOT force liquids down their throat. Call 112 immediately.*`
     }
 ];
 

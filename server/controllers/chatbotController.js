@@ -8,6 +8,10 @@ const { NlpManager } = require('node-nlp');
 const Fuse = require('fuse.js');
 const axios = require('axios');
 const path = require('path');
+const { askGemini } = require('../utils/llmFallback');
+
+// In-memory session context cache
+const SESSION_CACHE = new Map();
 
 // Initialize NLP Manager
 const nlpManager = new NlpManager({ languages: ['en'], forceNER: true });
@@ -26,9 +30,9 @@ const fuse = new Fuse(MEDICAL_KB, {
         { name: 'answer', weight: 0.1 }
     ],
     includeScore: true,
-    threshold: 0.35,
+    threshold: 0.40, // More lenient for typos
     ignoreLocation: true,
-    minMatchCharLength: 3
+    minMatchCharLength: 2 // Match short keywords like UTI
 });
 
 // Emergency keywords for immediate escalation
@@ -282,12 +286,44 @@ function buildMedicalResponse(match, confidence, matchSource) {
         response.followUpQuestions = match.followUpQuestions;
     }
 
+    if (match.relatedTopics && match.relatedTopics.length > 0) {
+        response.relatedTopics = match.relatedTopics;
+    }
+
     // Add severity-specific warnings
     if (match.severity === 'danger') {
         response.answer = '🚨 **This is a serious condition. Please seek immediate medical attention if you are experiencing symptoms.**\n\n' + match.answer;
     }
 
     return response;
+}
+
+/**
+ * Helper to rank and boost Fuse search results based on exact keyword matches.
+ */
+function rankAnswers(results, originalQuery) {
+    const queryLower = originalQuery.toLowerCase();
+    return results.map(result => {
+        let score = result.score; // Fuse score: 0 = perfect, 1 = worst
+
+        // Count how many of the entry's keywords are explicitly in the query
+        const exactMatches = result.item.keywords.filter(kw => 
+            queryLower.includes(kw.toLowerCase())
+        ).length;
+
+        // Boost score for exact keyword matches (subtracting moves it closer to 0/perfect)
+        score -= (exactMatches * 0.12);
+
+        // Boost for category match
+        if (queryLower.includes(result.item.category.toLowerCase())) {
+            score -= 0.15;
+        }
+
+        // Clamp score to [0, 1]
+        score = Math.max(0, Math.min(1, score));
+
+        return { ...result, score };
+    }).sort((a, b) => a.score - b.score);
 }
 
 /**
@@ -298,9 +334,31 @@ exports.ask = async (req, res) => {
     const { query, insuranceCompany, patientInfo } = req.body;
     if (!query) return res.status(400).json({ message: 'Query is required' });
 
+    // Step 0: Resolve session context for pronouns/follow-ups
+    const userId = req.user?._id ? req.user._id.toString() : 'guest';
+    let targetQuery = query;
+    const session = SESSION_CACHE.get(userId);
+
+    // Clean up cache of old sessions (older than 30 mins)
+    const now = Date.now();
+    for (const [key, val] of SESSION_CACHE.entries()) {
+        if (now - val.ts > 30 * 60 * 1000) {
+            SESSION_CACHE.delete(key);
+        }
+    }
+
+    // Check if the query is a context-dependent pronoun/phrase
+    const lowerTrimmed = query.trim().toLowerCase();
+    const isContextual = /^(it|this|that|its|these|those|more|explain|why|how|treat|symptoms|cause|what about)$/i.test(lowerTrimmed) || 
+                         /^(tell me more|explain this|how to treat|what are the symptoms|why does it happen|what about it)$/i.test(lowerTrimmed);
+
+    if (isContextual && session && session.lastTopic) {
+        targetQuery = `${query} ${session.lastTopic}`;
+    }
+
     try {
         // Step 1: Spell-check the query
-        const spellResult = autocorrectQuery(query, { context: 'medical' });
+        const spellResult = autocorrectQuery(targetQuery, { context: 'medical' });
         const correctedQuery = spellResult.corrected;
 
         // Step 2: Expand with synonyms
@@ -317,6 +375,13 @@ exports.ask = async (req, res) => {
             };
             ChatbotAnalytics.create(analyticsEntry).catch(() => {});
 
+            // Update session context to emergency
+            SESSION_CACHE.set(userId, {
+                lastTopic: 'Emergency',
+                lastIntent: 'emergency.sos',
+                ts: Date.now()
+            });
+
             return res.json({
                 type: 'emergency',
                 answer: '🚨 **EMERGENCY DETECTED!**\n\n**Call 112 immediately** (India Emergency Number).\n\n**While waiting:**\n- If cardiac arrest: Start CPR (30 chest compressions + 2 breaths)\n- If choking: Heimlich maneuver (5 back blows + 5 abdominal thrusts)\n- If bleeding: Apply direct pressure with clean cloth\n- If seizure: Clear area, turn person on side, do NOT restrain\n\n🚑 Use our **ambulance tracking** feature for fastest response.\n\n**Helplines:**\n- Emergency: 112\n- Ambulance: 108\n- Mental Health (iCall): 9152987821',
@@ -332,7 +397,13 @@ exports.ask = async (req, res) => {
         const intentDecision = decideIntent(queryLower, nlpResponse);
 
         if (intentDecision.intent === 'emergency.sos') {
-            // NLP also detected emergency
+            // Update session context
+            SESSION_CACHE.set(userId, {
+                lastTopic: 'Emergency',
+                lastIntent: 'emergency.sos',
+                ts: Date.now()
+            });
+
             return res.json({
                 type: 'emergency',
                 answer: nlpResponse.answer || '🚨 Please call 112 immediately for emergency assistance!',
@@ -367,6 +438,12 @@ exports.ask = async (req, res) => {
             ChatbotAnalytics.create(analyticsEntry).catch(() => {});
 
             if (recsResponse.hospitals && recsResponse.hospitals.length > 0) {
+                // Update context
+                SESSION_CACHE.set(userId, {
+                    lastTopic: 'Hospital Recommendation',
+                    lastIntent: 'hospital.recommendation',
+                    ts: Date.now()
+                });
                 return res.json(recsResponse);
             }
             return res.json({
@@ -398,15 +475,23 @@ exports.ask = async (req, res) => {
 
             if (analyticsDoc) response.queryId = analyticsDoc._id;
 
+            // Save to context session
+            SESSION_CACHE.set(userId, {
+                lastTopic: directMatch.category,
+                lastIntent: 'medical.info',
+                ts: Date.now()
+            });
+
             return res.json(response);
         }
 
-        // Strategy B: Fuse.js fuzzy search (handles typos and variations)
+        // Strategy B: Fuse.js fuzzy search with keyword boosting
         const searchResults = fuse.search(queryLower);
+        const rankedResults = rankAnswers(searchResults, targetQuery);
 
-        if (searchResults.length > 0 && searchResults[0].score < 0.5) {
-            const bestMatch = searchResults[0].item;
-            const confidence = 1 - searchResults[0].score; // Fuse score is 0=perfect, 1=worst
+        if (rankedResults.length > 0 && rankedResults[0].score < 0.5) {
+            const bestMatch = rankedResults[0].item;
+            const confidence = 1 - rankedResults[0].score; // Fuse score: 0 = perfect, 1 = worst
             const response = buildMedicalResponse(bestMatch, confidence, 'fuse');
 
             if (spellResult.wasCorrected) {
@@ -415,8 +500,8 @@ exports.ask = async (req, res) => {
             }
 
             // If there are multiple close matches, suggest related topics
-            if (searchResults.length > 1 && searchResults[1].score < 0.6) {
-                const relatedTopics = searchResults.slice(1, 4)
+            if (rankedResults.length > 1 && rankedResults[1].score < 0.6) {
+                const relatedTopics = rankedResults.slice(1, 4)
                     .map(r => r.item.category)
                     .filter((c, i, arr) => c !== bestMatch.category && arr.indexOf(c) === i);
                 if (relatedTopics.length > 0) {
@@ -434,10 +519,40 @@ exports.ask = async (req, res) => {
 
             if (analyticsDoc) response.queryId = analyticsDoc._id;
 
+            // Save to context session
+            SESSION_CACHE.set(userId, {
+                lastTopic: bestMatch.category,
+                lastIntent: 'medical.info',
+                ts: Date.now()
+            });
+
             return res.json(response);
         }
 
-        // Step 8: Fallback — no match found
+        // Strategy C: Gemini LLM Fallback
+        const geminiResponse = await askGemini(query, patientInfo);
+        if (geminiResponse) {
+            const analyticsDoc = await ChatbotAnalytics.create({
+                query, correctedQuery, expandedQuery,
+                intent: 'medical.info', intentConfidence: 0.90,
+                matchedCategory: geminiResponse.category,
+                matchSource: 'llm_fallback', responseTime: Date.now() - startTime,
+                userId: req.user?._id
+            }).catch(() => null);
+
+            if (analyticsDoc) geminiResponse.queryId = analyticsDoc._id;
+
+            // Save to context session
+            SESSION_CACHE.set(userId, {
+                lastTopic: geminiResponse.category,
+                lastIntent: 'medical.info',
+                ts: Date.now()
+            });
+
+            return res.json(geminiResponse);
+        }
+
+        // Step 8: Fallback — no match found anywhere
         ChatbotAnalytics.create({
             query, correctedQuery, expandedQuery,
             intent: intent || 'unknown', intentConfidence: intentDecision.confidence || nlpScore || 0,
@@ -562,7 +677,7 @@ exports.getAnalytics = async (req, res) => {
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-        const [totalQueries, matchSources, feedbackStats, avgResponseTime, topCategories, weeklyClarificationStats] = await Promise.all([
+        const [totalQueries, matchSources, feedbackStats, avgResponseTime, topCategories, weeklyClarificationStats, topFailedQueries] = await Promise.all([
             ChatbotAnalytics.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
 
             ChatbotAnalytics.aggregate([
@@ -587,7 +702,14 @@ exports.getAnalytics = async (req, res) => {
                 { $limit: 10 }
             ]),
 
-            computeClarificationStats(sevenDaysAgo)
+            computeClarificationStats(sevenDaysAgo),
+
+            ChatbotAnalytics.aggregate([
+                { $match: { matchSource: 'fallback', createdAt: { $gte: thirtyDaysAgo } } },
+                { $group: { _id: '$query', count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 10 }
+            ])
         ]);
 
         const fallbackCount = matchSources.find(s => s._id === 'fallback')?.count || 0;
@@ -603,6 +725,7 @@ exports.getAnalytics = async (req, res) => {
             feedbackStats: feedbackStats.reduce((acc, s) => { acc[s._id] = s.count; return acc; }, {}),
             avgResponseTime: avgResponseTime[0]?.avg ? `${Math.round(avgResponseTime[0].avg)}ms` : 'N/A',
             topCategories: topCategories.map(c => ({ category: c._id, count: c.count })),
+            topFailedQueries: topFailedQueries.map(q => ({ query: q._id, count: q.count })),
             weekly: {
                 period: '7 days',
                 clarificationRate: `${weeklyClarificationStats.clarificationRate}%`,
@@ -675,5 +798,27 @@ exports.getHealthSummary = async (req, res) => {
     } catch (err) {
         console.error('Health Summary Error:', err);
         res.status(500).json({ hasSummary: false });
+    }
+};
+
+/**
+ * Controller: Handle symptom checker requests
+ */
+exports.checkSymptoms = async (req, res) => {
+    const { nodeId, optionLabel } = req.body;
+    if (!nodeId) {
+        return res.status(400).json({ message: 'nodeId is required' });
+    }
+
+    try {
+        const { getSymptomNode } = require('../utils/symptomChecker');
+        const nextStep = getSymptomNode(nodeId, optionLabel);
+        if (!nextStep) {
+            return res.status(404).json({ message: 'Symptom node or option not found' });
+        }
+        res.json(nextStep);
+    } catch (err) {
+        console.error('Symptom Checker Controller Error:', err);
+        res.status(500).json({ message: 'Internal server error' });
     }
 };

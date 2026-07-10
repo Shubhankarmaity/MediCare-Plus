@@ -6,7 +6,7 @@ import {
     HeartPulse, Star, Banknote, Sparkles,
     RotateCcw, ShieldCheck, ExternalLink, Map,
     Info, AlertTriangle, AlertOctagon, Stethoscope,
-    ThumbsUp, ThumbsDown, Zap, ChevronRight
+    ThumbsUp, ThumbsDown, Zap, ChevronRight, Mic, MicOff
 } from 'lucide-react';
 import api from '../services/api';
 
@@ -263,7 +263,7 @@ const PageLinkCard = ({ page, navigate, onClose }) => (
 // =====================================================
 const ChatMessage = ({ msg, navigate, closeChat, onFollowUp, onFeedback }) => {
     const isBot = msg.role === 'bot';
-    const [feedbackGiven, setFeedbackGiven] = useState(null);
+    const feedbackGiven = msg.feedback || null;
     const renderText = (text) => {
         if (!text) return null;
         return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
@@ -291,8 +291,7 @@ const ChatMessage = ({ msg, navigate, closeChat, onFollowUp, onFeedback }) => {
         return null;
     })();
     const handleFeedback = (type) => {
-        setFeedbackGiven(type);
-        if (onFeedback) onFeedback(msg.queryId, type);
+        if (onFeedback) onFeedback(msg.ts, msg.queryId, type);
     };
     return (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -319,6 +318,14 @@ const ChatMessage = ({ msg, navigate, closeChat, onFollowUp, onFeedback }) => {
                     {msg.hospitals && msg.hospitals.map((h, i) => <HospitalChatCard key={h.hospitalId || i} hospital={h} rank={i} />)}
                     {msg.page && <PageLinkCard page={msg.page} navigate={navigate} onClose={closeChat} />}
                     {msg.pages && msg.pages.map((p, i) => <PageLinkCard key={i} page={p} navigate={navigate} onClose={closeChat} />)}
+
+                    {(isEmergency || msg.severity === 'danger') && (
+                        <div className="mt-3">
+                            <a href="tel:112" className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3 py-2 rounded-xl transition-colors shadow-md">
+                                📞 Call 112 Emergency
+                            </a>
+                        </div>
+                    )}
                 </div>
                 {/* Related Topics */}
                 {isBot && msg.relatedTopics && msg.relatedTopics.length > 0 && (
@@ -347,7 +354,7 @@ const ChatMessage = ({ msg, navigate, closeChat, onFollowUp, onFeedback }) => {
                 {showFeedback && (
                     <div className="flex items-center gap-2 mt-1.5 px-1">
                         {feedbackGiven ? (
-                            <span className="text-xs text-slate-400">Thanks for the feedback!</span>
+                            <span className="text-xs text-slate-400">Thanks for the feedback! {feedbackGiven === 'helpful' ? '👍' : '👎'}</span>
                         ) : (
                             <>
                                 <span className="text-xs text-slate-400">Helpful?</span>
@@ -378,6 +385,17 @@ const MediBot = () => {
     const [userProfile, setUserProfile] = useState(null);
     const [healthSummary, setHealthSummary] = useState(null);
     const [patientAppointments, setPatientAppointments] = useState([]);
+    
+    // Symptom Checker State
+    const [symptomCheckActive, setSymptomCheckActive] = useState(false);
+    const [symptomNodeId, setSymptomNodeId] = useState(null);
+    const [symptomOptions, setSymptomOptions] = useState([]);
+    const [symptomQuestion, setSymptomQuestion] = useState('');
+
+    // Voice Input State
+    const [isListening, setIsListening] = useState(false);
+    const speechRecognitionRef = useRef(null);
+
     const messagesEndRef = useRef(null);
     const location = useLocation();
     const navigate = useNavigate();
@@ -387,15 +405,41 @@ const MediBot = () => {
     const isPatient = userData?.role === 'patient';
     const currentPageObj = getPageLabel(location.pathname);
 
+    // Initialize Web Speech API
+    useEffect(() => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const rec = new SpeechRecognition();
+            rec.continuous = false;
+            rec.interimResults = false;
+            rec.lang = 'en-US';
+
+            rec.onstart = () => setIsListening(true);
+            rec.onend = () => setIsListening(false);
+            rec.onresult = (e) => {
+                const transcript = e.results[0][0].transcript;
+                setInput(transcript);
+            };
+            speechRecognitionRef.current = rec;
+        }
+    }, []);
+
+    const toggleListening = () => {
+        if (!speechRecognitionRef.current) return;
+        if (isListening) {
+            speechRecognitionRef.current.stop();
+        } else {
+            speechRecognitionRef.current.start();
+        }
+    };
+
     // Fetch patient profile + appointments for personalization
     useEffect(() => {
         if (isLoggedIn && isPatient && open && !userProfile) {
-            // Fetch profile
             api.get('/profile').then(res => {
                 const prof = res.data?.user || null;
                 setUserProfile(prof);
 
-                // Fetch appointments to extract prescriptions
                 const token = localStorage.getItem('token');
                 fetch(`${api.defaults.baseURL}/api/appointments/my-appointments`, {
                     headers: { 'Authorization': `Bearer ${token}` }
@@ -404,7 +448,6 @@ const MediBot = () => {
                     .then(apts => {
                         setPatientAppointments(apts || []);
 
-                        // Extract prescriptions from completed appointments
                         const prescriptions = (apts || [])
                             .filter(a => a.doctorReport?.prescription)
                             .map(a => a.doctorReport.prescription);
@@ -417,7 +460,6 @@ const MediBot = () => {
                             prescriptions,
                         };
 
-                        // Fetch personalized health summary
                         api.post('/api/chatbot/health-summary', { patientInfo })
                             .then(r => { if (r.data.hasSummary) setHealthSummary(r.data); })
                             .catch(() => { });
@@ -427,14 +469,33 @@ const MediBot = () => {
         }
     }, [isLoggedIn, isPatient, open, userProfile]);
 
+    // Restore Chat History on Open
     useEffect(() => {
         if (open && messages.length === 0) {
+            const cached = localStorage.getItem('medibotHistory');
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    if (parsed && parsed.length > 0) {
+                        setMessages(parsed);
+                        return;
+                    }
+                } catch (e) {}
+            }
+
             const name = userData?.name?.split(' ')[0] || 'there';
             const pageCtx = currentPageObj ? ` You're on the **${currentPageObj.name}** page.` : '';
             const greeting = `👋 Hi **${name}**! I'm **MediBot** 🤖 — your AI health & site guide.${pageCtx}\n\nI can:\n• 💊 Answer **any medical question**\n• 🏡 Get **personalized tips** based on your health profile\n• 🏥 Recommend the best **hospitals** for your condition\n• 🗺 Navigate you to **any page** of this site\n\nWhat can I help you with today?`;
             setMessages([{ role: 'bot', ts: Date.now(), text: greeting }]);
         }
-    }, [open, messages.length, userData?.name, currentPageObj]);
+    }, [open]);
+
+    // Cache Chat History on change
+    useEffect(() => {
+        if (messages.length > 0) {
+            localStorage.setItem('medibotHistory', JSON.stringify(messages.slice(-20)));
+        }
+    }, [messages]);
 
     const prevPath = useRef(location.pathname);
     useEffect(() => {
@@ -451,6 +512,76 @@ const MediBot = () => {
         setMessages(prev => [...prev, { role, text, ts: Date.now(), ...extra }]);
     };
 
+    const startSymptomChecker = () => {
+        setSymptomCheckActive(true);
+        setSymptomNodeId('root');
+        setSymptomQuestion('Which primary symptom are you experiencing? Choose one of these:');
+        setSymptomOptions(['Headache', 'Chest pain', 'Fever', 'Stomach pain', 'Breathing difficulty']);
+        
+        addMessage('bot', '🩺 **MediCare Plus Symptom Checker**\n\nI will ask you a few questions to evaluate your symptoms and guide you to the right care. *This is not a diagnosis but an informational guidance tool.*');
+    };
+
+    const handleSymptomOptionClick = async (option) => {
+        addMessage('user', option);
+        setLoading(true);
+
+        try {
+            let nextNodeId = symptomNodeId;
+            let currentOption = option;
+
+            if (symptomNodeId === 'root') {
+                nextNodeId = option.toLowerCase();
+                currentOption = null;
+            }
+
+            const res = await api.post('/api/chatbot/symptom-check', {
+                nodeId: nextNodeId,
+                optionLabel: currentOption
+            });
+
+            const data = res.data;
+
+            // Introduce dynamic typing delay based on response length
+            const delay = Math.min(1000, Math.max(300, (data.question?.length || 100) * 1.5));
+            await new Promise(r => setTimeout(r, delay));
+
+            if (data.isFinal) {
+                let finalAnswer = `🩺 **Symptom Assessment: ${data.diagnosis}**\n\n${data.advice}\n\n`;
+                let pagesToSuggest = [];
+                
+                if (data.actions && data.actions.includes('ambulance')) {
+                    pagesToSuggest.push(SITE_PAGES.find(p => p.path === '/ambulance'));
+                }
+                if (data.actions && data.actions.includes('appointment')) {
+                    pagesToSuggest.push(SITE_PAGES.find(p => p.path === '/patient-dashboard'));
+                }
+
+                addMessage('bot', finalAnswer, {
+                    severity: data.severity,
+                    pages: pagesToSuggest.length > 0 ? pagesToSuggest : undefined,
+                    type: data.severity === 'danger' ? 'emergency' : 'medical_info'
+                });
+
+                // Reset Symptom Checker
+                setSymptomCheckActive(false);
+                setSymptomNodeId(null);
+                setSymptomOptions([]);
+                setSymptomQuestion('');
+            } else {
+                setSymptomNodeId(data.nodeId);
+                setSymptomQuestion(data.question);
+                setSymptomOptions(data.options);
+                addMessage('bot', data.question);
+            }
+        } catch (err) {
+            console.error('Symptom checker error:', err);
+            addMessage('bot', '⚠️ Could not connect to the symptom checker service. Reverting to standard chat mode.');
+            setSymptomCheckActive(false);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleSend = useCallback(async (text) => {
         const query = (text || input).trim();
         if (!query) return;
@@ -460,16 +591,17 @@ const MediBot = () => {
 
         try {
             const lower = query.toLowerCase();
-            await new Promise(r => setTimeout(r, 350));
 
             // ── SITE MAP shortcut ──
             if (/all pages|sitemap|site map|what sections|what pages|menu|navigation/.test(lower)) {
+                await new Promise(r => setTimeout(r, 600));
                 addMessage('bot', `📚 Here's everything on **MediCare Plus** — tap any card to navigate:`, { pages: SITE_PAGES.slice(0, 6) });
                 setLoading(false); return;
             }
 
             // ── WHERE AM I ──
             if (/where am i|what page|current page/.test(lower)) {
+                await new Promise(r => setTimeout(r, 450));
                 if (currentPageObj) {
                     const sections = currentPageObj.sections ? `\n\n**Sections:** ${currentPageObj.sections.join(' · ')}` : '';
                     addMessage('bot', `📍 You're on **${currentPageObj.name}** ${currentPageObj.emoji}\n${currentPageObj.description}${sections}`);
@@ -481,6 +613,7 @@ const MediBot = () => {
 
             // ── PATIENT DASHBOARD OVERVIEW ──
             if (isPatient && /patient dashboard/.test(lower)) {
+                await new Promise(r => setTimeout(r, 550));
                 const pg = SITE_PAGES.find(p => p.path === '/patient-dashboard');
                 addMessage('bot', `🩺 Your **Patient Dashboard** has ${pg.sections.length} sections:\n\n${pg.sections.map(s => `• ${s}`).join('\n')}\n\nJust ask me about any tab to jump right to it!`, { page: pg });
                 setLoading(false); return;
@@ -490,6 +623,7 @@ const MediBot = () => {
             if (isPatient && /where|how|find|see|access|go to|open/.test(lower)) {
                 const tab = findPatientTab(query);
                 if (tab) {
+                    await new Promise(r => setTimeout(r, 500));
                     const pg = SITE_PAGES.find(p => p.path === '/patient-dashboard');
                     addMessage('bot', `📍 To access **${tab.name}**, open your Patient Dashboard and click "**${tab.name}**" in the sidebar.`, { page: pg });
                     setLoading(false); return;
@@ -500,6 +634,7 @@ const MediBot = () => {
             if (/where|how to|find|go to|navigate|open|take me|shows|access/.test(lower)) {
                 const pg = findPageForQuery(query);
                 if (pg) {
+                    await new Promise(r => setTimeout(r, 450));
                     addMessage('bot', `Here's where you can find that 👇`, { page: pg });
                     setLoading(false); return;
                 }
@@ -507,16 +642,19 @@ const MediBot = () => {
 
             // ── GREETINGS ──
             if (/^(hello|hi|hey|namaste|helo|good morning|good afternoon|good evening)[\s!.]*$/.test(lower)) {
+                await new Promise(r => setTimeout(r, 500));
                 addMessage('bot', `👋 Hello! I'm **MediBot** 🤖\n\nAsk me any **medical question**, get **hospital recommendations**, or let me guide you to any **page/feature** on this site!\n\nFor example:\n• *"What is diabetes?"*\n• *"Best hospital for heart disease"*\n• *"Where do I track my vitals?"*`);
                 setLoading(false); return;
             }
 
             // ── THANK YOU / BYE ──
             if (/thank|thanks|great|awesome|helpful/.test(lower)) {
+                await new Promise(r => setTimeout(r, 450));
                 addMessage('bot', `😊 Glad I could help! Ask me anything anytime — medical questions, hospital recommendations, or site navigation. Stay healthy! 💚`);
                 setLoading(false); return;
             }
             if (/bye|goodbye|see you/.test(lower)) {
+                await new Promise(r => setTimeout(r, 400));
                 addMessage('bot', `👋 Take care! MediBot is always here for you. Stay healthy! 💚`);
                 setLoading(false); return;
             }
@@ -524,12 +662,13 @@ const MediBot = () => {
             // ── WEBSITE FAQ ── (answers questions about the platform itself)
             const faqResult = findWebsiteAnswer(query);
             if (faqResult) {
+                const delay = Math.min(1000, Math.max(400, faqResult.answer.length * 1.2));
+                await new Promise(r => setTimeout(r, delay));
                 addMessage('bot', faqResult.answer, faqResult.page ? { page: faqResult.page } : undefined);
                 setLoading(false); return;
             }
 
             // ── CALL BACKEND CHATBOT API ──
-            // Extract prescriptions from appointments
             const prescriptions = patientAppointments
                 .filter(a => a.doctorReport?.prescription)
                 .map(a => a.doctorReport.prescription);
@@ -598,6 +737,7 @@ const MediBot = () => {
 
     const clearChat = () => {
         setMessages([]);
+        localStorage.removeItem('medibotHistory');
         setTimeout(() => addMessage('bot', `Chat cleared! 🧹 How can I help you today?`), 100);
     };
 
@@ -605,12 +745,13 @@ const MediBot = () => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
     };
 
+    const symptomSuggestion = { label: '🩺 Check symptoms', action: 'symptom_checker' };
     const personalHealthSuggestion = { label: '💊 My health tips', query: 'give me personalized health tips based on my medical history' };
     const contextSuggestions = !isLoggedIn
-        ? VISITOR_SUGGESTIONS
+        ? [symptomSuggestion, ...VISITOR_SUGGESTIONS]
         : location.pathname === '/patient-dashboard' && isPatient
-            ? [personalHealthSuggestion, QUICK_SUGGESTIONS[0], QUICK_SUGGESTIONS[1], QUICK_SUGGESTIONS[7]]
-            : QUICK_SUGGESTIONS.slice(0, 4);
+            ? [symptomSuggestion, personalHealthSuggestion, QUICK_SUGGESTIONS[0], QUICK_SUGGESTIONS[1]]
+            : [symptomSuggestion, ...QUICK_SUGGESTIONS.slice(0, 3)];
 
     return (
         <>
@@ -636,7 +777,7 @@ const MediBot = () => {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.85, y: 20 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-                        className="fixed bottom-24 right-6 z-[9999] w-[375px] max-w-[calc(100vw-2rem)] flex flex-col rounded-3xl shadow-2xl border border-slate-200 bg-white overflow-hidden"
+                        className="fixed bottom-24 right-6 z-[9999] w-full sm:w-[375px] max-w-[calc(100vw-2rem)] flex flex-col rounded-3xl shadow-2xl border border-slate-200 bg-white overflow-hidden"
                         style={{ maxHeight: 'min(640px, calc(100vh - 120px))' }}>
 
                         {/* Header */}
@@ -673,7 +814,7 @@ const MediBot = () => {
                         </div>
 
                         {/* Personalized Health Summary Banner */}
-                        {isPatient && healthSummary && healthSummary.hasSummary && (
+                        {isPatient && healthSummary && healthSummary.hasSummary && !symptomCheckActive && (
                             <div className="bg-slate-50 border-b border-slate-200 px-4 py-2">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <HeartPulse className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -696,13 +837,14 @@ const MediBot = () => {
 
                         {/* Messages */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
-                            {messages.map((msg, i) => (
-                                <ChatMessage key={i} msg={msg} navigate={navigate} closeChat={() => setOpen(false)}
+                            {messages.map((msg) => (
+                                <ChatMessage key={msg.ts} msg={msg} navigate={navigate} closeChat={() => setOpen(false)}
                                     onFollowUp={(q) => handleSend(q)}
-                                    onFeedback={(queryId, feedback) => {
+                                    onFeedback={(ts, queryId, feedback) => {
                                         if (queryId) {
                                             api.post('/api/chatbot/feedback', { queryId, feedback }).catch(() => {});
                                         }
+                                        setMessages(prev => prev.map(m => m.ts === ts ? { ...m, feedback } : m));
                                     }} />
                             ))}
                             {loading && (
@@ -719,10 +861,16 @@ const MediBot = () => {
                         </div>
 
                         {/* Quick suggestions */}
-                        {messages.length <= 1 && !loading && (
+                        {messages.length <= 1 && !loading && !symptomCheckActive && (
                             <div className="px-3 pb-2 flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
                                 {contextSuggestions.map((s, i) => (
-                                    <button key={i} onClick={() => handleSend(s.query)}
+                                    <button key={i} onClick={() => {
+                                        if (s.action === 'symptom_checker') {
+                                            startSymptomChecker();
+                                        } else {
+                                            handleSend(s.query);
+                                        }
+                                    }}
                                         className="shrink-0 text-xs bg-white border border-slate-200 text-slate-600 rounded-full px-3 py-1.5 hover:border-sky-400 hover:text-sky-600 transition-colors whitespace-nowrap">
                                         {s.label}
                                     </button>
@@ -730,20 +878,52 @@ const MediBot = () => {
                             </div>
                         )}
 
-                        {/* Input */}
-                        <div className="border-t border-slate-200 bg-white p-3 flex items-end gap-2">
-                            <textarea rows={1} value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                placeholder="Ask any medical question or about the site..."
-                                className="flex-1 resize-none text-sm text-slate-800 placeholder-slate-400 outline-none leading-5 max-h-24 overflow-y-auto bg-transparent"
-                                style={{ minHeight: '24px' }}
-                            />
-                            <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleSend()} disabled={!input.trim() || loading}
-                                className="shrink-0 w-9 h-9 rounded-full bg-primary-blue text-white flex items-center justify-center disabled:opacity-40">
-                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                            </motion.button>
-                        </div>
+                        {/* Input Area / Symptom Checker Options */}
+                        {symptomCheckActive ? (
+                            <div className="border-t border-slate-200 bg-white p-3 flex flex-col gap-2">
+                                <div className="text-xs font-semibold text-slate-500 mb-1">Select an option:</div>
+                                <div className="flex flex-wrap gap-2">
+                                    {symptomOptions.map((opt, i) => (
+                                        <button key={i} onClick={() => handleSymptomOptionClick(opt)}
+                                            className="bg-primary-blue hover:bg-sky-600 text-white text-xs font-bold py-2 px-3 rounded-xl transition-all shadow-sm">
+                                            {opt}
+                                        </button>
+                                    ))}
+                                    <button onClick={() => {
+                                        setSymptomCheckActive(false);
+                                        setSymptomNodeId(null);
+                                        setSymptomOptions([]);
+                                        setSymptomQuestion('');
+                                        addMessage('bot', 'Exit Symptom Checker. How can I help you otherwise?');
+                                    }} className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold py-2 px-3 rounded-xl transition-all">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="border-t border-slate-200 bg-white p-3 flex items-end gap-2">
+                                {/* Voice Input Button */}
+                                {window.SpeechRecognition || window.webkitSpeechRecognition ? (
+                                    <button onClick={toggleListening}
+                                        className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
+                                        title={isListening ? 'Stop listening' : 'Start voice input'}>
+                                        {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                                    </button>
+                                ) : null}
+
+                                <textarea rows={1} value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder="Ask any medical question or about the site..."
+                                    className="flex-1 resize-none text-sm text-slate-800 placeholder-slate-400 outline-none leading-5 max-h-24 overflow-y-auto bg-transparent"
+                                    style={{ minHeight: '24px' }}
+                                />
+                                <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleSend()} disabled={!input.trim() || loading}
+                                    className="shrink-0 w-9 h-9 rounded-full bg-primary-blue text-white flex items-center justify-center disabled:opacity-40">
+                                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                </motion.button>
+                            </div>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>

@@ -6,6 +6,9 @@ const auth = require('../middleware/auth');
 // POST /api/chatbot/ask
 router.post('/ask', chatbotController.ask);
 
+// POST /api/chatbot/symptom-check
+router.post('/symptom-check', chatbotController.checkSymptoms);
+
 // POST /api/chatbot/health-summary
 router.post('/health-summary', chatbotController.getHealthSummary);
 

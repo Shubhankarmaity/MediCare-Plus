@@ -89,6 +89,15 @@ const MEDICAL_SYNONYMS = {
     'suger': 'diabetes blood sugar',
     'bp high': 'hypertension high blood pressure',
     'bp low': 'hypotension low blood pressure',
+    'urine infection': 'urinary tract infection uti',
+    'yellow eyes': 'jaundice hepatitis liver',
+    'white discharge': 'vaginal discharge pcos gynecology',
+    'chest burning': 'acid reflux gerd heartburn',
+    'memory loss': 'dementia alzheimer amnesia',
+    'runny tummy': 'diarrhea loose stool',
+    'stomach upset': 'stomach pain abdominal gas indigestion',
+    'mansturation': 'menstruation period',
+    'thyroid problem': 'hypothyroid hyperthyroid tsh',
 };
 
 /**
